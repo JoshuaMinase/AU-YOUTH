@@ -48,6 +48,17 @@ const NAV = [
     ),
   },
   {
+    href: '/dashboard/get-help',
+    label: 'Get Help',
+    icon: (
+      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <circle cx="10" cy="10" r="7" strokeLinecap="round"/>
+        <path d="M10 11v-1a2 2 0 10-2-2" strokeLinecap="round"/>
+        <circle cx="10" cy="14" r="0.5" fill="currentColor"/>
+      </svg>
+    ),
+  },
+  {
     href: '/dashboard/chats',
     label: 'Chats',
     icon: (
@@ -69,26 +80,19 @@ const NAV = [
   },
 ];
 
-const PAGE_TITLES: Record<string, string> = {
-  '/dashboard': 'Home',
-  '/dashboard/news': 'News',
-  '/dashboard/people': 'People',
-  '/dashboard/calendar': 'Calendar',
-  '/dashboard/chats': 'Chats',
-  '/dashboard/profile': 'Profile',
-};
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
     <div className={s.shell}>
-      {/* ── Sidebar ─────────────────────────────── */}
+      {/* ── Sidebar ──────────────────────────── */}
       <aside className={s.sidebar}>
-        <Link href="/dashboard" className={s.sidebarBrand}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/logo.svg" alt="AU Youth" className={s.sidebarLogo} />
-          <span className={s.sidebarBrandName}>AU Youth<br/>Network</span>
+        <Link href="/" className={s.sidebarBrand}>
+          <div className={s.sidebarLogoMark}>AU</div>
+          <div className={s.sidebarBrandText}>
+            <span className={s.sidebarBrandPrimary}>AU Youth Network</span>
+            <span className={s.sidebarBrandSub}>Intern Platform</span>
+          </div>
         </Link>
 
         <nav className={s.sidebarNav}>
@@ -110,8 +114,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className={s.sidebarFooter}>
           <Link href="/dashboard/profile" className={s.profileMini}>
-            <div className={s.profileAvatar}>YD</div>
-            <div className={s.profileMiniInfo}>
+            <div className={s.profileAvatarInitials}>YD</div>
+            <div>
               <div className={s.profileMiniName}>Yididiya D.</div>
               <div className={s.profileMiniRole}>Intern · HRST</div>
             </div>
@@ -119,25 +123,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* ── Main ────────────────────────────────── */}
+      {/* ── Main ─────────────────────────────── */}
       <div className={s.main}>
+        {/* Topbar — matches concept: right-aligned YD avatar + notification badge 4 */}
         <header className={s.topbar}>
-          <span className={s.topbarTitle}>{PAGE_TITLES[pathname] ?? 'Dashboard'}</span>
-          <div className={s.topbarActions}>
-            {/* Notifications */}
-            <button className={s.topbarIconBtn} aria-label="Notifications">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M10 2a6 6 0 00-6 6v3l-1.5 2.5h15L16 11V8a6 6 0 00-6-6z" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M8 16a2 2 0 004 0" strokeLinecap="round"/>
+          <div className={s.topbarRight}>
+            <button className={s.notifBtn} aria-label="Notifications">
+              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M10 2a6 6 0 00-6 6v3L2.5 14.5h15L16 11V8a6 6 0 00-6-6z" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M8 16.5a2 2 0 004 0" strokeLinecap="round"/>
               </svg>
-              <span className={s.topbarBadge} />
+              <span className={s.notifCount}>4</span>
             </button>
-            {/* Quick chat */}
-            <button className={s.topbarIconBtn} aria-label="Quick chat">
-              <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M4 4h12a1 1 0 011 1v8a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
+            <Link href="/dashboard/profile">
+              <button className={s.avatarBtn} aria-label="Profile">YD</button>
+            </Link>
           </div>
         </header>
 
