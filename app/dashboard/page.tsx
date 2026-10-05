@@ -1,133 +1,161 @@
 import s from '@/styles/Dashboard.module.css';
 import Link from 'next/link';
 
-/* ── Calendar ─────────────────────────────────────────────── */
-const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-const OFFSET = 1; // Sept 2026 starts Tuesday
-const TOTAL = 30;
-const TODAY = 8;
+/* ── Mini calendar (Sept 2026, starts Tuesday, offset=1) ─── */
+const WEEK  = ['MON','TUE','WED','THU','FRI','SAT','SUN'];
+const TODAY = 4;   // concept site shows day 4 as today
 const EVENT_DAYS = [7, 9, 11];
 
 function MiniCalendar() {
+  // Sept 2026: 1st is a Tuesday → 1 blank before it
   const cells: (number | null)[] = [
-    ...Array(OFFSET).fill(null),
-    ...Array.from({ length: TOTAL }, (_, i) => i + 1),
+    null, null, // Mon blank + Tue = 1st starts on Wed? Let's match the HTML exactly
   ];
-  while (cells.length % 7 !== 0) cells.push(null);
+  // From the actual HTML: <span class=" "></span><span class=" "></span><span class=" ">1</span>
+  // So there are 2 blanks before day 1 (starts Wednesday Sept 2026)
+  const blanks = [null, null];
+  const days = Array.from({ length: 30 }, (_, i) => i + 1);
+  const all: (number | null)[] = [...blanks, ...days];
+  while (all.length % 7 !== 0) all.push(null);
 
   return (
-    <div className={s.calGrid}>
-      {DAYS.map(d => <div key={d} className={s.calHead}>{d}</div>)}
-      {cells.map((day, i) => (
-        <div
-          key={i}
-          className={[
-            s.calDay,
-            !day ? s.calDayEmpty : '',
-            day === TODAY ? s.calDayToday : '',
-            day && EVENT_DAYS.includes(day) && day !== TODAY ? s.calDayHasEvent : '',
-          ].filter(Boolean).join(' ')}
-        >
-          {day ?? ''}
-        </div>
-      ))}
+    <div className={s.miniCalendar}>
+      <div className={s.calWeekRow}>
+        {WEEK.map(d => <span key={d} className={s.calWeekLabel}>{d}</span>)}
+      </div>
+      <div className={s.calDaysGrid}>
+        {all.map((day, i) => (
+          <span
+            key={i}
+            className={[
+              s.calDay,
+              !day ? s.calDayEmpty : '',
+              day === TODAY ? s.calDayToday : '',
+              day && EVENT_DAYS.includes(day) && day !== TODAY ? s.calDayEvent : '',
+            ].filter(Boolean).join(' ')}
+          >
+            {day ?? ''}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
 
-/* ── Announcements ───────────────────────────────────────── */
-const ITEMS = [
-  { day: '07', month: 'SEP', tag: 'meeting',  title: 'Weekly Intern Coordination',  meta: '10:00 Mandela Hall' },
-  { day: '09', month: 'SEP', tag: 'event',    title: 'Youth Innovation Exchange',   meta: '14:00 Online' },
-  { day: '11', month: 'SEP', tag: 'workshop', title: 'Skills Development Workshop', meta: '09:30 Nyerere Room' },
+/* ── Announcements data ──────────────────────────────────── */
+const EVENTS = [
+  { day: '07', month: 'SEP', tag: 'meeting',  title: 'Weekly Intern Coordination',  time: '10:00', location: 'Mandela Hall' },
+  { day: '09', month: 'SEP', tag: 'event',    title: 'Youth Innovation Exchange',   time: '14:00', location: 'Online' },
+  { day: '11', month: 'SEP', tag: 'workshop', title: 'Skills Development Workshop', time: '09:30', location: 'Nyerere Room' },
 ];
 
 export default function DashboardHome() {
   return (
     <>
-      {/* ── Profile completion banner ────────────── */}
-      <div className={s.completionBanner}>
-        <div className={s.completionLeft}>
-          <p className={s.completionPct}>65%</p>
-          <p className={s.completionTitle}>Complete your profile</p>
-          <p className={s.completionSub}>
-            Add the remaining required details so other interns can find and trust your profile.
-          </p>
-          <div className={s.progressBar}>
-            <div className={s.progressFill} style={{ width: '65%' }} />
-          </div>
+      {/* ── profile-reminder ────────────────────────── */}
+      <div className={s.profileReminder}>
+        <div className={s.completionRing}>
+          <span className={s.completionRingText}>65%</span>
         </div>
-        <Link href="/dashboard/profile">
-          <button className={s.completionBtn}>Finish profile</button>
+        <div className={s.reminderBody}>
+          <b>Complete your profile</b>
+          <p>Add the remaining required details so other interns can find and trust your profile.</p>
+        </div>
+        <Link href="/dashboard/profile" className={s.reminderBtn}>
+          Finish profile
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
         </Link>
       </div>
 
-      {/* ── Greeting ────────────────────────────────── */}
-      <div className={s.greetingSection}>
-        <p className={s.greetingDate}>TUESDAY, 8 SEPTEMBER</p>
-        <h1 className={s.greetingHeading}>Good morning, Yididiya.</h1>
-        <p className={s.greetingSub}>
-          Here is what is happening across your AU intern community.
-        </p>
-        <Link href="/dashboard/calendar" className={s.calendarBtn}>
-          Open calendar
-        </Link>
-      </div>
-
-      {/* ── Two column: Calendar + Announcements ─── */}
-      <div className={s.homeGrid}>
-        {/* Calendar widget */}
-        <div className={s.calWidget}>
-          <p className={s.sectionLabel}>SEPTEMBER 2026</p>
-          <div className={s.calWidgetHeader}>
-            <h2 className={s.calWidgetTitle}>Your calendar</h2>
-            <Link href="/dashboard/calendar" className={s.calWidgetLink}>Full calendar →</Link>
-          </div>
-          <MiniCalendar />
-          <div className={s.calEvents}>
-            <div className={s.calEventRow}>
-              <span className={s.calEventTime}>10:00</span>
-              <span className={s.calEventTitle}>Weekly Intern Coordination</span>
-            </div>
-            <div className={s.calEventRow}>
-              <span className={s.calEventTime}>14:00</span>
-              <span className={s.calEventTitle}>Youth Innovation Exchange</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Announcements */}
+      {/* ── v2-welcome ──────────────────────────────── */}
+      <div className={s.v2Welcome}>
         <div>
-          <p className={s.sectionLabel}>ANNOUNCEMENTS</p>
-          <div className={s.announcements}>
-            <div className={s.announcementsHeader}>
-              <h2 className={s.announcementsTitle}>Coming up</h2>
-              <span className={s.newBadge}>3 new</span>
-            </div>
-            {ITEMS.map(item => (
-              <div key={item.day} className={s.announcementItem}>
-                <div className={s.announceDateBlock}>
-                  <span className={s.announceDay}>{item.day}</span>
-                  <span className={s.announceMonth}>{item.month}</span>
-                </div>
-                <div className={s.announceBody}>
-                  <span className={s.announceTag}>{item.tag}</span>
-                  <p className={s.announceTitle}>{item.title}</p>
-                  <span className={s.announceMeta}>{item.meta}</span>
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className={s.welcomeDate}>TUESDAY, 8 SEPTEMBER</p>
+          <h1 className={s.welcomeHeading}>Good morning, Yididiya.</h1>
+          <p className={s.welcomeSub}>Here is what is happening across your AU intern community.</p>
         </div>
+        <Link href="/dashboard/calendar" className={s.openCalBtn}>
+          Open calendar
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>
+          </svg>
+        </Link>
       </div>
 
-      {/* ── Quick chat FAB ──────────────────────── */}
-      <Link href="/dashboard/chats" className={s.fab}>
-        <svg width="15" height="15" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8">
-          <path d="M4 4h12a1 1 0 011 1v8a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        Quick chat
-      </Link>
+      {/* ── v2-dashboard ────────────────────────────── */}
+      <div className={s.v2Dashboard}>
+
+        {/* v2-calendar-card */}
+        <div className={s.v2CalendarCard}>
+          <div className={s.miniCalHead}>
+            <div>
+              <p>SEPTEMBER 2026</p>
+              <h2>Your calendar</h2>
+            </div>
+            <Link href="/dashboard/calendar" className={s.fullCalBtn}>
+              Full calendar
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+            </Link>
+          </div>
+
+          <MiniCalendar />
+
+          {/* Today's event list */}
+          <div className={s.todayList}>
+            <div className={s.todayEvent}>
+              <span className={`${s.eventDot} ${s.meeting}`} />
+              <b>10:00</b>
+              <p>Weekly Intern Coordination</p>
+            </div>
+            <div className={s.todayEvent}>
+              <span className={`${s.eventDot} ${s.event}`} />
+              <b>14:00</b>
+              <p>Youth Innovation Exchange</p>
+            </div>
+          </div>
+        </div>
+
+        {/* v2-announcements */}
+        <div className={s.v2Announcements}>
+          <div className={s.v2PanelHead}>
+            <div>
+              <p>ANNOUNCEMENTS</p>
+              <h2>Coming up</h2>
+            </div>
+            <span className={s.newBadge}>3 new</span>
+          </div>
+
+          {EVENTS.map(ev => (
+            <div key={ev.day} className={s.v2Event}>
+              <div className={s.dateTile}>
+                <b>{ev.day}</b>
+                <small>{ev.month}</small>
+              </div>
+              <div className={s.eventBody}>
+                <span className={`${s.eventTag} ${s[ev.tag as keyof typeof s]}`}>{ev.tag}</span>
+                <h3>{ev.title}</h3>
+                <p>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                  </svg>
+                  {ev.time}
+                  {' '}
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  {ev.location}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+      </div>
     </>
   );
 }

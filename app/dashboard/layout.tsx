@@ -8,75 +8,38 @@ const NAV = [
   {
     href: '/dashboard',
     label: 'Home',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M3 8.5L10 3l7 5.5V17a1 1 0 01-1 1H4a1 1 0 01-1-1V8.5z" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M7 18v-7h6v7" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>,
   },
   {
     href: '/dashboard/news',
     label: 'News',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <rect x="3" y="4" width="14" height="13" rx="2" strokeLinecap="round"/>
-        <path d="M7 8h6M7 11h4" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18h-5"/><path d="M18 14h-8"/><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="10" y="6" rx="1"/></svg>,
   },
   {
     href: '/dashboard/people',
     label: 'People',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <circle cx="8" cy="7" r="3" strokeLinecap="round"/>
-        <path d="M2 17c0-3.3 2.7-6 6-6s6 2.7 6 6" strokeLinecap="round"/>
-        <circle cx="15" cy="7" r="2.5" strokeLinecap="round"/>
-        <path d="M18 17c0-2.5-1.5-4.5-3.5-5.3" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg>,
   },
   {
     href: '/dashboard/calendar',
     label: 'Calendar',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <rect x="3" y="5" width="14" height="12" rx="2" strokeLinecap="round"/>
-        <path d="M7 3v3M13 3v3M3 9h14" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg>,
   },
   {
     href: '/dashboard/get-help',
     label: 'Get Help',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <circle cx="10" cy="10" r="7" strokeLinecap="round"/>
-        <path d="M10 11v-1a2 2 0 10-2-2" strokeLinecap="round"/>
-        <circle cx="10" cy="14" r="0.5" fill="currentColor"/>
-      </svg>
-    ),
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>,
   },
   {
     href: '/dashboard/chats',
     label: 'Chats',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <path d="M4 4h12a1 1 0 011 1v8a1 1 0 01-1 1H6l-3 3V5a1 1 0 011-1z" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    ),
     badge: 3,
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/></svg>,
   },
   {
     href: '/dashboard/profile',
     label: 'Profile',
-    icon: (
-      <svg className={s.navIcon} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
-        <circle cx="10" cy="7" r="3.5" strokeLinecap="round"/>
-        <path d="M3 17c0-3.9 3.1-7 7-7s7 3.1 7 7" strokeLinecap="round"/>
-      </svg>
-    ),
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
   },
 ];
 
@@ -85,66 +48,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className={s.shell}>
-      {/* ── Sidebar ──────────────────────────── */}
-      <aside className={s.sidebar}>
-        <Link href="/" className={s.sidebarBrand}>
-          <div className={s.sidebarLogoMark}>AU</div>
-          <div className={s.sidebarBrandText}>
-            <span className={s.sidebarBrandPrimary}>AU Youth Network</span>
-            <span className={s.sidebarBrandSub}>Intern Platform</span>
+      {/* ── v2-bar: top sticky nav ──────────────────── */}
+      <header className={s.v2Bar}>
+        {/* Brand */}
+        <Link href="/" className={s.v2Brand}>
+          <div className={s.v2AuMark}>
+            AU
+            <i className={s.v2AuDot} />
           </div>
+          <span className={s.v2BrandName}>AU Youth Network</span>
         </Link>
 
-        <nav className={s.sidebarNav}>
+        {/* Nav items */}
+        <nav className={s.v2Nav}>
           {NAV.map(({ href, label, icon, badge }) => {
             const active = pathname === href;
             return (
               <Link
                 key={href}
                 href={href}
-                className={`${s.navItem} ${active ? s.navItemActive : ''}`}
+                className={`${s.v2NavBtn} ${active ? s.v2NavBtnActive : ''}`}
               >
                 {icon}
-                {label}
-                {badge && <span className={s.navBadge}>{badge}</span>}
+                <span className={s.v2NavLabel}>{label}</span>
+                {badge && <em className={s.v2NavBadge}>{badge}</em>}
               </Link>
             );
           })}
         </nav>
 
-        <div className={s.sidebarFooter}>
-          <Link href="/dashboard/profile" className={s.profileMini}>
-            <div className={s.profileAvatarInitials}>YD</div>
-            <div>
-              <div className={s.profileMiniName}>Yididiya D.</div>
-              <div className={s.profileMiniRole}>Intern · HRST</div>
-            </div>
-          </Link>
-        </div>
+        {/* Bell notifications + YD avatar — right side */}
+        <Link href="/dashboard/profile" className={s.v2Avatar} aria-label="Open profile">
+          YD
+        </Link>
+      </header>
+
+      {/* ── v2-page: main content ────────────────────── */}
+      <section className={s.v2Page}>
+        {children}
+      </section>
+
+      {/* ── quick-chat FAB ──────────────────────────── */}
+      <aside className={s.quickChat}>
+        <Link href="/dashboard/chats" className={s.quickHandle}>
+          <span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/>
+            </svg>
+            <b>Quick chat</b>
+          </span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </Link>
       </aside>
-
-      {/* ── Main ─────────────────────────────── */}
-      <div className={s.main}>
-        {/* Topbar — matches concept: right-aligned YD avatar + notification badge 4 */}
-        <header className={s.topbar}>
-          <div className={s.topbarRight}>
-            <button className={s.notifBtn} aria-label="Notifications">
-              <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.7">
-                <path d="M10 2a6 6 0 00-6 6v3L2.5 14.5h15L16 11V8a6 6 0 00-6-6z" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M8 16.5a2 2 0 004 0" strokeLinecap="round"/>
-              </svg>
-              <span className={s.notifCount}>4</span>
-            </button>
-            <Link href="/dashboard/profile">
-              <button className={s.avatarBtn} aria-label="Profile">YD</button>
-            </Link>
-          </div>
-        </header>
-
-        <main className={s.content}>
-          {children}
-        </main>
-      </div>
     </div>
   );
 }

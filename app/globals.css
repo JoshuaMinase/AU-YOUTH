@@ -8,6 +8,19 @@
 /* Landing page legacy tokens */
 :root{--gutter:clamp(8px,1.1vw,16px);--u:1px}
 
+/* Concept site design tokens — used in Dashboard.module.css */
+:root {
+  --ink:   #211f1b;
+  --cream: #f7f2e9;
+  --paper: #fffdfa;
+  --gold:  #d68b17;
+  --green: #176c50;
+  --red:   #b7483b;
+  --blue:  #284b79;
+  --muted: #706a60;
+  --line:  #ddd4c5;
+}
+
 /* Portal design tokens — inlined so @import order doesn't matter */
 :root {
   --color-primary:       #1a6b3c;
