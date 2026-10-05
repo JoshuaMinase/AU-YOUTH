@@ -1,6 +1,17 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
 import s from '@/styles/Auth.module.css';
 
 export default function SignUpPage() {
+  const router = useRouter();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    // TODO: replace with real auth call
+    router.push('/dashboard');
+  }
+
   return (
     <div className={s.page}>
       {/* ── LEFT: form ──────────────────────────────────── */}
@@ -24,7 +35,7 @@ export default function SignUpPage() {
           Connect with young African professionals, interns, and fellows.
         </p>
 
-        <form className={s.form}>
+        <form className={s.form} onSubmit={handleSubmit}>
           <div className={s.row}>
             <div className={s.field}>
               <label className={s.label} htmlFor="signup-firstname">First name</label>
@@ -34,6 +45,7 @@ export default function SignUpPage() {
                 type="text"
                 placeholder="Amara"
                 autoComplete="given-name"
+                required
               />
             </div>
             <div className={s.field}>
@@ -44,6 +56,7 @@ export default function SignUpPage() {
                 type="text"
                 placeholder="Diallo"
                 autoComplete="family-name"
+                required
               />
             </div>
           </div>
@@ -56,6 +69,7 @@ export default function SignUpPage() {
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              required
             />
           </div>
 
@@ -67,6 +81,7 @@ export default function SignUpPage() {
               type="password"
               placeholder="••••••••"
               autoComplete="new-password"
+              required
             />
           </div>
 

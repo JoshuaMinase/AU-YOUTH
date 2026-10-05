@@ -1,6 +1,17 @@
+'use client';
+
+import { useRouter } from 'next/navigation';
 import s from '@/styles/Auth.module.css';
 
 export default function LoginPage() {
+  const router = useRouter();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    // TODO: replace with real auth call
+    router.push('/dashboard');
+  }
+
   return (
     <div className={s.page}>
       {/* ── LEFT: form ──────────────────────────────────── */}
@@ -24,7 +35,7 @@ export default function LoginPage() {
           Log in to your AU Youth Network account.
         </p>
 
-        <form className={s.form}>
+        <form className={s.form} onSubmit={handleSubmit}>
           <div className={s.field}>
             <label className={s.label} htmlFor="login-email">Email</label>
             <input
@@ -33,6 +44,7 @@ export default function LoginPage() {
               type="email"
               placeholder="you@example.com"
               autoComplete="email"
+              required
             />
           </div>
 
@@ -44,6 +56,7 @@ export default function LoginPage() {
               type="password"
               placeholder="••••••••"
               autoComplete="current-password"
+              required
             />
           </div>
 
