@@ -1,0 +1,586 @@
+/* Section 3/4 — photo + stacking cards with community widgets */
+
+/* ── Spacer / root — height set by JS, stage sticks inside ────────────── */
+.spacer {
+  position: relative;
+  width: 100%;
+  background: #032210;
+}
+
+/* ── Stage — sticky so it stays put while spacer scrolls past ────────── */
+.stage {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  isolation: isolate;
+  background: #032210;
+}
+
+/* ── Photo background ────────────────────────────────────────────────── */
+.photoWrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ── Cards — full screen, covers photo ───────────────────────────────── */
+.card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  width: 100svw;
+  height: 100vh;
+  height: 100svh;
+  border-radius: 0;
+  overflow: hidden;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  transform-origin: 50% 100%;
+}
+
+/* hide parked cards until JS has positioned them (prevents a flash) */
+.spacer:not([data-ready]) .card:not(:first-child) {
+  visibility: hidden;
+}
+
+/* ════════════════════════════════════════════════════════════════════ */
+/*  NEW — s4- prefixed classes scoped under .spacer                      */
+/* ════════════════════════════════════════════════════════════════════ */
+
+/* ── Card background patterns using SVG images ─────────────────── */
+/*
+ * Each card has a solid background-color fallback, and the pattern
+ * is rendered via an absolutely-positioned <img class={s.cardPattern}>
+ * inside the card. object-fit: cover + inset: 0 guarantees the pattern
+ * fills edge-to-edge with zero gap, regardless of the SVG's internal
+ * viewBox offsets.
+ */
+.spacer [data-card-type="health"]    { background-color: #218380; }
+.spacer [data-card-type="impact"]    { background-color: #FBB13C; }
+.spacer [data-card-type="growth"]    { background-color: #8F2D56; }
+.spacer [data-card-type="wellbeing"] { background-color: #73D2DE; }
+
+/* The SVG pattern image — fills the card completely, edge-to-edge */
+.cardPattern {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+/* ── Dark overlay for falling cards ─────────────────────────────────── */
+.spacer :global(.s4-shade) {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* ── Content overlay grid ────────────────────────────────────────────── */
+.spacer :global(.s4-inner) {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr);
+  gap: clamp(20px, 3.2vw, 56px);
+  padding: clamp(64px, 9vh, 96px) clamp(20px, 3.4vw, 56px) clamp(18px, 3.4vh, 40px);
+  z-index: 3;
+}
+
+/* ── Left column: title, number, text, cta ──────────────────────────── */
+.spacer :global(.s4-left) {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 0;
+}
+
+.spacer :global(.s4-title) {
+  margin: 0;
+  font-family: 'Chopin', system-ui, sans-serif;
+  font-weight: 700;
+  font-size: clamp(52px, 8.4vw, 150px);
+  line-height: 0.92;
+  letter-spacing: -0.045em;
+  color: #fff;
+}
+
+.spacer :global(.s4-mask) {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.08em;
+}
+
+.spacer :global(.s4-line) {
+  display: block;
+  will-change: transform;
+}
+
+.spacer :global(.s4-bottom) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(20px, 4vw, 72px);
+}
+
+.spacer :global(.s4-num) {
+  font-family: 'Chopin', system-ui, sans-serif;
+  font-size: clamp(44px, 5.4vw, 96px);
+  font-weight: 500;
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  color: #fff;
+}
+
+.spacer :global(.s4-reveal) {
+  will-change: transform, opacity;
+}
+
+.spacer :global(.s4-copy) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 38ch;
+}
+
+.spacer :global(.s4-sub) {
+  margin: 0;
+  font-family: 'Chopin', system-ui, sans-serif;
+  font-weight: 300;
+  font-size: clamp(20px, 2vw, 32px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+
+.spacer :global(.s4-text) {
+  margin: 0;
+  font-family: 'Chopin', system-ui, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.spacer :global(.s4-cta) {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  align-self: flex-start;
+  margin-top: 4px;
+  font-family: 'Chopin', system-ui, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+}
+
+.spacer :global(.s4-cta-arrow) {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #032210;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.35s;
+}
+
+.spacer :global(.s4-cta:hover .s4-cta-arrow) {
+  transform: translateX(6px);
+  background: #032210;
+  color: #fff;
+}
+
+/* ── Right column: chips + widget ──────────────────────────────────── */
+.spacer :global(.s4-visual) {
+  position: relative;
+  min-height: 0;
+}
+
+/* ── Floating chips ────────────────────────────────────────────────── */
+.spacer :global(.s4-chips) {
+  position: absolute;
+  bottom: clamp(14px, 1.6vw, 22px);
+  right: clamp(14px, 1.6vw, 22px);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 4;
+}
+
+.spacer :global(.s4-chip > span) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: 'Chopin', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation: s4-float 5.5s ease-in-out infinite;
+}
+
+.spacer :global(.s4-chip:nth-child(2) > span) {
+  animation-delay: -2.6s;
+}
+
+.spacer :global(.s4-chip i) {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #1F6B43;
+  box-shadow: 0 0 0 0 rgba(31, 107, 67, 0.5);
+  animation: s4-live 2s ease-out infinite;
+}
+
+/* ── Glass widget card — top-right, bigger ───────────────────────────── */
+.spacer :global(.s4-widget) {
+  position: absolute;
+  top: clamp(14px, 1.6vw, 24px);
+  right: clamp(14px, 1.6vw, 24px);
+  z-index: 4;
+  width: clamp(280px, 30vw, 420px);
+  padding: 20px 22px 22px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22), 0 2px 0 rgba(255, 255, 255, 0.6) inset;
+  font-family: 'Chopin', system-ui, sans-serif;
+}
+
+.spacer :global(.s4-w-top) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.spacer :global(.s4-w-label) {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(16, 20, 16, 0.55);
+}
+
+.spacer :global(.s4-w-badge) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(31, 107, 67, 0.12);
+  color: #1F6B43;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.spacer :global(.s4-up) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.spacer :global(.s4-w-svg) {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 34vh;
+  overflow: visible;
+}
+
+.spacer :global(.s4-w-svg circle),
+.spacer :global(.s4-w-svg g),
+.spacer :global(.s4-w-svg path) {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.spacer :global(.s4-w-count) {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.spacer :global(.s4-w-count strong) {
+  font-size: clamp(34px, 3.4vw, 50px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: #101410;
+}
+
+.spacer :global(.s4-w-count span) {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(16, 20, 16, 0.6);
+}
+
+.spacer :global(.s4-ring-pulse) {
+  animation: s4-ring-pulse 2.6s ease-out infinite;
+}
+
+/* ── Skills widget ──────────────────────────────────────────────────── */
+.spacer :global(.s4-skills) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.spacer :global(.s4-skill) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #101410;
+}
+
+.spacer :global(.s4-bar) {
+  display: block;
+  height: 10px;
+  border-radius: 99px;
+  background: rgba(16, 20, 16, 0.08);
+  overflow: hidden;
+}
+
+.spacer :global(.s4-bar-fill) {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, #1F6B43, #3fae72);
+}
+
+.spacer :global(.s4-skill:nth-child(2) .s4-bar-fill) {
+  background: linear-gradient(90deg, #e0a800, #F4C430);
+}
+
+.spacer :global(.s4-skill:nth-child(3) .s4-bar-fill) {
+  background: linear-gradient(90deg, #E4572E, #ff8a5b);
+}
+
+.spacer :global(.s4-skill:nth-child(4) .s4-bar-fill) {
+  background: linear-gradient(90deg, #5b3fa0, #8f73da);
+}
+
+/* ── Network + Growth widgets ───────────────────────────────────────── */
+.spacer :global(.s4-w-svg--wide) {
+  margin: 2px 0 6px;
+}
+
+.spacer :global(.s4-link) {
+  stroke-dasharray: 1;
+}
+
+.spacer :global(.s4-line-path) {
+  stroke-dasharray: 1;
+}
+
+.spacer :global(.s4-area) {
+  will-change: opacity;
+}
+
+.spacer :global(.s4-end) {
+  will-change: transform;
+}
+
+.spacer :global(.s4-node-pulse),
+.spacer :global(.s4-end-pulse) {
+  opacity: 0.35;
+  animation: s4-node-pulse 2.4s ease-out infinite;
+}
+
+.spacer :global(.s4-node:nth-child(2n) .s4-node-pulse) {
+  animation-delay: -0.8s;
+}
+
+.spacer :global(.s4-node:nth-child(3n) .s4-node-pulse) {
+  animation-delay: -1.5s;
+}
+
+.spacer :global(.s4-pills) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.spacer :global(.s4-pill) {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(16, 20, 16, 0.07);
+  font-size: 12px;
+  font-weight: 600;
+  color: #101410;
+}
+
+/* ── Keyframes ──────────────────────────────────────────────────────── */
+@keyframes s4-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+@keyframes s4-live {
+  0%   { box-shadow: 0 0 0 0 rgba(31, 107, 67, 0.5); }
+  100% { box-shadow: 0 0 0 9px rgba(31, 107, 67, 0); }
+}
+
+@keyframes s4-ring-pulse {
+  0%   { transform: scale(0.97); opacity: 0.55; }
+  100% { transform: scale(1.2); opacity: 0; }
+}
+
+@keyframes s4-node-pulse {
+  0%   { transform: scale(0.7); opacity: 0.45; }
+  100% { transform: scale(2.1); opacity: 0; }
+}
+
+/* ── Responsive: under 860px ────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .spacer :global(.s4-inner) {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 14px;
+    padding: 64px 16px 16px;
+  }
+
+  .spacer :global(.s4-left) {
+    gap: 10px;
+    justify-content: flex-start;
+  }
+
+  .spacer :global(.s4-title) {
+    font-size: clamp(44px, 14vw, 84px);
+  }
+
+  .spacer :global(.s4-bottom) {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .spacer :global(.s4-num) {
+    font-size: 34px;
+  }
+
+  .spacer :global(.s4-copy) {
+    gap: 8px;
+  }
+
+  .spacer :global(.s4-sub) {
+    font-size: 18px;
+  }
+
+  .spacer :global(.s4-text) {
+    display: none;
+  }
+
+  .spacer :global(.s4-cta) {
+    font-size: 14px;
+  }
+
+  .spacer :global(.s4-cta-arrow) {
+    width: 30px;
+    height: 30px;
+  }
+
+  .spacer :global(.s4-chips) {
+    display: none;
+  }
+
+  .spacer :global(.s4-widget) {
+    width: min(70%, 300px);
+    padding: 14px 16px 16px;
+    border-radius: 18px;
+  }
+
+  .spacer :global(.s4-w-svg) {
+    max-height: 22vh;
+  }
+
+  .spacer :global(.s4-w-count strong) {
+    font-size: 30px;
+  }
+
+  .spacer :global(.s4-skills) {
+    gap: 9px;
+  }
+}
+
+@media (max-height: 640px) and (min-width: 861px) {
+  .spacer :global(.s4-text) {
+    display: none;
+  }
+  .spacer :global(.s4-w-svg) {
+    max-height: 28vh;
+  }
+}
+
+/* ── Reduced motion: plain stacked cards, no sticky ─────────────────── */
+.spacer:global(.s4-static) {
+  height: auto !important;
+  overflow: visible;
+}
+
+.spacer:global(.s4-static) .stage {
+  position: relative;
+  height: auto;
+}
+
+.spacer:global(.s4-static) .card {
+  visibility: visible !important;
+  position: relative;
+  top: unset;
+  left: unset;
+  width: 100%;
+  height: 100vh;
+  height: 100svh;
+  transform: none !important;
+  margin-bottom: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spacer :global(.s4-chip > span),
+  .spacer :global(.s4-chip i),
+  .spacer :global(.s4-ring-pulse),
+  .spacer :global(.s4-node-pulse),
+  .spacer :global(.s4-end-pulse) {
+    animation: none;
+  }
+}

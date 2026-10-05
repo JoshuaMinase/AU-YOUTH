@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@font-face{font-family:'Chopin';src:url('/assets/fonts/Chopin-Trial-Regular-BF65b1d6917c0ec.otf') format('opentype');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Chopin';src:url('/assets/fonts/Chopin-Trial-Medium-BF65b1d69162573.otf') format('opentype');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Chopin';src:url('/assets/fonts/Chopin-Trial-SemiBold-BF65b1d6917f846.otf') format('opentype');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Chopin';src:url('/assets/fonts/Chopin-Trial-Bold-BF65b1d691a55be.otf') format('opentype');font-weight:700;font-style:normal;font-display:swap}
+
+/* Landing page legacy tokens */
+:root{--gutter:clamp(8px,1.1vw,16px);--u:1px}
+
+/* Portal design tokens — inlined so @import order doesn't matter */
+:root {
+  --color-primary:       #1a6b3c;
+  --color-primary-light: #e8f5ee;
+  --color-primary-mid:   #2d8f55;
+  --color-gold:          #c9922a;
+  --color-gold-light:    #fdf3e3;
+  --color-bg:            #f4f5f7;
+  --color-surface:       #ffffff;
+  --color-border:        #e4e6ea;
+  --color-border-light:  #f0f1f3;
+  --color-text:          #1a1d23;
+  --color-text-2:        #4a4f5c;
+  --color-text-3:        #8a909e;
+  --color-text-inv:      #ffffff;
+  --color-success:       #1a6b3c;
+  --color-success-bg:    #e8f5ee;
+  --color-warning:       #c9922a;
+  --color-warning-bg:    #fdf3e3;
+  --color-danger:        #c0392b;
+  --color-danger-bg:     #fdecea;
+  --color-info:          #1a5fa6;
+  --color-info-bg:       #e8f0fc;
+  --dept-political:      #8b1a4a;
+  --dept-political-bg:   #fce8f1;
+  --dept-infra:          #1a4a8b;
+  --dept-infra-bg:       #e8f0fc;
+  --dept-education:      #1a6b3c;
+  --dept-education-bg:   #e8f5ee;
+  --dept-health:         #0e7a7a;
+  --dept-health-bg:      #e6f5f5;
+  --dept-trade:          #c9922a;
+  --dept-trade-bg:       #fdf3e3;
+  --dept-agriculture:    #5a7a1a;
+  --dept-agriculture-bg: #f0f5e6;
+  --dept-peace:          #6b1a1a;
+  --dept-peace-bg:       #f5e8e8;
+  --dept-comms:          #4a1a8b;
+  --dept-comms-bg:       #f0e8fc;
+  --font-ui:             'Chopin', system-ui, -apple-system, sans-serif;
+  --text-xs:             11px;
+  --text-sm:             12px;
+  --text-base:           14px;
+  --text-md:             15px;
+  --text-lg:             16px;
+  --text-xl:             18px;
+  --text-2xl:            20px;
+  --text-3xl:            24px;
+  --text-4xl:            28px;
+  --lh-tight:            1.2;
+  --lh-snug:             1.35;
+  --lh-normal:           1.5;
+  --lh-relaxed:          1.65;
+  --fw-normal:           400;
+  --fw-medium:           500;
+  --fw-semibold:         600;
+  --fw-bold:             700;
+  --sp-1:   4px;  --sp-2:  8px;  --sp-3:  12px; --sp-4:  16px;
+  --sp-5:  20px;  --sp-6: 24px;  --sp-7:  28px; --sp-8:  32px;
+  --sp-10: 40px;  --sp-12: 48px;
+  --r-sm:   6px;  --r-md: 10px;  --r-lg:  14px; --r-xl:  18px; --r-pill: 999px;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04);
+  --sidebar-w:  248px;
+  --topbar-h:   60px;
+  --content-max: 1200px;
+  --transition: 150ms ease-out;
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:#fff;font:400 100%/1.5 'Chopin',system-ui,sans-serif;letter-spacing:.01em;-webkit-font-smoothing:antialiased}
+
+/* Lenis smooth scroll support */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+.lenis.lenis-scrolling iframe {
+  pointer-events: none;
+}
+
+/* Portal pages use neutral bg */
+.au-portal{background:var(--color-bg);min-height:100vh}
+
+/* Focus ring */
+:focus-visible{outline:2px solid var(--color-primary);outline-offset:2px}
+
+/* Portal base resets (scoped so landing is unaffected) */
+.au-portal *{box-sizing:border-box}
+.au-portal a{color:inherit;text-decoration:none}
+.au-portal ul,.au-portal ol{list-style:none;margin:0;padding:0}
+
+/* Scrollbar (portal) */
+.au-portal ::-webkit-scrollbar{width:6px;height:6px}
+.au-portal ::-webkit-scrollbar-track{background:transparent}
+.au-portal ::-webkit-scrollbar-thumb{background:var(--color-border);border-radius:3px}
+.au-portal ::-webkit-scrollbar-thumb:hover{background:var(--color-text-3)}

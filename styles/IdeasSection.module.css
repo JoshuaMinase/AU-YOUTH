@@ -1,0 +1,106 @@
+/*
+ * IdeasSection.module.css
+ * "All of our ideas in one place" section with interactive folder.
+ * The folder bleeds into the footer via negative margin.
+ */
+
+.wrap {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  min-height: 140vh;           /* was 100vh — taller section */
+  background: #ffffff;
+  padding-bottom: 280px;       /* was 200px — more folder bleed room */
+}
+
+/* ── Text block ───────────────────────────────────────────────────── */
+.inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1280px;
+  padding: 100px 120px 0;      /* reduced from 180px to bring text higher */
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+.hl {
+  color: #2F80ED;
+}
+
+.body {
+  margin: 24px 0 0;              /* reduced from 56px to bring closer to title */
+  max-width: 540px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #0F2A1A;
+}
+
+/* ── Folder stage ─────────────────────────────────────────────────── */
+.folderStage {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 600px;
+  z-index: 1;
+}
+
+.slot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.folder {
+  margin-bottom: -80px; /* partial bleed into footer */
+}
+
+/* ── Tablet 768–1023px ────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .inner {
+    padding: 80px 64px 0;          /* reduced from 160px */
+  }
+
+  .folderStage {
+    height: 500px;
+  }
+}
+
+/* ── Mobile < 768px ─────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .wrap {
+    min-height: auto;
+    padding-bottom: 180px;
+  }
+
+  .inner {
+    padding: 60px 24px 0;          /* reduced from 120px */
+  }
+
+  .title {
+    font-size: 36px;
+  }
+
+  .body {
+    font-size: 15px;
+  }
+
+  .folderStage {
+    height: 400px;
+  }
+
+  .folder {
+    margin-bottom: -60px;
+  }
+}

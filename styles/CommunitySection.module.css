@@ -1,0 +1,262 @@
+/*
+ * CommunitySection.module.css
+ * "Be Part of Something Larger Than Yourself"
+ *
+ * Layout:  illustration LEFT (55%) bleeds bottom-left  |  text RIGHT (45%)
+ * No border-top — seamless join with the section above.
+ *
+ * Design tokens (local)
+ *   --au-green  : #0F2A1A   (headings, borders, outlines)
+ *   --au-yellow : #FFD21A   (primary CTA background)
+ *   --au-gray   : #4A4A4A   (body copy)
+ */
+
+/* ── Section shell ─────────────────────────────────────────────────── */
+.section {
+  --au-green:  #0F2A1A;
+  --au-yellow: #FFD21A;
+  --au-gray:   #4A4A4A;
+
+  position: relative;
+  width: 100%;
+  min-height: 720px;
+  background: #ffffff;
+
+  /* No border — seamless transition from section above */
+
+  /* Two-column grid: illustration LEFT (55%) | text RIGHT (45%) */
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  align-items: center;
+
+  overflow: hidden;
+}
+
+/* ── RIGHT — text column ────────────────────────────────────────────── */
+.textCol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+
+  /* Text is on the RIGHT:
+     - left  padding: small gap from the illustration column
+     - right padding: generous outer-edge breathing room
+     - top/bottom: vertical breathing room */
+  padding: clamp(56px, 7vw, 112px)
+           clamp(40px, 6vw, 96px)
+           clamp(56px, 7vw, 112px)
+           clamp(24px, 3vw, 48px);
+
+  max-width: 680px;
+}
+
+/* ── Heading ────────────────────────────────────────────────────────── */
+.heading {
+  margin: 0 0 clamp(32px, 3.5vw, 56px) 0;   /* 56px gap below H2 per spec */
+  font-family: 'Chopin', system-ui, -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: clamp(36px, 4vw, 52px);          /* ~48-52px per spec */
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--au-green);
+}
+
+/* ── Body copy ──────────────────────────────────────────────────────── */
+.body {
+  margin: 0;
+  font-family: 'Chopin', system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  font-size: clamp(15px, 1.15vw, 18px);       /* 17-18px per spec */
+  line-height: 1.7;
+  letter-spacing: 0.005em;
+  color: var(--au-gray);
+  max-width: 52ch;
+}
+
+/* 24px gap between the two paragraphs */
+.body + .body {
+  margin-top: 24px;
+}
+
+/* ── CTA row ────────────────────────────────────────────────────────── */
+.ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: clamp(40px, 4.5vw, 64px);      /* 64px below paragraphs per spec */
+}
+
+/* ── Shared button base ─────────────────────────────────────────────── */
+.btnPrimary,
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Chopin', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: clamp(14px, 1vw, 16px);
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  border-radius: 10px;                        /* spec: radius 10px */
+  padding: 16px 32px;                         /* spec: 16px 32px */
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color           0.18s ease,
+    border-color    0.18s ease,
+    box-shadow      0.18s ease,
+    transform       0.15s ease;
+  white-space: nowrap;
+  /* Visible focus ring — spec: 2px offset, #0F2A1A */
+  outline-offset: 2px;
+}
+
+.btnPrimary:focus-visible,
+.btnSecondary:focus-visible {
+  outline: 2px solid var(--au-green);
+}
+
+/* ── Primary: yellow fill, dark text ───────────────────────────────── */
+.btnPrimary {
+  background: var(--au-yellow);
+  color: var(--au-green);
+  border: 1.5px solid var(--au-yellow);
+}
+
+/* Hover: slightly darker yellow + 2px lift */
+.btnPrimary:hover {
+  background: #e6bc00;
+  border-color: #e6bc00;
+  box-shadow: 0 2px 8px rgba(15, 42, 26, 0.18);
+  transform: translateY(-2px);
+}
+
+.btnPrimary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* ── Secondary: transparent + border, fills dark on hover ──────────── */
+.btnSecondary {
+  background: transparent;
+  color: var(--au-green);
+  border: 1.5px solid var(--au-green);
+}
+
+.btnSecondary:hover {
+  background: var(--au-green);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 42, 26, 0.18);
+  transform: translateY(-2px);
+}
+
+.btnSecondary:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* ── LEFT — illustration ────────────────────────────────────────────── */
+.illustrationWrap {
+  position: relative;
+  align-self: stretch;
+  /* Bleed off the left and bottom edges */
+  margin-bottom: -4px;
+  margin-left: -1px;
+}
+
+.illustration {
+  object-fit: contain;
+  /* Anchor the crowd to the bottom-left corner */
+  object-position: left bottom;
+}
+
+/* ── Tablet 768–1023px ──────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .section {
+    min-height: 560px;
+    grid-template-columns: 50fr 50fr;
+  }
+
+  .heading {
+    font-size: clamp(32px, 4.5vw, 40px);      /* spec: 40px on tablet */
+  }
+
+  .textCol {
+    padding: clamp(40px, 5vw, 64px) clamp(24px, 3vw, 40px)
+             clamp(40px, 5vw, 64px) clamp(24px, 4vw, 48px);
+  }
+}
+
+/* ── Mobile < 768px ─────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .section {
+    /* Stack: text first, illustration below (spec) */
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto;
+    min-height: auto;
+    border-top-width: 3px;
+  }
+
+  /* Text goes on top on mobile */
+  .textCol {
+    order: 1;
+    padding: 48px 24px 32px;
+    max-width: 100%;
+  }
+
+  .heading {
+    font-size: 32px;                          /* spec: 32px on mobile */
+    margin-bottom: 32px;
+  }
+
+  .body {
+    font-size: 15px;
+    max-width: 100%;
+  }
+
+  /* Buttons go full-width and stack with 12px gap */
+  .ctas {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    margin-top: 40px;
+  }
+
+  .btnPrimary,
+  .btnSecondary {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Illustration below, full-width, ~360px tall, anchored at bottom */
+  .illustrationWrap {
+    order: 2;
+    width: 100%;
+    height: 360px;
+    align-self: auto;
+    margin-bottom: 0;
+    margin-left: 0;
+  }
+
+  .illustration {
+    object-fit: cover;
+    object-position: center bottom;
+  }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .btnPrimary,
+  .btnSecondary {
+    transition: background-color 0.18s ease, color 0.18s ease,
+                border-color 0.18s ease;
+  }
+
+  .btnPrimary:hover,
+  .btnSecondary:hover,
+  .btnPrimary:active,
+  .btnSecondary:active {
+    transform: none;
+    box-shadow: none;
+  }
+}

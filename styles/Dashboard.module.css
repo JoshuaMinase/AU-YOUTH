@@ -1,0 +1,847 @@
+/* ── Dashboard shell ──────────────────────────────────────────────────── */
+
+.shell {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 1fr;
+  min-height: 100vh;
+  background: #f5f6f8;
+  font-family: 'Chopin', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+.sidebar {
+  background: #032210;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebarBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 28px 24px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  text-decoration: none;
+}
+.sidebarLogo {
+  width: 34px;
+  height: auto;
+  flex-shrink: 0;
+  filter: brightness(0) invert(1);
+}
+.sidebarBrandName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+}
+
+.sidebarNav {
+  flex: 1;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: rgba(255,255,255,0.65);
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+}
+.navItem:hover {
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+}
+.navItemActive {
+  background: rgba(251,177,60,0.15);
+  color: #FBB13C;
+}
+.navItemActive:hover {
+  background: rgba(251,177,60,0.2);
+  color: #FBB13C;
+}
+
+.navIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+.navItemActive .navIcon {
+  opacity: 1;
+}
+
+.navBadge {
+  margin-left: auto;
+  background: #FBB13C;
+  color: #032210;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+}
+
+.sidebarFooter {
+  padding: 16px 12px 24px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.profileMini {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.profileMini:hover { background: rgba(255,255,255,0.07); }
+
+.profileAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #FBB13C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #032210;
+  flex-shrink: 0;
+}
+.profileMiniInfo {
+  min-width: 0;
+}
+.profileMiniName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.profileMiniRole {
+  font-size: 11px;
+  color: rgba(255,255,255,0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Main area ────────────────────────────────────────────────────────── */
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── Topbar ───────────────────────────────────────────────────────────── */
+.topbar {
+  background: #fff;
+  border-bottom: 1px solid #eaecef;
+  padding: 0 32px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbarTitle {
+  font-size: 17px;
+  font-weight: 700;
+  color: #032210;
+  letter-spacing: -0.01em;
+}
+
+.topbarActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbarIconBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: none;
+  background: #f5f6f8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #032210;
+  transition: background 0.15s;
+  position: relative;
+}
+.topbarIconBtn:hover { background: #eaecef; }
+
+.topbarBadge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 8px;
+  height: 8px;
+  background: #FBB13C;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+/* ── Content ──────────────────────────────────────────────────────────── */
+.content {
+  padding: 32px;
+  flex: 1;
+}
+
+/* ── Greeting section ─────────────────────────────────────────────────── */
+.greeting {
+  margin-bottom: 28px;
+}
+.greetingLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(3,34,16,0.45);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.greetingTitle {
+  font-size: clamp(24px, 3vw, 32px);
+  font-weight: 800;
+  color: #032210;
+  margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+/* ── Grid layouts ─────────────────────────────────────────────────────── */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.grid3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.gridAuto {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+/* ── Card ─────────────────────────────────────────────────────────────── */
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.cardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #032210;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.cardLink {
+  font-size: 13px;
+  font-weight: 600;
+  color: #032210;
+  text-decoration: none;
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+.cardLink:hover { opacity: 1; }
+
+/* ── Profile completion banner ────────────────────────────────────────── */
+.completionBanner {
+  background: linear-gradient(135deg, #032210 0%, #0a3d1e 100%);
+  border-radius: 16px;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+.completionText {
+  flex: 1;
+  min-width: 0;
+}
+.completionTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 4px;
+}
+.completionSub {
+  font-size: 13px;
+  color: rgba(255,255,255,0.6);
+  margin: 0 0 12px;
+}
+.progressTrack {
+  height: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progressFill {
+  height: 100%;
+  background: #FBB13C;
+  border-radius: 999px;
+  transition: width 0.6s ease;
+}
+.completionBtn {
+  padding: 10px 20px;
+  background: #FBB13C;
+  color: #032210;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.completionBtn:hover { background: #e89e20; }
+
+/* ── Announcement items ───────────────────────────────────────────────── */
+.announcementList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.announcementItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f8f9fb;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.announcementItem:hover { background: #f0f2f5; }
+
+.announcementDate {
+  flex-shrink: 0;
+  width: 42px;
+  text-align: center;
+}
+.announcementDay {
+  font-size: 18px;
+  font-weight: 800;
+  color: #032210;
+  line-height: 1;
+  display: block;
+}
+.announcementMonth {
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(3,34,16,0.45);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.announcementBody { flex: 1; min-width: 0; }
+.announcementTag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(3,34,16,0.08);
+  color: #032210;
+  margin-bottom: 4px;
+}
+.announcementTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #032210;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.announcementMeta {
+  font-size: 12px;
+  color: rgba(3,34,16,0.45);
+}
+
+/* ── Calendar mini ────────────────────────────────────────────────────── */
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+}
+.calDayHead {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(3,34,16,0.4);
+  padding: 4px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.calDay {
+  font-size: 13px;
+  padding: 6px 2px;
+  border-radius: 8px;
+  color: rgba(3,34,16,0.7);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.calDay:hover { background: #f0f2f5; }
+.calDayToday {
+  background: #032210;
+  color: #fff;
+  font-weight: 700;
+}
+.calDayToday:hover { background: #0a3d1e; }
+.calDayEvent {
+  position: relative;
+}
+.calDayEvent::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #FBB13C;
+}
+
+/* ── People card ──────────────────────────────────────────────────────── */
+.personCard {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
+}
+.personCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+.personAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin: 0 auto 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #032210;
+}
+.personName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #032210;
+  margin: 0 0 2px;
+}
+.personRole {
+  font-size: 12px;
+  color: rgba(3,34,16,0.5);
+  margin: 0 0 4px;
+}
+.personCountry {
+  font-size: 11px;
+  color: rgba(3,34,16,0.4);
+  margin: 0 0 14px;
+}
+.personConnectBtn {
+  padding: 7px 18px;
+  background: #f5f6f8;
+  color: #032210;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.personConnectBtn:hover { background: #eaecef; }
+
+/* ── News card ────────────────────────────────────────────────────────── */
+.newsCard {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  display: flex;
+  flex-direction: column;
+}
+.newsCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+.newsCardImg {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  display: block;
+}
+.newsCardBody {
+  padding: 16px 18px 18px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.newsCardTag {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #FBB13C;
+  margin-bottom: 6px;
+}
+.newsCardTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #032210;
+  line-height: 1.4;
+  margin: 0 0 8px;
+  flex: 1;
+}
+.newsCardMeta {
+  font-size: 12px;
+  color: rgba(3,34,16,0.4);
+}
+
+/* ── Chats ────────────────────────────────────────────────────────────── */
+.chatList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.chatItem {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid #f0f2f5;
+}
+.chatItem:hover { background: #f8f9fb; }
+.chatItemActive { background: #f0f2f5; }
+.chatAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #032210;
+  flex-shrink: 0;
+}
+.chatInfo { flex: 1; min-width: 0; }
+.chatName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #032210;
+  margin: 0 0 2px;
+}
+.chatPreview {
+  font-size: 13px;
+  color: rgba(3,34,16,0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chatMeta {
+  text-align: right;
+  flex-shrink: 0;
+}
+.chatTime {
+  font-size: 11px;
+  color: rgba(3,34,16,0.35);
+  margin-bottom: 4px;
+}
+.chatUnread {
+  width: 20px;
+  height: 20px;
+  background: #FBB13C;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  color: #032210;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+}
+
+/* ── Profile ──────────────────────────────────────────────────────────── */
+.profileHeader {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+.profileAvatarLarge {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #FBB13C;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  color: #032210;
+  flex-shrink: 0;
+}
+.profileName {
+  font-size: 24px;
+  font-weight: 800;
+  color: #032210;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+.profileSubtitle {
+  font-size: 14px;
+  color: rgba(3,34,16,0.5);
+  margin: 0 0 12px;
+}
+.profileEditBtn {
+  padding: 9px 20px;
+  background: #032210;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.profileEditBtn:hover { background: #0a3d1e; }
+
+.profileInfoGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.profileInfoItem {
+  background: #f8f9fb;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+.profileInfoLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(3,34,16,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+.profileInfoValue {
+  font-size: 14px;
+  font-weight: 600;
+  color: #032210;
+}
+
+/* ── Skill tags ───────────────────────────────────────────────────────── */
+.skillTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.skillTag {
+  padding: 6px 14px;
+  background: rgba(3,34,16,0.06);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #032210;
+}
+
+/* ── Page header ──────────────────────────────────────────────────────── */
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.pageTitle {
+  font-size: 22px;
+  font-weight: 800;
+  color: #032210;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+.pageSubtitle {
+  font-size: 14px;
+  color: rgba(3,34,16,0.5);
+  margin: 4px 0 0;
+}
+
+/* ── Search bar ───────────────────────────────────────────────────────── */
+.searchBar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1.5px solid #eaecef;
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+.searchInput {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  font-family: inherit;
+  color: #032210;
+  background: transparent;
+}
+.searchInput::placeholder { color: rgba(3,34,16,0.3); }
+
+/* ── Calendar full ────────────────────────────────────────────────────── */
+.calFull {
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.calHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eaecef;
+}
+.calMonthTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: #032210;
+}
+.calNavBtn {
+  width: 36px;
+  height: 36px;
+  background: #f5f6f8;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 16px;
+  color: #032210;
+  transition: background 0.12s;
+}
+.calNavBtn:hover { background: #eaecef; }
+.calBody {
+  padding: 20px 24px 24px;
+}
+.calFullGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.calFullDayHead {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(3,34,16,0.4);
+  padding: 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.calFullDay {
+  min-height: 72px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: border-color 0.12s, background 0.12s;
+  cursor: pointer;
+}
+.calFullDay:hover { background: #f8f9fb; border-color: #eaecef; }
+.calFullDayNum {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(3,34,16,0.6);
+  margin-bottom: 4px;
+}
+.calFullDayToday .calFullDayNum {
+  background: #032210;
+  color: #fff;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.calFullDayOtherMonth { opacity: 0.3; }
+.calEvent {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(251,177,60,0.2);
+  color: #032210;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 1024px) {
+  .grid3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+  .shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .grid2 { grid-template-columns: 1fr; }
+  .grid3 { grid-template-columns: 1fr; }
+  .content { padding: 20px 16px; }
+  .topbar { padding: 0 16px; }
+  .profileInfoGrid { grid-template-columns: 1fr; }
+}

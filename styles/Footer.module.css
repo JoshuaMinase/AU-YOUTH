@@ -1,0 +1,268 @@
+/*
+ * Footer.module.css
+ * Compact dark-green footer — horizontal layout, kept short.
+ * Pattern SVGs are preserved.  Height target: ~200px desktop.
+ */
+
+.footer {
+  --folder-overlap: -180px;
+
+  position: relative;
+  z-index: 20;
+  width: 100%;
+  /* No min-height — let content dictate the height */
+  margin-top: var(--folder-overlap);
+
+  background: #0F2A1A;
+  color: #ffffff;
+  overflow: hidden;
+  isolation: isolate;
+
+  border-top: none;
+  border-radius: 0;
+  font-family: 'Chopin', system-ui, -apple-system, sans-serif;
+}
+
+/* ── Inner content — horizontal three-column row ───────────────────── */
+.inner {
+  position: relative;
+  z-index: 2;
+  max-width: 1280px;
+  margin: 0;           /* left-align the block instead of centering */
+
+  /*
+   * Top pad = overlap height + breathing room so text clears the fold line.
+   * Bottom pad keeps the bottom edge from feeling cramped.
+   */
+  padding: calc(var(--folder-overlap) * -1 + 24px) 80px 32px 48px; /* reduced left pad from 80→48 */
+
+  display: flex;
+  align-items: flex-start;
+  gap: 64px;
+}
+
+/* ── Column 1 — Logo ────────────────────────────────────────────────── */
+.logoCol {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.logo {
+  width: 96px;     /* increased from 72px */
+  height: auto;
+  display: block;
+}
+
+.brand {
+  margin: 0;
+  font-size: 16px;  /* increased from 13px */
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+/* ── Column 2 — Tagline words ───────────────────────────────────────── */
+.wordsCol {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.words {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 36px;        /* increased from 28px */
+  font-size: 28px;  /* increased from 22px */
+  font-weight: 700; /* increased from 600 */
+  line-height: 1.1;
+  color: #ffffff;
+}
+
+.tag {
+  margin: 14px 0 0; /* increased from 10px */
+  font-size: 15px;  /* increased from 13px */
+  font-weight: 400;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.8); /* increased opacity from 0.7 */
+  max-width: 420px; /* increased from 380px */
+}
+
+/* ── Column 3 — Links / info ────────────────────────────────────────── */
+.linksCol {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;        /* increased from 8px */
+  align-items: flex-end;
+  padding-top: 4px;
+}
+
+.linksCol a {
+  color: rgba(255, 255, 255, 0.75); /* increased from 0.65 */
+  font-size: 15px;  /* increased from 13px */
+  font-weight: 500; /* added weight */
+  text-decoration: none;
+  transition: color 0.2s;
+  white-space: nowrap;
+}
+
+.linksCol a:hover {
+  color: #ffffff;
+}
+
+.copyright {
+  margin: 16px 0 0; /* increased from 12px */
+  font-size: 12px;  /* increased from 11px */
+  color: rgba(255, 255, 255, 0.5); /* increased from 0.4 */
+  text-align: right;
+}
+
+/* ── Decorative SVGs — absolutely positioned, pointer-none ─────────── */
+
+.mandalaSvg {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  right: -420px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 840px;
+  height: auto;
+  opacity: 0.55;
+}
+
+.zigzagSvg {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  left: 0;
+  bottom: -120px;
+  width: 280px;
+  height: auto;
+  opacity: 0.4;
+}
+
+/* ── Tablet 768–1023px ──────────────────────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .footer {
+    --folder-overlap: -130px;
+  }
+
+  .inner {
+    padding: calc(var(--folder-overlap) * -1 + 20px) 48px 28px 48px;
+    gap: 40px;
+  }
+
+  .logo {
+    width: 80px;    /* increased from 60px */
+  }
+
+  .brand {
+    font-size: 14px; /* increased from original */
+  }
+
+  .words {
+    font-size: 24px; /* increased from 18px */
+    gap: 28px;       /* increased from 20px */
+  }
+
+  .tag {
+    font-size: 14px; /* increased from 12px */
+  }
+
+  .linksCol a {
+    font-size: 14px; /* increased proportionally */
+  }
+
+  .mandalaSvg {
+    width: 600px;
+    right: -300px;
+  }
+
+  .zigzagSvg {
+    width: 200px;
+    bottom: -90px;
+  }
+}
+
+/* ── Mobile < 768px ─────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .footer {
+    --folder-overlap: -100px;
+  }
+
+  .inner {
+    padding: calc(var(--folder-overlap) * -1 + 20px) 24px 28px 24px;
+    flex-direction: column;
+    gap: 28px;       /* increased from 24px */
+  }
+
+  .logoCol {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;       /* increased from 12px */
+  }
+
+  .logo {
+    width: 68px;     /* increased from 52px */
+  }
+
+  .brand {
+    font-size: 14px; /* increased from 12px */
+  }
+
+  .words {
+    font-size: 22px; /* increased from 20px */
+    gap: 20px;       /* increased from 16px */
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    font-size: 13px; /* increased from 12px */
+    max-width: 100%;
+  }
+
+  .linksCol {
+    align-items: flex-start;
+    gap: 10px;       /* increased spacing */
+  }
+
+  .linksCol a {
+    font-size: 14px; /* increased proportionally */
+  }
+
+  .copyright {
+    text-align: left;
+    font-size: 11px;
+  }
+
+  .mandalaSvg {
+    width: 400px;
+    right: -200px;
+    opacity: 0.3;
+  }
+
+  .zigzagSvg {
+    width: 160px;
+    bottom: -70px;
+    opacity: 0.25;
+  }
+}
+
+/* ── Reduced motion ─────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .mandalaSvg,
+  .zigzagSvg {
+    transition: none;
+  }
+}

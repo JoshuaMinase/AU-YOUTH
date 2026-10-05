@@ -1,0 +1,104 @@
+/* --u = px per design pixel (set by Landing), --gutter = page border */
+.nav{position:fixed;z-index:100;left:0;right:0;margin-inline:auto;display:flex;align-items:center;overflow:hidden;
+  top:calc(35 * var(--u));width:calc(1312 * var(--u));height:calc(59 * var(--u));
+  padding:0 calc(23 * var(--u));background:rgba(236,236,236,0.8);backdrop-filter:blur(20px)saturate(180%);border-radius:calc(12 * var(--u));
+  font-family:'Chopin',system-ui,sans-serif;white-space:nowrap;border:1px solid rgba(255,255,255,0.4)}
+.brand{display:flex;align-items:center;gap:calc(16 * var(--u));flex:none;text-decoration:none;will-change:transform;transform-origin:center}
+.logo{height:calc(54 * var(--u));width:auto;display:block}
+.wm{display:block;overflow:hidden;width:calc(99 * var(--u));flex:none}
+.wm img{display:block;width:calc(99 * var(--u));height:auto}
+.gap{flex:none;width:calc(165 * var(--u))}
+.links{display:flex;gap:calc(34 * var(--u));list-style:none;margin:0;padding:0}
+.links a{position:relative;display:block;padding:6px 4px;color:#032210;font-weight:700;
+  font-size:clamp(13px,calc(16 * var(--u)),17px);text-decoration:none;will-change:transform;transform-origin:center;letter-spacing:.01em}
+.links a::after{content:'';position:absolute;left:4px;right:4px;bottom:1px;height:2px;background:#032210;
+  transform:scaleX(0);transform-origin:left;transition:transform .35s cubic-bezier(.22,.9,.32,1)}
+.links a:hover::after,.links a:focus-visible::after{transform:scaleX(1)}
+.navActions{
+  display:flex;
+  align-items:center;
+  gap:calc(8 * var(--u));
+  flex:none;
+  margin-left:auto;
+}
+
+.loginBtn{
+  flex:none;
+  padding:0 calc(16 * var(--u));
+  height:calc(38 * var(--u));
+  display:inline-flex;align-items:center;justify-content:center;
+
+  background:transparent;
+  color:#032210;
+  border:1.5px solid rgba(3,34,16,0.35);
+  border-radius:calc(10 * var(--u));
+
+  font-family:'Chopin',system-ui,sans-serif;
+  font-size:clamp(11px,calc(13 * var(--u)),14px);
+  font-weight:600;letter-spacing:.02em;
+  text-decoration:none;
+  white-space:nowrap;
+
+  transition:background .2s ease,border-color .2s ease,transform .15s ease;
+}
+.loginBtn:hover{
+  background:rgba(3,34,16,0.06);
+  border-color:rgba(3,34,16,0.6);
+  transform:scale(1.03);
+}
+.loginBtn:active{transform:scale(0.97);}
+.loginBtn:focus-visible{outline:2px solid #032210;outline-offset:3px;}
+
+.signIn{
+  flex:none;
+  padding:0 calc(18 * var(--u));
+  height:calc(38 * var(--u));
+  display:inline-flex;align-items:center;justify-content:center;
+
+  /* ── Section-3 Impact-card yellow ── */
+  background:#FBB13C;
+  color:#032210;
+  border-radius:calc(10 * var(--u));
+
+  font-family:'Chopin',system-ui,sans-serif;
+  font-size:clamp(11px,calc(13 * var(--u)),14px);
+  font-weight:700;letter-spacing:.02em;
+  text-decoration:none;
+  white-space:nowrap;
+
+  /* subtle inner glow that echoes the card sheen */
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.35),
+             0 2px 6px rgba(251,177,60,0.30);
+
+  transition:background .2s ease,
+             box-shadow .2s ease,
+             transform  .15s ease;
+}
+.signIn:hover{
+  background:#e89e20;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.25),
+             0 4px 14px rgba(251,177,60,0.45);
+  transform:scale(1.04);
+}
+.signIn:active{
+  transform:scale(0.97);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,0.20);
+}
+.signIn:focus-visible{
+  outline:2px solid #FBB13C;
+  outline-offset:3px;
+}
+@media (max-width:720px){.links li:nth-child(n+3){display:none}.gap{width:12px}}
+@media (prefers-reduced-motion:reduce){
+  .links a::after{transition:none}
+  .nav{transition:none}
+  .brand{transition:none}
+  .links a{transition:none}
+  .signIn{transition:none}
+  .loginBtn{transition:none}
+  .signIn:hover,.signIn:active{transform:none}
+  .loginBtn:hover,.loginBtn:active{transform:none}
+}
+@media (prefers-reduced-transparency:reduce){
+  .nav{background:#ececec;backdrop-filter:none}
+}
