@@ -19,10 +19,10 @@ export const PLACES = [
 export const BASE_AT = [0, 1, 3, 2];   // place index of gold, blue, green, yellow at rest
 // `slot` = where each card lands in section 2
 export const CARDS = [
-  { id: 'gold',   color: '#C9AB5C', label: 'Connect', img: '/assets/card-img-1.jpg', slot: { x: 101,  y: 920 } },
-  { id: 'blue',   color: '#0072C6', label: 'AU News', img: '/assets/card-img-2.jpg', slot: { x: 426,  y: 920 } },
-  { id: 'green',  color: '#117302', label: 'Share',   img: '/assets/card-img-3.jpg', slot: { x: 742,  y: 920 } },
-  { id: 'yellow', color: '#FCD116', label: 'Learn',   img: '/assets/card-img-4.jpg', slot: { x: 1055, y: 920 } },
+  { id: 'gold',   color: '#C9AB5C', label: 'Connect', img: '/assets/card-img-1.webp', slot: { x: 101,  y: 920 } },
+  { id: 'blue',   color: '#0072C6', label: 'AU News', img: '/assets/card-img-2.webp', slot: { x: 426,  y: 920 } },
+  { id: 'green',  color: '#117302', label: 'Share',   img: '/assets/card-img-3.webp', slot: { x: 742,  y: 920 } },
+  { id: 'yellow', color: '#FCD116', label: 'Learn',   img: '/assets/card-img-4.webp', slot: { x: 1055, y: 920 } },
 ] as const;
 // words typed in a loop
 export const WORDS = [
@@ -30,6 +30,6 @@ export const WORDS = [
 ] as const;
 export const WORD_TOP = 323;
 export const NAV_LINKS = [
-  ['Home', '#top'], ['About', '#about'], ['Opportunities', '#opportunities'],
-  ['Our Community', '#community'], ['Why Join', '#join'],
+  ['Home', '/'], ['About', '/about'], ['Opportunities', '/opportunities'],
+  ['Our Community', '/community'], ['Why Join', '/why-join'],
 ] as const;

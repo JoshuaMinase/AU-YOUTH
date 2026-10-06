@@ -1,13 +1,20 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useRef } from 'react';
+import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import s from '../styles/Footer.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
-const useIso = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+import { useIso } from '../lib/hooks';
 
-export default function Footer() {
+const LINKS = [
+  ['About', '/about'], ['Opportunities', '/opportunities'], ['Community', '/community'],
+  ['Events', '/dashboard/calendar'], ['Contact', '/dashboard/get-help'],
+] as const;
+
+/** `overlap` pulls the footer up over the Ideas folder on the home page. */
+export default function Footer({ overlap = false }: { overlap?: boolean }) {
   const footerRef = useRef<HTMLElement>(null);
 
   useIso(() => {
@@ -27,7 +34,7 @@ export default function Footer() {
         ease: 'power3.out',
         scrollTrigger: {
           trigger: footer,
-          start: 'top 55%',
+          start: 'top bottom-=40', // reachable even when the footer is short and last on the page
           toggleActions: 'play none none none',
         },
       });
@@ -79,7 +86,7 @@ export default function Footer() {
     <footer
       ref={footerRef}
       id="footer"
-      className={s.footer}
+      className={`${s.footer} ${overlap ? s.overlap : ''}`}
       aria-label="AU Youth Network footer"
     >
       {/* ── Decorative: Large African pattern — right side ───────────── */}
@@ -132,10 +139,7 @@ export default function Footer() {
 
         {/* Column 3 — Links + copyright */}
         <div className={s.linksCol}>
-          <a data-f href="#">About</a>
-          <a data-f href="#">Programs</a>
-          <a data-f href="#">Events</a>
-          <a data-f href="#">Contact</a>
+          {LINKS.map(([t, h]) => <Link data-f key={h} href={h}>{t}</Link>)}
           <p className={s.copyright}>
             © {new Date().getFullYear()} African Union Youth Network
           </p>

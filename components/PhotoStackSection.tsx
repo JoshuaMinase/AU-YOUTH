@@ -1,18 +1,20 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { STACK_CARDS } from './stackConfig';
+import { useIso } from '../lib/hooks';
 import s from '../styles/PhotoStack.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
 /* Card content — just text, no widgets or chips */
 const CARD_CONTENT = [
-  { num: '01', subtitle: 'A growing community of young Africans', text: 'Interns, volunteers and fellows from across the continent — connecting, learning and building together.', cta: 'Join the network', href: '#' },
-  { num: '02', subtitle: 'Learn by doing, together', text: 'Hands-on tracks and mentorship that turn ambition into real, usable skills.', cta: 'Explore programs', href: '#' },
-  { num: '03', subtitle: 'Stronger together, across borders', text: 'Peer circles, mentors and partners — a network that opens doors for every member.', cta: 'Meet the community', href: '#' },
-  { num: '04', subtitle: 'Opportunities that keep rising', text: 'Fellowships, internships and volunteer roles that move your journey forward.', cta: 'See opportunities', href: '#' },
+  { num: '01', subtitle: 'A growing community of young Africans', text: 'Interns, volunteers and fellows from across the continent — connecting, learning and building together.', cta: 'Join the network', href: '/sign-up' },
+  { num: '02', subtitle: 'Learn by doing, together', text: 'Hands-on tracks and mentorship that turn ambition into real, usable skills.', cta: 'Explore programs', href: '/opportunities' },
+  { num: '03', subtitle: 'Stronger together, across borders', text: 'Peer circles, mentors and partners — a network that opens doors for every member.', cta: 'Meet the community', href: '/community' },
+  { num: '04', subtitle: 'Opportunities that keep rising', text: 'Fellowships, internships and volunteer roles that move your journey forward.', cta: 'See opportunities', href: '/opportunities' },
 ];
 
 const Arrow = () => (
@@ -24,10 +26,9 @@ const Arrow = () => (
 export default function PhotoStackSection() {
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  useIso(() => {
     const root = rootRef.current;
     if (!root) return;
-    gsap.registerPlugin(ScrollTrigger);
 
     const mm = gsap.matchMedia();
 
@@ -93,10 +94,12 @@ export default function PhotoStackSection() {
         start: 'top top',
         end: () => '+=' + scrollDist(),
         animation: tl,
-        scrub: 2.5,          // balanced scrub for controlled phases - not too fast, not too slow
+        scrub: 1,            // Lenis already smooths the wheel; a long scrub on top feels laggy
         invalidateOnRefresh: true,
       });
 
+      // the spacer just changed height: re-measure every trigger below this section
+      ScrollTrigger.refresh();
       document.fonts?.ready.then(() => ScrollTrigger.refresh());
 
       return () => {
@@ -119,9 +122,6 @@ export default function PhotoStackSection() {
   return (
     <div ref={rootRef} className={s.spacer} aria-label="Our community">
       <div data-stage className={s.stage}>
-        <div className={s.photoWrap}>
-          {/* Background colour — image was removed during cleanup */}
-        </div>
         {STACK_CARDS.map((c, k) => {
           const content = CARD_CONTENT[k];
           return (
@@ -146,10 +146,10 @@ export default function PhotoStackSection() {
                     <div className="s4-copy">
                       <p className="s4-sub s4-reveal">{content.subtitle}</p>
                       <p className="s4-text s4-reveal">{content.text}</p>
-                      <a className="s4-cta s4-reveal" href={content.href}>
+                      <Link className="s4-cta s4-reveal" href={content.href}>
                         <span>{content.cta}</span>
                         <span className="s4-cta-arrow"><Arrow /></span>
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </div>

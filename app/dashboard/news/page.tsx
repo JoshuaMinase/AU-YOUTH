@@ -1,137 +1,80 @@
-import s from '@/styles/Dashboard.module.css';
+'use client';
 
-const CATS = ['All', 'Initiatives', 'Opportunities', 'Events', 'Partnerships', 'Announcements'];
+import { useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { Hero, I } from '@/components/portal/ui';
+import { TAG_CLASS } from '@/components/portal/tags';
+import { NEWS, NEWS_CATS, type NewsItem } from '@/lib/data';
+import { useListAnimation } from '@/lib/hooks';
+import s from '@/styles/Portal.module.css';
 
-const NEWS = [
-  {
-    tag: 'Initiative',
-    title: 'AU launches new Youth Engagement Framework for 2026–2030',
-    excerpt: 'The African Union Commission has unveiled an ambitious five-year strategy to deepen youth participation across all member states and institutional bodies.',
-    meta: '2 hours ago',
-    source: 'AU Commission',
-    img: '/assets/card-img-1.jpg',
-    featured: true,
-  },
-  {
-    tag: 'Opportunity',
-    title: 'Applications open: AU Youth Volunteer Programme — Cohort 7',
-    excerpt: 'Young professionals from across the continent are invited to apply for a six-month volunteer placement at the AU headquarters in Addis Ababa.',
-    meta: 'Yesterday',
-    source: 'Political Affairs',
-    img: '/assets/card-img-2.jpg',
-    featured: false,
-  },
-  {
-    tag: 'Event',
-    title: 'Pan-African Youth Innovation Summit to be held in Addis Ababa',
-    excerpt: 'The annual summit convenes over 500 young innovators, entrepreneurs and policy makers from 55 member states.',
-    meta: '3 days ago',
-    source: 'HRST Department',
-    img: '/assets/card-img-3.jpg',
-    featured: false,
-  },
-  {
-    tag: 'Development',
-    title: 'New skills programme targets 10,000 young professionals across member states',
-    excerpt: 'A joint initiative between the AU and key continental partners will provide digital and vocational training to youth across all regions.',
-    meta: '4 days ago',
-    source: 'AU Commission',
-    img: '/assets/card-img-4.jpg',
-    featured: false,
-  },
-  {
-    tag: 'Partnership',
-    title: 'AU and AfDB deepen cooperation on youth employment and entrepreneurship',
-    excerpt: 'The two continental institutions have signed a memorandum of understanding to co-fund youth-led businesses and employment hubs.',
-    meta: '5 days ago',
-    source: 'Economic Affairs',
-    img: '/assets/card-img-1.jpg',
-    featured: false,
-  },
-  {
-    tag: 'Announcement',
-    title: 'Quarterly intern coordination meeting — agenda and venue confirmed',
-    excerpt: 'All active interns and fellows are requested to attend the upcoming coordination session in Mandela Hall.',
-    meta: '6 days ago',
-    source: 'Protocol Office',
-    img: '/assets/card-img-2.jpg',
-    featured: false,
-  },
-];
-
-const TAG_COLORS: Record<string, string> = {
-  Initiative:   s.tagGreen,
-  Opportunity:  s.tagGold,
-  Event:        s.tagBlue,
-  Development:  s.tagPurple,
-  Partnership:  s.tagTeal,
-  Announcement: s.tagMuted,
-};
+function Meta({ n }: { n: NewsItem }) {
+  return <div className={s.newsMeta}><b>{n.source}</b><span aria-hidden="true">·</span><span>{n.meta}</span></div>;
+}
 
 export default function NewsPage() {
+  const [cat, setCat] = useState<(typeof NEWS_CATS)[number]>('All');
+  const [q, setQ] = useState('');
+  const grid = useRef<HTMLDivElement>(null);
+
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return NEWS.filter((n) => (cat === 'All' || n.cat === cat) && (!t || `${n.title} ${n.excerpt} ${n.source}`.toLowerCase().includes(t)));
+  }, [cat, q]);
+  /* the featured story leads only on the unfiltered view */
+  const featured = cat === 'All' && !q ? list.find((n) => n.featured) : undefined;
+  const rest = list.filter((n) => n !== featured);
+
+  useListAnimation(grid, `${cat}|${q}`);
+
   return (
     <>
-      {/* ── Page header ────────────────────────────── */}
-      <div className={s.pageHero}>
-        <div>
-          <p className={s.pageEyebrow}>AU YOUTH NETWORK</p>
-          <h1 className={s.pageHeading}>News &amp; Updates</h1>
-          <p className={s.pageDesc}>
-            Official initiatives, opportunities and developments from across the Union.
-          </p>
+      <Hero plain eyebrow="AU Youth Network" title="News & *Updates*" desc="Official initiatives, opportunities and developments from across the Union." />
+
+      <div className={s.toolbar} data-reveal>
+        <div className={s.pills} role="group" aria-label="Filter by category">
+          {NEWS_CATS.map((c) => (
+            <button key={c} type="button" className={s.pill} aria-pressed={cat === c} onClick={() => setCat(c)}>{c}</button>
+          ))}
         </div>
+        <label className={s.search}>
+          {I.search}
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search news…" aria-label="Search news" />
+        </label>
       </div>
 
-      {/* ── Filter pills ───────────────────────────── */}
-      <div className={s.filterBar}>
-        {CATS.map((cat, i) => (
-          <button
-            key={cat}
-            className={`${s.filterPill} ${i === 0 ? s.filterPillActive : ''}`}
-          >
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Featured article ───────────────────────── */}
-      {NEWS.filter(n => n.featured).map(item => (
-        <article key={item.title} className={s.newsFeatured}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.img} alt="" className={s.newsFeaturedImg} />
-          <div className={s.newsFeaturedBody}>
-            <span className={`${s.newsTag} ${TAG_COLORS[item.tag] ?? s.tagMuted}`}>{item.tag}</span>
-            <h2 className={s.newsFeaturedTitle}>{item.title}</h2>
-            <p className={s.newsFeaturedExcerpt}>{item.excerpt}</p>
-            <div className={s.newsMeta}>
-              <span className={s.newsSource}>{item.source}</span>
-              <span className={s.newsDot}>·</span>
-              <span>{item.meta}</span>
-            </div>
-          </div>
-        </article>
-      ))}
-
-      {/* ── News grid ──────────────────────────────── */}
-      <div className={s.newsGrid}>
-        {NEWS.filter(n => !n.featured).map(item => (
-          <article key={item.title} className={s.newsCard}>
+      {featured && (
+        <Link href={`/dashboard/news/${featured.slug}`} className={s.featured} data-reveal>
+          <div className={s.featuredImg}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <div className={s.newsCardImgWrap}>
-              <img src={item.img} alt="" className={s.newsCardImg} />
+            <img src={featured.img} alt="" />
+          </div>
+          <div className={s.featuredBody}>
+            <span><span className={`${s.tag} ${TAG_CLASS[featured.tag]}`}>{featured.tag}</span></span>
+            <h2 className={s.featuredTitle}>{featured.title}</h2>
+            <p className={s.newsExcerpt} style={{ flex: 'none', fontSize: 15 }}>{featured.excerpt}</p>
+            <Meta n={featured} />
+          </div>
+        </Link>
+      )}
+
+      <p className={s.count} aria-live="polite">{list.length} {list.length === 1 ? 'story' : 'stories'}</p>
+      <div ref={grid} className={s.newsGrid}>
+        {rest.map((n) => (
+          <Link key={n.slug} href={`/dashboard/news/${n.slug}`} className={s.newsCard}>
+            <div className={s.newsImg}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={n.img} alt="" loading="lazy" />
             </div>
-            <div className={s.newsCardBody}>
-              <span className={`${s.newsTag} ${TAG_COLORS[item.tag] ?? s.tagMuted}`}>{item.tag}</span>
-              <h2 className={s.newsTitle}>{item.title}</h2>
-              <p className={s.newsExcerpt}>{item.excerpt}</p>
-              <div className={s.newsMeta}>
-                <span className={s.newsSource}>{item.source}</span>
-                <span className={s.newsDot}>·</span>
-                <span>{item.meta}</span>
-              </div>
+            <div className={s.newsBody}>
+              <span><span className={`${s.tag} ${TAG_CLASS[n.tag]}`}>{n.tag}</span></span>
+              <h2 className={s.newsTitle}>{n.title}</h2>
+              <p className={s.newsExcerpt}>{n.excerpt}</p>
+              <Meta n={n} />
             </div>
-          </article>
+          </Link>
         ))}
+        {!list.length && <p className={s.empty}>No stories match that filter.</p>}
       </div>
     </>
   );

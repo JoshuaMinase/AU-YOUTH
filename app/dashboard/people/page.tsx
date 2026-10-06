@@ -1,86 +1,89 @@
-import s from '@/styles/Dashboard.module.css';
+'use client';
 
-const COLORS = ['#C9A84C','#7BC9A0','#6BB5D9','#E07B7B','#A78BFA','#F9A74B','#60C9A8','#89B4D9'];
-const ROLES  = ['All', 'Interns', 'Fellows', 'Volunteers'];
-const DEPTS  = ['All Departments','HRST','Political Affairs','Peace & Security','Economic Affairs'];
+import { useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { Hero, I, useToast } from '@/components/portal/ui';
+import { DEPARTMENTS, PEOPLE, type Role, softAvatar } from '@/lib/data';
+import { useListAnimation } from '@/lib/hooks';
+import { usePersisted, toggleIn } from '@/lib/store';
+import s from '@/styles/Portal.module.css';
 
-const PEOPLE = [
-  { i:'AM', name:'Amara Mensah',    role:'Intern',     dept:'HRST',               country:'Ghana',       flag:'🇬🇭', c:COLORS[0] },
-  { i:'FO', name:'Fatima Osei',     role:'Fellow',     dept:'Peace & Security',   country:'Nigeria',     flag:'🇳🇬', c:COLORS[1] },
-  { i:'KB', name:'Kofi Boateng',    role:'Volunteer',  dept:'Economic Affairs',   country:'Senegal',     flag:'🇸🇳', c:COLORS[2] },
-  { i:'ZA', name:'Zinash Alemu',    role:'Intern',     dept:'Political Affairs',  country:'Ethiopia',    flag:'🇪🇹', c:COLORS[3] },
-  { i:'ND', name:'Nadia Diallo',    role:'Fellow',     dept:'Social Affairs',     country:'Ivory Coast', flag:'🇨🇮', c:COLORS[4] },
-  { i:'TM', name:'Tariq Moussa',    role:'Intern',     dept:'Infrastructure',     country:'Morocco',     flag:'🇲🇦', c:COLORS[5] },
-  { i:'AA', name:'Amina Abdi',      role:'Volunteer',  dept:'Agriculture',        country:'Kenya',       flag:'🇰🇪', c:COLORS[6] },
-  { i:'JN', name:'Jean Nkosi',      role:'Intern',     dept:'Trade & Industry',   country:'DRC',         flag:'🇨🇩', c:COLORS[7] },
-  { i:'BS', name:'Binta Sow',       role:'Fellow',     dept:'HRST',               country:'Guinea',      flag:'🇬🇳', c:COLORS[0] },
-  { i:'EW', name:'Emmanuel Waweru', role:'Intern',     dept:'Legal Affairs',      country:'Uganda',      flag:'🇺🇬', c:COLORS[1] },
-  { i:'LT', name:'Layla Tadesse',   role:'Volunteer',  dept:'Education',          country:'Eritrea',     flag:'🇪🇷', c:COLORS[2] },
-  { i:'SM', name:'Sola Martins',    role:'Intern',     dept:'Finance',            country:'Nigeria',     flag:'🇳🇬', c:COLORS[3] },
-];
-
-const ROLE_TAG: Record<string, string> = {
-  Intern:    s.tagGreen,
-  Fellow:    s.tagGold,
-  Volunteer: s.tagBlue,
-};
+const ROLES: ('All' | Role)[] = ['All', 'Intern', 'Fellow', 'Volunteer'];
+const ROLE_TAG: Record<Role, string> = { Intern: s.tGreen, Fellow: s.tGold, Volunteer: s.tBlue };
 
 export default function PeoplePage() {
+  const [role, setRole] = useState<'All' | Role>('All');
+  const [dept, setDept] = useState('All');
+  const [q, setQ] = useState('');
+  const [requested, setRequested] = usePersisted<string[]>('auy-connections', []);
+  const [toast, toastNode] = useToast();
+  const grid = useRef<HTMLDivElement>(null);
+
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return PEOPLE.filter((p) => (role === 'All' || p.role === role) && (dept === 'All' || p.dept === dept) &&
+      (!t || `${p.name} ${p.dept} ${p.country}`.toLowerCase().includes(t)));
+  }, [role, dept, q]);
+
+  useListAnimation(grid, `${role}|${dept}|${q}`);
+
   return (
     <>
-      {/* ── Page header ────────────────────────────── */}
-      <div className={s.pageHero}>
-        <div>
-          <p className={s.pageEyebrow}>AU YOUTH NETWORK</p>
-          <h1 className={s.pageHeading}>People</h1>
-          <p className={s.pageDesc}>
-            Connect with interns, fellows and volunteers serving across the Union.
-          </p>
-        </div>
-        <div className={s.pageHeroStat}>
+      <Hero plain eyebrow="AU Youth Network" title="Your *People*" desc="Connect with interns, fellows and volunteers serving across the Union.">
+        <div className={s.heroStat}>
           <span className={s.heroStatNum}>{PEOPLE.length}</span>
-          <span className={s.heroStatLabel}>members online</span>
+          <span className={s.heroStatLabel}>members in your cohort</span>
         </div>
-      </div>
+      </Hero>
 
-      {/* ── Search + filters ───────────────────────── */}
-      <div className={s.toolBar}>
-        <div className={s.searchWrap}>
-          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-            <circle cx="9" cy="9" r="5.5"/><path d="M13.5 13.5L17 17" strokeLinecap="round"/>
-          </svg>
-          <input className={s.searchInput} placeholder="Search by name, department or country…" />
-        </div>
-        <div className={s.filterBar} style={{ marginTop: 0 }}>
-          {ROLES.map((r, i) => (
-            <button key={r} className={`${s.filterPill} ${i === 0 ? s.filterPillActive : ''}`}>{r}</button>
+      <div className={s.toolbar} data-reveal>
+        <label className={s.search}>
+          {I.search}
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, department or country…" aria-label="Search people" />
+        </label>
+        <div className={s.pills}>
+          {ROLES.map((r) => (
+            <button key={r} type="button" className={s.pill} aria-pressed={role === r} onClick={() => setRole(r)}>{r === 'All' ? 'All' : `${r}s`}</button>
           ))}
-          <select className={s.deptSelect}>
-            {DEPTS.map(d => <option key={d}>{d}</option>)}
+          <select className={s.select} value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Department">
+            <option value="All">All departments</option>
+            {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
       </div>
 
-      {/* ── People grid ────────────────────────────── */}
-      <div className={s.peopleGrid}>
-        {PEOPLE.map(p => (
-          <div key={p.name} className={s.personCard}>
-            <div className={s.personAvatarWrap}>
-              <div className={s.personAvatar} style={{ background: p.c }}>{p.i}</div>
-            </div>
-            <div className={s.personCardBody}>
-              <p className={s.personName}>{p.name}</p>
-              <span className={`${s.newsTag} ${ROLE_TAG[p.role] ?? s.tagMuted}`}>{p.role}</span>
+      <p className={s.count} aria-live="polite">
+        {list.length} {list.length === 1 ? 'person' : 'people'}{requested.length ? ` · ${requested.length} connection request${requested.length > 1 ? 's' : ''} sent` : ''}
+      </p>
+      <div ref={grid} className={s.peopleGrid}>
+        {list.map((p) => {
+          const sent = requested.includes(p.id);
+          return (
+            <article key={p.id} className={s.person}>
+              <span className={s.personAv} style={softAvatar(p.c)}>{p.i}</span>
+              <h2 className={s.personName}>{p.name}</h2>
+              <span className={`${s.tag} ${ROLE_TAG[p.role]}`}>{p.role}</span>
               <p className={s.personDept}>{p.dept}</p>
-              <p className={s.personCountry}>
-                <span aria-hidden="true">{p.flag}</span>{' '}
-                {p.country}
-              </p>
-            </div>
-            <button className={s.connectBtn}>Connect</button>
-          </div>
-        ))}
+              <p className={s.personCountry}><span aria-hidden="true">{p.flag}</span> {p.country}</p>
+              <div className={s.personActions}>
+                <button type="button" className={`${s.btnLine} ${s.btnSm} ${sent ? s.connected : ''}`} aria-pressed={sent}
+                  onClick={() => { setRequested((r) => toggleIn(r, p.id)); toast(sent ? `Request to ${p.name} withdrawn` : `Connection request sent to ${p.name}`); }}>
+                  {sent ? <>{I.check} Requested</> : 'Connect'}
+                </button>
+                <Link href="/dashboard/chats" className={`${s.btnDark} ${s.btnSm}`} aria-label={`Message ${p.name}`}>{I.chat}</Link>
+              </div>
+            </article>
+          );
+        })}
+        {!list.length && (
+          <p className={s.empty}>
+            No one matches those filters.{' '}
+            <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }}
+              onClick={() => { setRole('All'); setDept('All'); setQ(''); }}>Clear filters</button>
+          </p>
+        )}
       </div>
+      {toastNode}
     </>
   );
 }

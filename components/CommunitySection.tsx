@@ -36,9 +36,9 @@ const DEFAULT_BODY = [
 export default function CommunitySection({
   heading = DEFAULT_HEADING,
   body = DEFAULT_BODY,
-  primaryCta = { label: 'Become a Member', href: '#' },
-  secondaryCta = { label: 'Learn More', href: '#' },
-  imageSrc = '/assets/community-illustration.png',
+  primaryCta = { label: 'Become a Member', href: '/sign-up' },
+  secondaryCta = { label: 'Learn More', href: '/about' },
+  imageSrc = '/assets/community-illustration.webp',
 }: CommunitySectionProps) {
   const sectionRef = useRef<HTMLElement>(null);
   const illustrationRef = useRef<HTMLDivElement>(null);
@@ -94,6 +94,7 @@ export default function CommunitySection({
   return (
     <section
       ref={sectionRef}
+      id="community"
       className={styles.section}
       aria-labelledby="join-heading"
     >

@@ -1,69 +1,54 @@
 'use client';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Nav from './Nav';
 import { BOX } from './assetBoxes';
-import Lenis from 'lenis';
 import { W, H, HERO_H, PANEL_Y, SLOT, POSE, PLACES, BASE_AT, CARDS, WORDS, WORD_TOP, box } from './layout';
+import { useIso } from '../lib/hooks';
 import s from '../styles/Landing.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
-const useIso = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 const A = (n: string) => `/assets/${n}.svg`;
 const pct = (v: number) => `${(v / H) * 100}%`;
 
 const TYPING_WORDS = ['connect.', 'experience.', 'learn.'] as const;
+/** where each hero card leads */
+const CARD_HREF: Record<string, string> = { gold: '/community', blue: '/dashboard/news', green: '/why-join', yellow: '/opportunities' };
+
+/** Typewriter loop. Lives in its own component so its 10–20 state updates per second
+ *  re-render only this <span>, not the whole hero. */
+function TypingWord({ style }: { style: React.CSSProperties }) {
+  const [state, setState] = useState({ word: 0, chars: 0, deleting: false });
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const id = setInterval(() => setState((p) => ({ word: (p.word + 1) % TYPING_WORDS.length, chars: 99, deleting: false })), 2200);
+      return () => clearInterval(id);
+    }
+    const word = TYPING_WORDS[state.word];
+    const full = !state.deleting && state.chars >= word.length;
+    const empty = state.deleting && state.chars === 0;
+    const delay = full ? 1500 : empty ? 500 : state.deleting ? 50 : 100;
+    const id = setTimeout(() => setState((p) => {
+      if (full) return { ...p, deleting: true };
+      if (empty) return { word: (p.word + 1) % TYPING_WORDS.length, chars: 0, deleting: false };
+      return { ...p, chars: p.chars + (p.deleting ? -1 : 1) };
+    }), delay);
+    return () => clearTimeout(id);
+  }, [state]);
+  const word = TYPING_WORDS[state.word];
+  return (
+    <div className={s.typingContainer} style={style} aria-hidden="true">
+      <span className={s.typingText} data-word={word}>{word.slice(0, state.chars)}</span>
+      <span className={s.cursor}></span>
+    </div>
+  );
+}
 
 export default function Landing() {
   const stage = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<HTMLDivElement[]>([]);
-  const innerRefs = useRef<HTMLDivElement[]>([]);
-  const [typedText, setTypedText] = useState('');
-  const [wordIndex, setWordIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [charIndex, setCharIndex] = useState(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const currentWord = TYPING_WORDS[wordIndex];
-    const typingSpeed = isDeleting ? 50 : 100;
-    const pauseAfterType = 1500;
-    const pauseAfterDelete = 500;
-
-    let delay = typingSpeed;
-
-    if (!isDeleting && charIndex === currentWord.length) {
-      delay = pauseAfterType;
-    } else if (isDeleting && charIndex === 0) {
-      delay = pauseAfterDelete;
-    }
-
-    timeoutRef.current = setTimeout(() => {
-      if (!isDeleting) {
-        if (charIndex < currentWord.length) {
-          setTypedText(currentWord.substring(0, charIndex + 1));
-          setCharIndex(charIndex + 1);
-        } else {
-          setIsDeleting(true);
-        }
-      } else {
-        if (charIndex > 0) {
-          setTypedText(currentWord.substring(0, charIndex - 1));
-          setCharIndex(charIndex - 1);
-        } else {
-          setIsDeleting(false);
-          setWordIndex((prev) => (prev + 1) % TYPING_WORDS.length);
-          setCharIndex(0);
-        }
-      }
-    }, delay);
-
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [charIndex, isDeleting, wordIndex]);
-
   useIso(() => {
     const el = stage.current!;
     const u = () => el.clientWidth / W;
@@ -73,32 +58,9 @@ export default function Landing() {
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const q = gsap.utils.selector(el);
     const cards = q('[data-card]') as HTMLElement[];
+    const hoverCleanups: (() => void)[] = [];
 
-    let lenisRef: Lenis | null = null;
-    const tick = (time: number) => lenisRef?.raf(time * 1000);
     const ctx = gsap.context(() => {
-      /* ---------- smooth scroll ---------- */
-      let lenis: Lenis | null = null;
-      if (!reduce) {
-        lenis = lenisRef = new Lenis({ 
-          lerp: 0.07,         // balanced for smooth but responsive scrolling
-          duration: 1.0,      // shorter transitions for better alignment
-          easing: (t) => Math.min(1, 1.001 - Math.pow(2, -9 * t)), // balanced easing
-          smoothWheel: true,
-          wheelMultiplier: 1.0, // standard wheel sensitivity for better control
-          touchMultiplier: 1.8,
-          infinite: false,
-          autoRaf: false 
-        });
-        
-        // Add CSS class for styling
-        document.documentElement.classList.add('lenis');
-        
-        lenis.on('scroll', () => ScrollTrigger.update());
-        gsap.ticker.add(tick);
-        gsap.ticker.lagSmoothing(0);
-      }
-
       /* ---------- card poses ---------- */
       const posed = (i: number, place: number) => {
         const p = PLACES[place];
@@ -108,7 +70,6 @@ export default function Landing() {
           scale: POSE.w / SLOT.w, rotation: 0,
         };
       };
-      const dims = cards.map(() => null); // No longer using dim overlays
       const base = () => cards.forEach((c, i) => {
         gsap.set(c, { ...posed(i, BASE_AT[i]), zIndex: PLACES[BASE_AT[i]].z });
       });
@@ -149,7 +110,7 @@ export default function Landing() {
         scrollTrigger: {
           start: 0, 
           end: () => `+=${Math.max(300, slotCenterY * u() - innerHeight * 0.5)}`, // even shorter for less lag
-          scrub: 0.8, // much more responsive, less laggy
+          scrub: 0.6,
           invalidateOnRefresh: true,
           onUpdate: (self) => { self.scroll() < 6 ? startShuffle() : stopShuffle(); },
         },
@@ -164,33 +125,29 @@ export default function Landing() {
       flight.fromTo(q('[data-labels]'), { opacity: 0, y: 14 * u() }, { opacity: 1, y: 0, duration: 0.15, ease: 'power2.out', immediateRender: false }, 0.6); // faster labels
       if (window.scrollY < 6) startShuffle();
 
-      /* ---------- card hover: hovered grows right, next card shrinks + dims ---------- */
+      /* ---------- card hover: dark overlay + label ---------- */
       if (!reduce) {
-        const ease = 'power3.out';
-        const dur = 0.45;
-        innerRefs.current.forEach((inner, i) => {
-          const nextInner = innerRefs.current[i + 1] ?? null;
+        cardRefs.current.forEach((card) => {
+          const overlay = card.querySelector('[data-hover-overlay]');
+          const label = card.querySelector('[data-hover-label]');
           const onEnter = () => {
-            gsap.to(inner, { width: '100%', duration: dur, ease, overwrite: 'auto' });
-            const overlay = inner.querySelector('[data-hover-overlay]') as HTMLElement;
-            const label = inner.querySelector('[data-hover-label]') as HTMLElement;
-            if (overlay) gsap.to(overlay, { opacity: 1, duration: 0.35, ease, overwrite: 'auto' });
-            if (label) gsap.to(label, { opacity: 1, y: 0, duration: 0.35, ease, overwrite: 'auto' });
+            gsap.to(overlay, { opacity: 1, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
+            gsap.to(label, { opacity: 1, y: 0, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
           };
           const onLeave = () => {
-            gsap.to(inner, { width: '100%', duration: dur, ease, overwrite: 'auto' });
-            const overlay = inner.querySelector('[data-hover-overlay]') as HTMLElement;
-            const label = inner.querySelector('[data-hover-label]') as HTMLElement;
-            if (overlay) gsap.to(overlay, { opacity: 0, duration: 0.35, ease, overwrite: 'auto' });
-            if (label) gsap.to(label, { opacity: 0, y: 12, duration: 0.35, ease, overwrite: 'auto' });
+            gsap.to(overlay, { opacity: 0, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
+            gsap.to(label, { opacity: 0, y: 12, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
           };
-          const card = cardRefs.current[i];
-          card?.addEventListener('mouseenter', onEnter);
-          card?.addEventListener('mouseleave', onLeave);
-          (card as any)._hoverCleanup = () => {
-            card?.removeEventListener('mouseenter', onEnter);
-            card?.removeEventListener('mouseleave', onLeave);
-          };
+          card.addEventListener('mouseenter', onEnter);
+          card.addEventListener('mouseleave', onLeave);
+          card.addEventListener('focusin', onEnter);
+          card.addEventListener('focusout', onLeave);
+          hoverCleanups.push(() => {
+            card.removeEventListener('mouseenter', onEnter);
+            card.removeEventListener('mouseleave', onLeave);
+            card.removeEventListener('focusin', onEnter);
+            card.removeEventListener('focusout', onLeave);
+          });
         });
       }
 
@@ -223,7 +180,7 @@ export default function Landing() {
             trigger: headingEl,
             start: 'top 65%',
             end:   'top 15%',
-            scrub: 0.8,
+            scrub: 0.5,
             invalidateOnRefresh: true,
           },
         });
@@ -245,12 +202,8 @@ export default function Landing() {
     }, el);
 
     return () => {
-      cardRefs.current.forEach((c) => (c as any)._hoverCleanup?.());
-      ro.disconnect(); gsap.ticker.remove(tick); 
-      if (lenisRef) {
-        lenisRef.destroy(); 
-        document.documentElement.classList.remove('lenis');
-      }
+      hoverCleanups.forEach((f) => f());
+      ro.disconnect();
       ctx.revert();
     };
   }, []);
@@ -258,7 +211,7 @@ export default function Landing() {
   const word = (k: (typeof WORDS)[number]['key']) => ({ ...box({ ...BOX[k], y: WORD_TOP }) });
   return (
     <div className={s.page}>
-      <Nav stage={stage} />
+      <Nav />
       <div ref={stage} className={s.stage}>
         <h1 className={s.sr}>Where you can connect, experience and learn — AU Youth Community</h1>
         <div className={`${s.frame} ${s.hero}`} style={{ height: pct(HERO_H) }}>
@@ -270,10 +223,7 @@ export default function Landing() {
 
         <div className={s.layer} data-herotext>
           <h2 data-in style={box(BOX.headline)} className={s.headlineText}>Where you can</h2>
-          <div className={s.typingContainer} style={{...word('word-connect'), top: `${(250 / H) * 100}%`}}>
-            <span className={s.typingText} data-word={TYPING_WORDS[wordIndex]}>{typedText}</span>
-            <span className={s.cursor}></span>
-          </div>
+          <TypingWord style={{ ...word('word-connect'), top: `${(250 / H) * 100}%` }} />
           <p data-in style={box(BOX.paragraph)} className={s.paragraphText}>Join a vibrant community of young people building meaningful connections, gaining valuable experiences, and learning together to shape a brighter future.</p>
         </div>
 
@@ -301,20 +251,18 @@ export default function Landing() {
           ))}
         </p>
 
-        {CARDS.map((c, i) => {
-          return (
-            <div key={c.id} data-card className={s.card} aria-label={c.label}
-              ref={(el) => { if (el) cardRefs.current[i] = el; }}
-              style={{ ...box({ x: c.slot.x, y: c.slot.y, w: SLOT.w, h: SLOT.h }), zIndex: i + 1 }}>
-              <div className={s.cardInner} style={{ background: c.color }}
-                ref={(el) => { if (el) innerRefs.current[i] = el; }}>
-                <img className={s.cardPhoto} src={c.img} alt={c.label} />
-                <div data-hover-overlay className={s.hoverOverlay} />
-                <div data-hover-label className={s.hoverLabel}>{c.label}</div>
-              </div>
-            </div>
-          );
-        })}
+        {CARDS.map((c, i) => (
+          <div key={c.id} data-card className={s.card}
+            ref={(el) => { if (el) cardRefs.current[i] = el; }}
+            style={{ ...box({ x: c.slot.x, y: c.slot.y, w: SLOT.w, h: SLOT.h }), zIndex: i + 1 }}>
+            <Link href={CARD_HREF[c.id]} className={s.cardInner} style={{ background: c.color }} aria-label={c.label}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={s.cardPhoto} src={c.img} alt="" decoding="async" />
+              <div data-hover-overlay className={s.hoverOverlay} />
+              <div data-hover-label className={s.hoverLabel}>{c.label}</div>
+            </Link>
+          </div>
+        ))}
       </div>
     </div>
   );

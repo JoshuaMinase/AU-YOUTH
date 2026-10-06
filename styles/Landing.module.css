@@ -1,15 +1,16 @@
-.page{padding:0}
+.page{padding:0;overflow-x:clip}
 /* stage = one 1440 x 1850 design canvas; everything inside is positioned in % of it */
 .stage{position:relative;width:100%;aspect-ratio:1440/1850;container-type:inline-size;isolation:isolate}
 .frame{position:absolute;left:0;width:100%;overflow:hidden}
 .hero{top:0;background:#032210;border-radius:0}
 .panel{border-radius:0;background:linear-gradient(180deg,#e4e4e4 0%,#fff 94.7%,#fff 100%);mask-image:linear-gradient(180deg,black 0%,black 85%,transparent 100%);-webkit-mask-image:linear-gradient(180deg,black 0%,black 85%,transparent 100%)}
 .panelPattern{position:absolute;top:0;left:-5%;width:75%;height:auto;opacity:0.28;pointer-events:none;user-select:none;mask-image:linear-gradient(135deg,black 0%,black 35%,transparent 75%);-webkit-mask-image:linear-gradient(135deg,black 0%,black 35%,transparent 75%)}
-.fill{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;user-select:none}
+.fill{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;user-select:none;will-change:transform}
 .art{display:block;pointer-events:none;user-select:none}
 .layer{position:absolute;inset:0}
 .card{overflow:visible !important;border-radius:calc(22 * 100cqw / 1440);will-change:transform}
-.cardInner{position:absolute;inset:0;width:100%;border-radius:calc(22 * 100cqw / 1440);overflow:hidden}
+.cardInner{position:absolute;inset:0;display:block;width:100%;border-radius:calc(22 * 100cqw / 1440);overflow:hidden;color:inherit;text-decoration:none}
+.cardInner:focus-visible{outline:3px solid #FBB13C;outline-offset:3px}
 .cardPhoto{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center top;display:block;pointer-events:none;user-select:none}
 .hoverOverlay{position:absolute;inset:0;background:rgba(0,0,0,0.55);opacity:0;pointer-events:none}
 .hoverLabel{position:absolute;bottom:12%;left:0;right:0;text-align:center;color:#fff;font-family:'Chopin',system-ui,sans-serif;font-weight:600;font-size:clamp(14px,calc(18 * var(--u)),20px);letter-spacing:0.04em;opacity:0;transform:translateY(12px);pointer-events:none}

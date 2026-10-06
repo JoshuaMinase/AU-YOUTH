@@ -17,7 +17,7 @@ export default function Page() {
       */}
       <div style={{ position: 'relative' }}>
         <IdeasSection />
-        <Footer />
+        <Footer overlap />
       </div>
     </>
   );

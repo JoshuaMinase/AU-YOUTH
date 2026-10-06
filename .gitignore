@@ -25,3 +25,11 @@ tsconfig.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Local AI-tool / editor config
+.devin/
+.kombai/
+
+# Unused local files (not part of the app)
+components/Dashboard.tsx
+public/assets/charlotte-harrison-Pez23wGG1RM-unsplash.jpg

@@ -1,187 +1,110 @@
 'use client';
 
-import { useState } from 'react';
-import s from '@/styles/Dashboard.module.css';
-
-const COLORS = ['#C9A84C','#7BC9A0','#6BB5D9','#E07B7B','#A78BFA'];
-
-const CHATS = [
-  {
-    initials: 'AM', name: 'Amara Mensah',
-    preview: 'Thanks for sharing the report!',
-    time: '10:22', unread: 2, color: COLORS[0],
-    messages: [
-      { from: 'them', text: 'Hey! Did you get a chance to look at the agenda for tomorrow?' },
-      { from: 'me',   text: 'Yes, just finished reading it. Looks solid.' },
-      { from: 'them', text: 'Thanks for sharing the report! I will review it tonight.' },
-    ],
-  },
-  {
-    initials: 'FO', name: 'Fatima Osei',
-    preview: 'The session starts at 14:00, Nyerere Room.',
-    time: '09:45', unread: 1, color: COLORS[1],
-    messages: [
-      { from: 'them', text: 'Are you joining the workshop today?' },
-      { from: 'me',   text: 'Of course! What time does it start?' },
-      { from: 'them', text: 'The session starts at 14:00, Nyerere Room.' },
-    ],
-  },
-  {
-    initials: 'KB', name: 'Kofi Boateng',
-    preview: 'Great, I will ping the group channel.',
-    time: 'Yesterday', unread: 0, color: COLORS[2],
-    messages: [
-      { from: 'me',   text: 'Did you connect with the trade department lead?' },
-      { from: 'them', text: 'Great, I will ping the group channel.' },
-    ],
-  },
-  {
-    initials: 'AU', name: 'AU Intern Community',
-    preview: 'Reminder: monthly roundup this Friday.',
-    time: 'Monday', unread: 0, color: '#032210',
-    messages: [
-      { from: 'them', text: 'Welcome everyone to the September cohort!' },
-      { from: 'them', text: 'Reminder: monthly roundup is this Friday at 15:00.' },
-    ],
-  },
-  {
-    initials: 'ZA', name: 'Zinash Alemu',
-    preview: 'I sent you the document link.',
-    time: 'Sunday', unread: 0, color: COLORS[3],
-    messages: [
-      { from: 'me',   text: 'Could you share the policy brief draft?' },
-      { from: 'them', text: 'I sent you the document link.' },
-    ],
-  },
-];
+import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { Hero, I } from '@/components/portal/ui';
+import { softAvatar } from '@/lib/data';
+import { useChats } from '@/lib/portal';
+import s from '@/styles/Portal.module.css';
 
 export default function ChatsPage() {
-  const [active, setActive] = useState(0);
-  const [input, setInput]   = useState('');
-  const chat = CHATS[active];
+  const { chats, unread, markRead, send } = useChats();
+  const [activeId, setActiveId] = useState(chats[0].id);
+  const [view, setView] = useState<'list' | 'chat'>('list');
+  const [input, setInput] = useState('');
+  const [q, setQ] = useState('');
+  const msgs = useRef<HTMLDivElement>(null);
+  const chat = chats.find((c) => c.id === activeId) ?? chats[0];
 
-  const totalUnread = CHATS.reduce((n, c) => n + c.unread, 0);
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return t ? chats.filter((c) => c.name.toLowerCase().includes(t)) : chats;
+  }, [chats, q]);
+
+  /* a conversation counts as read once it is on screen (always on desktop, after tapping on mobile) */
+  useEffect(() => {
+    if (view === 'chat' || window.matchMedia('(min-width: 861px)').matches) markRead(activeId);
+  }, [activeId, view, markRead]);
+  /* keep the newest message in view */
+  useEffect(() => {
+    const el = msgs.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [chat.messages.length, activeId]);
+
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text) return;
+    send(chat.id, text);
+    setInput('');
+  };
 
   return (
     <>
-      {/* ── Page header ────────────────────────────── */}
-      <div className={s.pageHero}>
-        <div>
-          <p className={s.pageEyebrow}>MESSAGES</p>
-          <h1 className={s.pageHeading}>Chats</h1>
-          <p className={s.pageDesc}>Direct messages and group conversations with your cohort.</p>
-        </div>
-        {totalUnread > 0 && (
-          <div className={s.unreadBanner}>
-            <span className={s.unreadCount}>{totalUnread}</span>
-            <span>unread messages</span>
+      <Hero eyebrow="Messages" title="Your *Chats*" desc="Direct messages and group conversations with your cohort.">
+        {unread > 0 && (
+          <div className={s.heroStat}>
+            <span className={s.heroStatNum}>{unread}</span>
+            <span className={s.heroStatLabel}>unread messages</span>
           </div>
         )}
-      </div>
+      </Hero>
 
-      {/* ── Two-panel chat shell ───────────────────── */}
-      <div className={s.chatsShell}>
-
-        {/* Conversation list */}
+      <div className={s.chatShell} data-view={view} data-reveal>
         <div className={s.chatList}>
-          <div className={s.chatListHeader}>
-            <span>Messages</span>
-            <button className={s.newChatBtn} aria-label="New message">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M5 12h14"/><path d="M12 5v14"/>
-              </svg>
-            </button>
+          <div className={s.chatListHead}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 className={s.cardTitle}>Messages</h2>
+              <Link href="/dashboard/people" className={s.iconBtn} aria-label="New message — find people">{I.plus}</Link>
+            </div>
+            <label className={s.search} style={{ minWidth: 0 }}>
+              {I.search}
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search conversations" aria-label="Search conversations" />
+            </label>
           </div>
-
-          {CHATS.map((c, i) => (
-            <button
-              key={c.name}
-              className={`${s.chatItem} ${i === active ? s.chatItemActive : ''}`}
-              onClick={() => setActive(i)}
-            >
-              <div
-                className={s.chatAvatar}
-                style={{
-                  background: c.color,
-                  color: c.color === '#032210' ? '#fff' : '#032210',
-                }}
-              >
-                {c.initials}
-              </div>
-              <div className={s.chatInfo}>
-                <p className={s.chatName}>{c.name}</p>
-                <p className={s.chatPreview}>{c.preview}</p>
-              </div>
-              <div className={s.chatMeta}>
-                <p className={s.chatTime}>{c.time}</p>
-                {c.unread > 0 && (
-                  <div className={s.chatUnreadBadge}>{c.unread}</div>
-                )}
-              </div>
-            </button>
-          ))}
+          <div className={s.chatItems} data-lenis-prevent>
+            {list.map((c) => (
+              <button key={c.id} type="button" className={s.chatItem} aria-current={c.id === chat.id}
+                onClick={() => { setActiveId(c.id); setView('chat'); }}>
+                <span className={s.av} style={softAvatar(c.color)}>{c.initials}</span>
+                <span className={s.chatInfo}>
+                  <span className={s.chatName} style={{ display: 'block' }}>{c.name}</span>
+                  <span className={s.chatPreview} style={{ display: 'block' }}>{c.preview}</span>
+                </span>
+                <span className={s.chatSide}>
+                  <span className={s.chatTime}>{c.time}</span>
+                  {c.unread > 0 && <span className={s.chatUnread}>{c.unread}</span>}
+                </span>
+              </button>
+            ))}
+            {!list.length && <p className={s.agendaEmpty} style={{ padding: 12 }}>No conversations found.</p>}
+          </div>
         </div>
 
-        {/* Message area */}
         <div className={s.chatArea}>
-          {/* Header */}
-          <div className={s.chatAreaHeader}>
-            <div
-              className={s.chatAvatar}
-              style={{
-                width: 38, height: 38, fontSize: 13,
-                background: chat.color,
-                color: chat.color === '#032210' ? '#fff' : '#032210',
-                flexShrink: 0,
-              }}
-            >
-              {chat.initials}
+          <div className={s.chatAreaHead}>
+            <button type="button" className={`${s.iconBtn} ${s.chatBack}`} onClick={() => setView('list')} aria-label="Back to conversations">{I.left}</button>
+            <span className={s.av} style={{ ...softAvatar(chat.color), width: 38, height: 38 }}>{chat.initials}</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p className={s.chatName}>{chat.name}</p>
+              <span className={s.chatStatus}>Active now</span>
             </div>
-            <div className={s.chatAreaInfo}>
-              <p className={s.chatAreaName}>{chat.name}</p>
-              <span className={s.chatAreaStatus}>
-                <span className={s.statusDot} />
-                Active now
-              </span>
-            </div>
-            <button className={s.chatMoreBtn} aria-label="More options">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
-              </svg>
-            </button>
           </div>
 
-          {/* Messages */}
-          <div className={s.chatMessages}>
-            {chat.messages.map((msg, i) => (
-              <div key={i} className={`${s.msgBubble} ${msg.from === 'me' ? s.msgMe : s.msgThem}`}>
-                {msg.text}
+          <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite">
+            {chat.messages.map((m, i) => (
+              <div key={i} className={`${s.msg} ${m.from === 'me' ? s.msgMe : s.msgThem}`}>
+                {m.text}<small>{m.time}</small>
               </div>
             ))}
           </div>
 
-          {/* Input */}
-          <div className={s.chatInputRow}>
-            <input
-              className={s.chatInput}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              placeholder="Write a message…"
-              onKeyDown={e => { if (e.key === 'Enter') setInput(''); }}
-            />
-            <button
-              className={s.chatSendBtn}
-              onClick={() => setInput('')}
-              disabled={!input.trim()}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/>
-              </svg>
-              Send
-            </button>
-          </div>
+          <form className={s.chatForm} onSubmit={submit}>
+            <input className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
+              placeholder={`Message ${chat.name.split(' ')[0]}…`} aria-label="Write a message" maxLength={1000} />
+            <button type="submit" className={s.btnDark} disabled={!input.trim()}>{I.send} Send</button>
+          </form>
         </div>
-
       </div>
     </>
   );

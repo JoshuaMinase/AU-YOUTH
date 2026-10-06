@@ -1,423 +1,317 @@
-import s from '@/styles/Dashboard.module.css';
+'use client';
+
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { I, MiniCalendar, useToast } from '@/components/portal/ui';
+import { ME, MONTHS, MONTHS_SHORT, NEWS, PROFILE_DEFAULT, WEEKDAYS, parseYmd, profileScore, ymd, type Profile, softAvatar } from '@/lib/data';
+import { useToday, copyText } from '@/lib/hooks';
+import { useChats, useEvents } from '@/lib/portal';
+import { usePersisted, toggleIn } from '@/lib/store';
+import s from '@/styles/Portal.module.css';
 
-/* ─── Calendar data ───────────────────────────────────────────── */
-const WEEK_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
-// October 2026: 1st is a Thursday → 3 blanks before day 1
-const CAL_OFFSET = 3;
-const CAL_DAYS   = 31;
-const CAL_TODAY  = 18;
-const CAL_EVENT_DAYS = [7, 9, 11, 18, 22, 25];
+interface Post { id: string; initials: string; bg: string; name: string; meta: string; body: string; image?: string; likes: number; comments: { who: string; text: string }[] }
 
-function MiniCalendar() {
-  const cells: (number | null)[] = [
-    ...Array(CAL_OFFSET).fill(null),
-    ...Array.from({ length: CAL_DAYS }, (_, i) => i + 1),
-  ];
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  return (
-    <div className={s.miniCal}>
-      {/* Week labels */}
-      <div className={s.miniCalWeekRow}>
-        {WEEK_LABELS.map(d => (
-          <span key={d} className={s.miniCalWeekLabel}>{d}</span>
-        ))}
-      </div>
-      {/* Day cells */}
-      <div className={s.miniCalGrid}>
-        {cells.map((day, i) => {
-          const isToday    = day === CAL_TODAY;
-          const hasEvent   = day !== null && CAL_EVENT_DAYS.includes(day) && !isToday;
-          return (
-            <span
-              key={i}
-              className={[
-                s.miniCalDay,
-                !day       ? s.miniCalDayEmpty : '',
-                isToday    ? s.miniCalDayToday : '',
-                hasEvent   ? s.miniCalDayEvent : '',
-              ].filter(Boolean).join(' ')}
-            >
-              {day ?? ''}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Today's events ──────────────────────────────────────────── */
-const TODAY_EVENTS = [
-  { time: '10:00', title: 'Weekly Intern Coordination', type: 'meeting'  },
-  { time: '14:00', title: 'Youth Innovation Exchange',  type: 'event'    },
-  { time: '09:00', title: 'Skills Development Workshop',type: 'workshop' },
+const SEED_POSTS: Post[] = [
+  { id: 'p1', initials: 'AU', bg: '#032210', name: 'AU Youth Network', meta: '2 hours ago · Pinned',
+    body: '🎉 Welcome to Intern Onboarding Week! Make sure to complete your profile so coordinators can match you to the right projects. Reach out to your cohort lead if you have any questions.',
+    image: '/assets/card-img-1.webp', likes: 124, comments: [{ who: 'Amara Mensah', text: 'So excited to be here!' }] },
+  { id: 'p2', initials: 'SD', bg: '#117302', name: 'Skills Development Team', meta: 'Yesterday · Public',
+    body: '📋 Registration is now open for the Skills Development Workshop in Mandela Hall. Seats are limited — secure yours today!', likes: 57, comments: [] },
 ];
 
-/* ─── Notifications ───────────────────────────────────────────── */
-const NOTIFICATIONS = [
-  {
-    id: 1,
-    icon: 'AU',
-    iconBg: '#032210',
-    iconColor: '#D68B17',
-    title: 'New announcement posted',
-    body: 'AU Youth Network shared an update about Intern Onboarding Week 2026.',
-    time: '2 hours ago',
-    timeColor: '#D68B17',
-  },
-  {
-    id: 2,
-    icon: '📅',
-    iconBg: 'rgba(214,139,23,0.12)',
-    iconColor: '#D68B17',
-    title: 'Event reminder',
-    body: 'Youth Innovation Exchange starts tomorrow at 14:00 — Online.',
-    time: '5 hours ago',
-    timeColor: '#D68B17',
-  },
-  {
-    id: 3,
-    icon: '✓',
-    iconBg: 'rgba(23,108,80,0.12)',
-    iconColor: '#176C50',
-    title: 'Profile tip',
-    body: 'Complete your profile to increase your visibility to project coordinators.',
-    time: '1 day ago',
-    timeColor: 'var(--muted)',
-  },
+const NOTIFS = [
+  { id: 'n1', icon: 'AU', bg: '#ECECE8', fg: '#1E2A22', title: 'New announcement posted', body: 'AU Youth Network shared an update about Intern Onboarding Week.', time: '2 hours ago', href: `/dashboard/news/${NEWS[0].slug}` },
+  { id: 'n2', icon: '📅', bg: '#F3EEE4', fg: '#8a6a3c', title: 'Event reminder', body: 'Youth Innovation Exchange starts today at 14:00 — Online.', time: '5 hours ago', href: '/dashboard/calendar' },
+  { id: 'n3', icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A', title: 'Profile tip', body: 'Complete your profile to increase your visibility to project coordinators.', time: '1 day ago', href: '/dashboard/profile' },
 ];
 
-/* ─── Coming up events ────────────────────────────────────────── */
-const COMING_UP = [
-  { day: '07', month: 'SEP', tag: 'MEETING',  tagColor: s.tagMeeting,  title: 'Weekly Intern Coordination', time: '10:00', location: 'Mandela Hall' },
-  { day: '09', month: 'SEP', tag: 'EVENT',    tagColor: s.tagEvent,    title: 'Youth Innovation Exchange',   time: '14:00', location: 'Online'       },
-  { day: '11', month: 'SEP', tag: 'WORKSHOP', tagColor: s.tagWorkshop, title: 'Skills Development Workshop', time: '09:00', location: 'Mandela Hall' },
-];
-
-/* ─── Social feed posts ───────────────────────────────────────── */
-const FEED_POSTS = [
-  {
-    id: 1,
-    initials: 'AU',
-    avatarBg: '#032210',
-    avatarColor: '#D68B17',
-    name: 'AU Youth Network',
-    meta: '2 hours ago · Pinned',
-    isPinned: true,
-    body: '🎉 Welcome to Intern Onboarding Week 2026! Make sure to complete your profile so coordinators can match you to the right projects. Reach out to your cohort lead if you have any questions.',
-    image: '/assets/card-img-1.jpg',
-    likes: 124,
-    comments: 18,
-  },
-  {
-    id: 2,
-    initials: 'SD',
-    avatarBg: '#176C50',
-    avatarColor: '#fff',
-    name: 'Skills Development Team',
-    meta: 'Yesterday · Public',
-    isPinned: false,
-    body: '📋 Registration is now open for the Skills Development Workshop on 11 Sep, 09:00 at Mandela Hall. Seats are limited — secure yours today!',
-    image: null,
-    likes: 57,
-    comments: 9,
-  },
-];
-
-/* ─────────────────────────────────────────────────────────────── */
+const greet = (d: Date) => { const h = d.getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 
 export default function DashboardHome() {
+  const today = useToday();
+  const { events } = useEvents(today);
+  const { chats, unread, send, markRead } = useChats();
+  const [toast, toastNode] = useToast();
+  const [selected, setSelected] = useState('');
+  const selKey = selected || (today ? ymd(today) : '');
+
+  /* feed */
+  const [myPosts, setMyPosts] = usePersisted<Post[]>('auy-posts', []);
+  const [liked, setLiked] = usePersisted<string[]>('auy-likes', []);
+  const [hidden, setHidden] = usePersisted<string[]>('auy-hidden', []);
+  const [extraComments, setExtraComments] = usePersisted<Record<string, { who: string; text: string }[]>>('auy-comments', {});
+  const [openComments, setOpenComments] = useState<string | null>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [commentDraft, setCommentDraft] = useState('');
+  const posts = [...myPosts, ...SEED_POSTS].filter((p) => !hidden.includes(p.id));
+
+  const [profile] = usePersisted<Profile>('auy-profile', PROFILE_DEFAULT);
+  const completion = profileScore(profile);
+
+  const [readNotifs, setReadNotifs] = usePersisted<string[]>('auy-notifs-read', []);
+  const newCount = NOTIFS.filter((n) => !readNotifs.includes(n.id)).length;
+
+  const dayEvents = useMemo(() => events.filter((e) => e.date === selKey), [events, selKey]);
+  const upcoming = useMemo(() => (today ? events.filter((e) => e.date >= ymd(today)).slice(0, 3) : []), [events, today]);
+  /* quick chat: unread conversations first, then most recent */
+  const recentChats = useMemo(() => [...chats].sort((a, b) => b.unread - a.unread).slice(0, 3), [chats]);
+  const [qcId, setQcId] = useState('');
+  const [qcDraft, setQcDraft] = useState('');
+  const qc = chats.find((c) => c.id === qcId) ?? recentChats[0];
+
+  const publish = (e: React.FormEvent) => {
+    e.preventDefault();
+    const body = draft.trim();
+    if (!body) return;
+    setMyPosts((p) => [{ id: `me-${Date.now()}`, initials: ME.initials, bg: '#E2CBA4', name: ME.name, meta: 'Just now · Public', body, likes: 0, comments: [] }, ...p]);
+    setDraft('');
+    toast('Posted to the community');
+  };
+
+  const addComment = (id: string) => {
+    const text = commentDraft.trim();
+    if (!text) return;
+    setExtraComments((p) => ({ ...p, [id]: [...(p[id] ?? []), { who: ME.name, text }] }));
+    setCommentDraft('');
+  };
+
+  const selDate = selKey ? parseYmd(selKey) : null;
+
   return (
-    <div className={s.homeGrid}>
-
-      {/* ════════════════════════════════════════════
-          LEFT COLUMN
-          ════════════════════════════════════════════ */}
-      <aside className={s.homeLeft}>
-
-        {/* Profile completion card */}
-        <div className={s.profileCard}>
-          <div className={s.profileCardRing}>
-            {/* Conic-gradient ring */}
-            <svg viewBox="0 0 36 36" className={s.ringCircleSvg} aria-hidden="true">
-              <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ddd4c5" strokeWidth="3"/>
-              <circle
-                cx="18" cy="18" r="15.9"
-                fill="none" stroke="#D68B17" strokeWidth="3"
-                strokeDasharray="65 35"
-                strokeDashoffset="25"
-                strokeLinecap="round"
-              />
-            </svg>
-            <span className={s.ringPctLabel}>65%</span>
-          </div>
-          <div className={s.profileCardBody}>
-            <p className={s.profileCardTitle}>Complete your profile</p>
-            <p className={s.profileCardSub}>Add the remaining required details so other interns can find and trust your profile.</p>
-          </div>
-        </div>
-
-        {/* Mini calendar */}
-        <div className={s.calCard}>
-          <div className={s.calCardHead}>
-            <div>
-              <p className={s.calCardEyebrow}>OCTOBER 2026</p>
-              <h2 className={s.calCardTitle}>Your calendar</h2>
-            </div>
-            <Link href="/dashboard/calendar" className={s.calCardLink}>
-              Full calendar
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="m9 18 6-6-6-6"/>
+    <>
+      <div className={s.homeGrid}>
+        {/* ── Left ─────────────────────────────── */}
+        <aside className={s.col}>
+          <Link href="/dashboard/profile" className={s.profileCard} data-reveal>
+            <span className={s.ringWrap}>
+              <svg viewBox="0 0 36 36" aria-hidden="true">
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ECECE8" strokeWidth="3.4" />
+                <circle cx="18" cy="18" r="15.9" fill="none" stroke="#1E2A22" strokeWidth="3.4" strokeLinecap="round"
+                  strokeDasharray={`${completion} ${100 - completion}`} pathLength={100} />
               </svg>
-            </Link>
-          </div>
-
-          {/* Month navigation */}
-          <div className={s.calMonthNav}>
-            <button className={s.calNavArrow} aria-label="Previous month">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-            </button>
-            <span className={s.calMonthLabel}>October 2026</span>
-            <button className={s.calNavArrow} aria-label="Next month">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-            </button>
-          </div>
-
-          <MiniCalendar />
-
-          {/* Today's schedule */}
-          <div className={s.todaySchedule}>
-            {TODAY_EVENTS.map((ev, i) => (
-              <div key={i} className={s.todayRow}>
-                <span className={`${s.todayDot} ${s[`dot_${ev.type}`]}`} />
-                <span className={s.todayTime}>{ev.time}</span>
-                <span className={s.todayTitle}>{ev.title}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </aside>
-
-      {/* ════════════════════════════════════════════
-          CENTRE COLUMN
-          ════════════════════════════════════════════ */}
-      <section className={s.homeCentre}>
-
-        {/* Welcome greeting */}
-        <div className={s.welcomeRow}>
-          <div>
-            <p className={s.welcomeDate}>TUESDAY, 8 SEPTEMBER</p>
-            <h1 className={s.welcomeHeading}>Good morning, Yididiya.</h1>
-            <p className={s.welcomeSub}>Here is what is happening across your AU intern community.</p>
-          </div>
-          <Link href="/dashboard/calendar" className={s.openCalBtn}>
-            Open calendar
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/>
-            </svg>
+              <span className={s.ringPct}>{completion}%</span>
+            </span>
+            <span className={s.profileText}>
+              <span className={s.profileTitle} style={{ display: 'block' }}>{completion < 100 ? 'Complete your profile' : 'Profile complete'}</span>
+              <span className={s.profileSub}>{completion < 100 ? 'A few details left' : 'Looking good'}</span>
+            </span>
+            <span className={s.profileCta} aria-hidden="true">{I.right}</span>
           </Link>
-        </div>
 
-        {/* Featured announcement banner */}
-        <div className={s.announceBanner}>
-          <div className={s.announceBannerInner}>
-            <p className={s.announceEyebrow}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M3 11l19-9-9 19-2-8-8-2z"/>
-              </svg>
-              LATEST ANNOUNCEMENT
-            </p>
-            <h2 className={s.announceTitle}>AU Youth Network — Intern Onboarding Week 2026</h2>
-            <p className={s.announceBody}>Welcome all new interns! Check your schedules and complete your profiles.</p>
-          </div>
-          <button className={s.announceBtn}>
-            Read more
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m9 18 6-6-6-6"/>
-            </svg>
-          </button>
-        </div>
-
-        {/* Social feed */}
-        <div className={s.feedList}>
-          {FEED_POSTS.map(post => (
-            <article key={post.id} className={s.feedPost}>
-              {/* Post header */}
-              <div className={s.feedPostHead}>
-                <div
-                  className={s.feedAvatar}
-                  style={{ background: post.avatarBg, color: post.avatarColor }}
-                >
-                  {post.initials}
-                </div>
-                <div className={s.feedPostMeta}>
-                  <p className={s.feedPostName}>{post.name}</p>
-                  <p className={s.feedPostTime}>{post.meta}</p>
-                </div>
-                <button className={s.feedMoreBtn} aria-label="More options">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
-                  </svg>
-                </button>
-              </div>
-
-              {/* Post body */}
-              <p className={s.feedPostBody}>{post.body}</p>
-
-              {/* Post image */}
-              {post.image && (
-                <div className={s.feedPostImgWrap}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={post.image} alt="" className={s.feedPostImg} />
-                </div>
-              )}
-
-              {/* Post actions */}
-              <div className={s.feedActions}>
-                <button className={s.feedAction}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/>
-                  </svg>
-                  {post.likes} likes
-                </button>
-                <button className={s.feedAction}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  {post.comments} comments
-                </button>
-                <button className={s.feedAction}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                  </svg>
-                  Share
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      {/* ════════════════════════════════════════════
-          RIGHT COLUMN
-          ════════════════════════════════════════════ */}
-      <aside className={s.homeRight}>
-
-        {/* Notifications */}
-        <div className={s.notifCard}>
-          <div className={s.notifCardHead}>
-            <div className={s.notifCardHeadLeft}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              <h3 className={s.notifCardTitle}>Notifications</h3>
-            </div>
-            <span className={s.notifBadge}>3 new</span>
-          </div>
-
-          <div className={s.notifList}>
-            {NOTIFICATIONS.map(n => (
-              <div key={n.id} className={s.notifItem}>
-                <div
-                  className={s.notifIcon}
-                  style={{ background: n.iconBg, color: n.iconColor }}
-                >
-                  {n.icon}
-                </div>
-                <div className={s.notifBody}>
-                  <p className={s.notifTitle}>{n.title}</p>
-                  <p className={s.notifText}>{n.body}</p>
-                  <span className={s.notifTime} style={{ color: n.timeColor }}>{n.time}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Coming up */}
-        <div className={s.comingCard}>
-          <div className={s.comingCardHead}>
-            <div>
-              <p className={s.comingEyebrow}>ANNOUNCEMENTS</p>
-              <h3 className={s.comingTitle}>Coming up</h3>
-            </div>
-            <span className={s.comingBadge}>3 new</span>
-          </div>
-
-          <div className={s.comingList}>
-            {COMING_UP.map(ev => (
-              <div key={ev.day} className={s.comingItem}>
-                <div className={s.comingDateBlock}>
-                  <span className={s.comingMonth}>{ev.month}</span>
-                  <span className={s.comingDay}>{ev.day}</span>
-                </div>
-                <div className={s.comingItemBody}>
-                  <span className={`${s.comingTag} ${ev.tagColor}`}>{ev.tag}</span>
-                  <p className={s.comingItemTitle}>{ev.title}</p>
-                  <p className={s.comingItemMeta}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                    </svg>
-                    {ev.time}
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ marginLeft: 6 }}>
-                      <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/>
-                      <circle cx="12" cy="10" r="3"/>
-                    </svg>
-                    {ev.location}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Quick chat */}
-        <div className={s.quickChatCard}>
-          <div className={s.quickChatHead}>
-            <div className={s.quickChatHeadLeft}>
-              <div className={s.quickChatIcon}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/>
-                </svg>
-              </div>
+          <div className={s.card} data-reveal>
+            <div className={s.cardHead}>
               <div>
-                <p className={s.quickChatTitle}>Quick chat</p>
-                <p className={s.quickChatSub}>3 unread messages</p>
+                <p className={s.cardEyebrow}>Schedule</p>
+                <h2 className={s.cardTitle}>Your calendar</h2>
               </div>
+              <Link href="/dashboard/calendar" className={s.cardLink}>Full calendar →</Link>
             </div>
-            <div className={s.quickChatActions}>
-              <Link href="/dashboard/chats" className={s.quickChatExpand} aria-label="Open full chats">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
-                  <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-                </svg>
+            {today ? (
+              <>
+                <MiniCalendar today={today} events={events} selected={selKey} onSelect={setSelected} />
+                <div className={s.agenda}>
+                  <p className={s.agendaLabel}>
+                    {selKey === ymd(today) ? 'Today' : selDate && `${WEEKDAYS[selDate.getDay()]} ${selDate.getDate()} ${MONTHS[selDate.getMonth()]}`}
+                  </p>
+                  {dayEvents.length ? dayEvents.map((ev) => (
+                    <div key={ev.id} className={`${s.agendaRow} ${s[`ev_${ev.type}`]}`}>
+                      <span className={s.dot} />
+                      <span className={s.agendaTime}>{ev.time}</span>
+                      <span className={s.agendaTitle}>{ev.title}</span>
+                    </div>
+                  )) : <p className={s.agendaEmpty}>Nothing scheduled.</p>}
+                </div>
+              </>
+            ) : <div style={{ height: 300 }} />}
+          </div>
+        </aside>
+
+        {/* ── Centre ───────────────────────────── */}
+        <section className={s.col}>
+          <Link href={`/dashboard/news/${NEWS[0].slug}`} className={s.announce} data-reveal style={{ textDecoration: 'none' }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/baskets.webp" alt="" aria-hidden="true" />
+            <span className={s.announceEyebrow}>Latest announcement</span>
+            <span className={s.announceRow}>
+              <span>
+                <h2 className={s.announceTitle}>{NEWS[0].title}</h2>
+                <span className={s.announceBody} style={{ display: 'block' }}>{NEWS[0].source} · {NEWS[0].meta}</span>
+              </span>
+              <span className={s.announceBtn}>Read more {I.right}</span>
+            </span>
+          </Link>
+
+          <section className={s.greet}>
+            <div>
+              <p className={s.greetDate}>{today ? `${WEEKDAYS[today.getDay()]}, ${today.getDate()} ${MONTHS[today.getMonth()]}` : 'Welcome back'}</p>
+              <h1 className={s.greetTitle}>
+                <span className={s.mask}><span data-w className={s.word}>{today ? greet(new Date()) : 'Hello'},</span></span>{' '}
+                <span className={s.mask}><span data-w className={s.word}><em>{ME.first}.</em></span></span>
+              </h1>
+              <p className={s.greetSub}>Here is what is happening across your AU intern community.</p>
+            </div>
+            <Link href="/dashboard/calendar" className={s.btnLine}>{I.calendar} Open calendar</Link>
+          </section>
+
+          {/* composer */}
+          <div className={`${s.card} ${s.composer}`} data-reveal>
+            <span className={s.av} style={{ background: '#E2CBA4', color: '#1E2A22' }}>{ME.initials}</span>
+            <form onSubmit={publish}>
+              <label className={s.agendaLabel} htmlFor="composer">Share with the community</label>
+              <textarea id="composer" className={s.textarea} style={{ minHeight: 70 }} value={draft}
+                onChange={(e) => setDraft(e.target.value)} placeholder="Share an update, idea or question…" maxLength={600} />
+              <div className={s.composerRow}>
+                <span className={s.cardMeta}>{draft.length}/600</span>
+                <button type="submit" className={s.btnDark} disabled={!draft.trim()}>{I.send} Post</button>
+              </div>
+            </form>
+          </div>
+
+          {posts.map((p) => {
+            const isLiked = liked.includes(p.id);
+            const comments = [...p.comments, ...(extraComments[p.id] ?? [])];
+            return (
+              <article key={p.id} className={`${s.card} ${s.post}`} data-reveal>
+                <div className={s.postHead}>
+                  <span className={s.av} style={softAvatar(p.bg)}>{p.initials}</span>
+                  <div>
+                    <p className={s.postName}>{p.name}</p>
+                    <p className={s.postMeta}>{p.meta}</p>
+                  </div>
+                  <div className={s.menuWrap}>
+                    <button type="button" className={s.iconBtn} aria-label="Post options" aria-expanded={menu === p.id}
+                      onClick={() => setMenu(menu === p.id ? null : p.id)}>{I.more}</button>
+                    {menu === p.id && (
+                      <div className={s.menu} role="menu">
+                        <button type="button" role="menuitem" onClick={() => { setHidden((h) => [...h, p.id]); setMenu(null); toast('Post hidden'); }}>Hide post</button>
+                        {p.id.startsWith('me-') && (
+                          <button type="button" role="menuitem" onClick={() => { setMyPosts((m) => m.filter((x) => x.id !== p.id)); setMenu(null); toast('Post deleted'); }}>Delete post</button>
+                        )}
+                        <button type="button" role="menuitem" onClick={() => setMenu(null)}>Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <p className={s.postBody}>{p.body}</p>
+                {p.image && (
+                  <div className={s.postImg}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.image} alt="" loading="lazy" />
+                  </div>
+                )}
+                <div className={s.postActions}>
+                  <button type="button" className={s.action} aria-pressed={isLiked} onClick={() => setLiked((l) => toggleIn(l, p.id))}>
+                    {I.like}{p.likes + (isLiked ? 1 : 0)} likes
+                  </button>
+                  <button type="button" className={s.action} aria-expanded={openComments === p.id}
+                    onClick={() => { setOpenComments(openComments === p.id ? null : p.id); setCommentDraft(''); }}>
+                    {I.comment}{comments.length} comments
+                  </button>
+                  <button type="button" className={s.action}
+                    onClick={async () => toast((await copyText(`${location.origin}/dashboard#${p.id}`)) ? 'Link copied' : 'Could not copy link')}>
+                    {I.share}Share
+                  </button>
+                </div>
+                {openComments === p.id && (
+                  <div className={s.comments}>
+                    {comments.map((c, i) => <p key={i} className={s.comment}><b>{c.who}</b>{c.text}</p>)}
+                    <form className={s.inlineForm} onSubmit={(e) => { e.preventDefault(); addComment(p.id); }}>
+                      <input className={s.input} value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} placeholder="Write a comment…" aria-label="Write a comment" autoFocus />
+                      <button type="submit" className={`${s.btnDark} ${s.btnSm}`} disabled={!commentDraft.trim()}>Reply</button>
+                    </form>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+          {!posts.length && <p className={s.empty}>You have hidden every post. <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => setHidden([])}>Show them again</button></p>}
+        </section>
+
+        {/* ── Right ────────────────────────────── */}
+        <aside className={s.col}>
+          <div className={s.card} data-reveal>
+            <div className={s.cardHead}>
+              <div>
+                <p className={s.cardEyebrow}>Messages</p>
+                <h3 className={s.cardTitle}>Quick chat</h3>
+              </div>
+              <span className={s.unreadPill}>{unread ? `${unread} unread` : 'All read'}</span>
+            </div>
+            <div className={s.qc}>
+              {recentChats.map((c) => (
+                <button key={c.id} type="button" className={s.qcRow} aria-pressed={c.id === qc.id}
+                  onClick={() => { setQcId(c.id); markRead(c.id); }}>
+                  <span className={`${s.av} ${s.qcAv}`} style={softAvatar(c.color)}>{c.initials}</span>
+                  <span className={s.qcMain}>
+                    <span className={s.qcTop}><span className={s.qcName}>{c.name}</span><span className={s.qcTime}>{c.time}</span></span>
+                    <span className={s.qcPreview} data-unread={c.unread ? '' : undefined} style={{ display: 'block' }}>{c.preview}</span>
+                  </span>
+                  {c.unread > 0 && <span className={s.chatUnread}>{c.unread}</span>}
+                </button>
+              ))}
+            </div>
+            <form className={s.qcReply} onSubmit={(e) => {
+              e.preventDefault();
+              const t = qcDraft.trim(); if (!t) return;
+              send(qc.id, t); markRead(qc.id); setQcDraft(''); toast(`Sent to ${qc.name.split(' ')[0]}`);
+            }}>
+              <input value={qcDraft} onChange={(e) => setQcDraft(e.target.value)} placeholder={`Reply to ${qc.name.split(' ')[0]}…`} aria-label={`Reply to ${qc.name}`} maxLength={1000} />
+              <button type="submit" className={s.qcSend} disabled={!qcDraft.trim()} aria-label="Send">{I.send}</button>
+            </form>
+            <div className={s.qcFoot}><Link href="/dashboard/chats" className={s.cardLink}>Open all chats →</Link></div>
+          </div>
+
+          <div className={s.card} data-reveal>
+            <div className={s.cardHead}>
+              <div>
+                <p className={s.cardEyebrow}>Activity</p>
+                <h3 className={s.cardTitle}>Notifications</h3>
+              </div>
+              {newCount > 0
+                ? <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => setReadNotifs(NOTIFS.map((n) => n.id))}>Mark all read</button>
+                : <span className={s.cardMeta}>All caught up</span>}
+            </div>
+            {NOTIFS.map((n) => (
+              <Link key={n.id} href={n.href} className={s.notif} onClick={() => setReadNotifs((r) => (r.includes(n.id) ? r : [...r, n.id]))}>
+                <span className={s.notifIcon} style={{ background: n.bg, color: n.fg }}>{n.icon}</span>
+                <span>
+                  <span className={s.notifTitle}>{n.title}{!readNotifs.includes(n.id) && <i aria-label="unread" />}</span>
+                  <span className={s.notifText} style={{ display: 'block' }}>{n.body}</span>
+                  <span className={s.notifTime} style={{ display: 'block' }}>{n.time}</span>
+                </span>
               </Link>
-              <button className={s.quickChatClose} aria-label="Close quick chat">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
+            ))}
+          </div>
+
+          <div className={s.card} data-reveal>
+            <div className={s.cardHead}>
+              <div>
+                <p className={s.cardEyebrow}>Events</p>
+                <h3 className={s.cardTitle}>Coming up</h3>
+              </div>
+              <Link href="/dashboard/calendar" className={s.cardLink}>See all →</Link>
+            </div>
+            <div className={s.coming}>
+              {upcoming.map((ev) => {
+                const d = parseYmd(ev.date);
+                return (
+                  <Link key={ev.id} href="/dashboard/calendar" className={s.comingItem}>
+                    <span className={s.dateTile}><span className={s.dateMonth}>{MONTHS_SHORT[d.getMonth()]}</span><span className={s.dateDay}>{d.getDate()}</span></span>
+                    <span>
+                      <span className={s.comingTitle} style={{ display: 'block' }}>{ev.title}</span>
+                      <span className={s.comingMeta}>{ev.time} · {ev.location}</span>
+                    </span>
+                  </Link>
+                );
+              })}
+              {today && !upcoming.length && <p className={s.agendaEmpty}>No upcoming events.</p>}
             </div>
           </div>
 
-          {/* Latest message preview */}
-          <div className={s.quickChatPreview}>
-            <div className={s.quickChatAvatar} style={{ background: '#032210', color: '#D68B17' }}>
-              YD
-            </div>
-            <div className={s.quickChatMsg}>
-              <p className={s.quickChatMsgName}>Yididiya D.</p>
-              <p className={s.quickChatMsgText}>Hey, when is the workshop starting?</p>
-            </div>
-            <span className={s.quickChatUnread}>3</span>
-          </div>
-        </div>
-
-      </aside>
-    </div>
+        </aside>
+      </div>
+      {toastNode}
+    </>
   );
 }
