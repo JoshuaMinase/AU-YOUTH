@@ -5,51 +5,78 @@ const ROLES  = ['All', 'Interns', 'Fellows', 'Volunteers'];
 const DEPTS  = ['All Departments','HRST','Political Affairs','Peace & Security','Economic Affairs'];
 
 const PEOPLE = [
-  { i:'AM', name:'Amara Mensah',    role:'Intern · HRST',              country:'Ghana',        c:COLORS[0] },
-  { i:'FO', name:'Fatima Osei',     role:'Fellow · Peace & Security',  country:'Nigeria',      c:COLORS[1] },
-  { i:'KB', name:'Kofi Boateng',    role:'Volunteer · Economic Affairs',country:'Senegal',     c:COLORS[2] },
-  { i:'ZA', name:'Zinash Alemu',    role:'Intern · Political Affairs', country:'Ethiopia',     c:COLORS[3] },
-  { i:'ND', name:'Nadia Diallo',    role:'Fellow · Social Affairs',    country:'Ivory Coast',  c:COLORS[4] },
-  { i:'TM', name:'Tariq Moussa',    role:'Intern · Infrastructure',    country:'Morocco',      c:COLORS[5] },
-  { i:'AA', name:'Amina Abdi',      role:'Volunteer · Agriculture',    country:'Kenya',        c:COLORS[6] },
-  { i:'JN', name:'Jean Nkosi',      role:'Intern · Trade & Industry',  country:'DRC',          c:COLORS[7] },
-  { i:'BS', name:'Binta Sow',       role:'Fellow · HRST',              country:'Guinea',       c:COLORS[0] },
-  { i:'EW', name:'Emmanuel Waweru', role:'Intern · Legal Affairs',     country:'Uganda',       c:COLORS[1] },
-  { i:'LT', name:'Layla Tadesse',   role:'Volunteer · Education',      country:'Eritrea',      c:COLORS[2] },
-  { i:'SM', name:'Sola Martins',    role:'Intern · Finance',           country:'Nigeria',      c:COLORS[3] },
+  { i:'AM', name:'Amara Mensah',    role:'Intern',     dept:'HRST',               country:'Ghana',       flag:'🇬🇭', c:COLORS[0] },
+  { i:'FO', name:'Fatima Osei',     role:'Fellow',     dept:'Peace & Security',   country:'Nigeria',     flag:'🇳🇬', c:COLORS[1] },
+  { i:'KB', name:'Kofi Boateng',    role:'Volunteer',  dept:'Economic Affairs',   country:'Senegal',     flag:'🇸🇳', c:COLORS[2] },
+  { i:'ZA', name:'Zinash Alemu',    role:'Intern',     dept:'Political Affairs',  country:'Ethiopia',    flag:'🇪🇹', c:COLORS[3] },
+  { i:'ND', name:'Nadia Diallo',    role:'Fellow',     dept:'Social Affairs',     country:'Ivory Coast', flag:'🇨🇮', c:COLORS[4] },
+  { i:'TM', name:'Tariq Moussa',    role:'Intern',     dept:'Infrastructure',     country:'Morocco',     flag:'🇲🇦', c:COLORS[5] },
+  { i:'AA', name:'Amina Abdi',      role:'Volunteer',  dept:'Agriculture',        country:'Kenya',       flag:'🇰🇪', c:COLORS[6] },
+  { i:'JN', name:'Jean Nkosi',      role:'Intern',     dept:'Trade & Industry',   country:'DRC',         flag:'🇨🇩', c:COLORS[7] },
+  { i:'BS', name:'Binta Sow',       role:'Fellow',     dept:'HRST',               country:'Guinea',      flag:'🇬🇳', c:COLORS[0] },
+  { i:'EW', name:'Emmanuel Waweru', role:'Intern',     dept:'Legal Affairs',      country:'Uganda',      flag:'🇺🇬', c:COLORS[1] },
+  { i:'LT', name:'Layla Tadesse',   role:'Volunteer',  dept:'Education',          country:'Eritrea',     flag:'🇪🇷', c:COLORS[2] },
+  { i:'SM', name:'Sola Martins',    role:'Intern',     dept:'Finance',            country:'Nigeria',     flag:'🇳🇬', c:COLORS[3] },
 ];
+
+const ROLE_TAG: Record<string, string> = {
+  Intern:    s.tagGreen,
+  Fellow:    s.tagGold,
+  Volunteer: s.tagBlue,
+};
 
 export default function PeoplePage() {
   return (
     <>
-      <div className={s.pageHeader}>
-        <h1 className={s.pageTitle}>People</h1>
-        <p className={s.pageSubtitle}>Connect with interns, fellows and volunteers across the Union.</p>
+      {/* ── Page header ────────────────────────────── */}
+      <div className={s.pageHero}>
+        <div>
+          <p className={s.pageEyebrow}>AU YOUTH NETWORK</p>
+          <h1 className={s.pageHeading}>People</h1>
+          <p className={s.pageDesc}>
+            Connect with interns, fellows and volunteers serving across the Union.
+          </p>
+        </div>
+        <div className={s.pageHeroStat}>
+          <span className={s.heroStatNum}>{PEOPLE.length}</span>
+          <span className={s.heroStatLabel}>members online</span>
+        </div>
       </div>
 
-      <div className={s.searchWrap}>
-        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="rgba(3,34,16,0.35)" strokeWidth="1.8">
-          <circle cx="9" cy="9" r="5.5"/><path d="M13.5 13.5L17 17" strokeLinecap="round"/>
-        </svg>
-        <input className={s.searchInput} placeholder="Search by name, department or country…" />
+      {/* ── Search + filters ───────────────────────── */}
+      <div className={s.toolBar}>
+        <div className={s.searchWrap}>
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+            <circle cx="9" cy="9" r="5.5"/><path d="M13.5 13.5L17 17" strokeLinecap="round"/>
+          </svg>
+          <input className={s.searchInput} placeholder="Search by name, department or country…" />
+        </div>
+        <div className={s.filterBar} style={{ marginTop: 0 }}>
+          {ROLES.map((r, i) => (
+            <button key={r} className={`${s.filterPill} ${i === 0 ? s.filterPillActive : ''}`}>{r}</button>
+          ))}
+          <select className={s.deptSelect}>
+            {DEPTS.map(d => <option key={d}>{d}</option>)}
+          </select>
+        </div>
       </div>
 
-      <div className={s.filterRow}>
-        {ROLES.map((r, i) => (
-          <button key={r} className={`${s.filterPill} ${i === 0 ? s.filterPillActive : ''}`}>{r}</button>
-        ))}
-        <select style={{ marginLeft:'auto', padding:'6px 12px', borderRadius:8, border:'1.5px solid #ECEAE4', fontSize:12, fontFamily:'inherit', color:'#032210', background:'#fff', outline:'none', cursor:'pointer' }}>
-          {DEPTS.map(d => <option key={d}>{d}</option>)}
-        </select>
-      </div>
-
+      {/* ── People grid ────────────────────────────── */}
       <div className={s.peopleGrid}>
         {PEOPLE.map(p => (
           <div key={p.name} className={s.personCard}>
-            <div className={s.personAvatar} style={{ background: p.c }}>{p.i}</div>
-            <p className={s.personName}>{p.name}</p>
-            <p className={s.personRole}>{p.role}</p>
-            <p className={s.personCountry}>{p.country}</p>
+            <div className={s.personAvatarWrap}>
+              <div className={s.personAvatar} style={{ background: p.c }}>{p.i}</div>
+            </div>
+            <div className={s.personCardBody}>
+              <p className={s.personName}>{p.name}</p>
+              <span className={`${s.newsTag} ${ROLE_TAG[p.role] ?? s.tagMuted}`}>{p.role}</span>
+              <p className={s.personDept}>{p.dept}</p>
+              <p className={s.personCountry}>
+                <span aria-hidden="true">{p.flag}</span>{' '}
+                {p.country}
+              </p>
+            </div>
             <button className={s.connectBtn}>Connect</button>
           </div>
         ))}

@@ -1,59 +1,99 @@
 import s from '@/styles/Dashboard.module.css';
 
-const SKILLS = ['Policy Analysis','Research','Public Speaking','Data Analysis','Project Management','French','English','Amharic'];
+const SKILLS = [
+  'Policy Analysis','Research','Public Speaking',
+  'Data Analysis','Project Management',
+  'French','English','Amharic',
+];
 
 const CONNECTIONS = [
-  { i:'AM', name:'Amara Mensah',    role:'Intern · HRST',              c:'#C9A84C' },
-  { i:'FO', name:'Fatima Osei',     role:'Fellow · Peace & Security',  c:'#7BC9A0' },
-  { i:'KB', name:'Kofi Boateng',    role:'Volunteer · Economic Affairs',c:'#6BB5D9' },
-  { i:'ZA', name:'Zinash Alemu',    role:'Intern · Political Affairs', c:'#E07B7B' },
-  { i:'ND', name:'Nadia Diallo',    role:'Fellow · Social Affairs',    c:'#A78BFA' },
+  { i:'AM', name:'Amara Mensah',    role:'Intern · HRST',               c:'#C9A84C' },
+  { i:'FO', name:'Fatima Osei',     role:'Fellow · Peace & Security',   c:'#7BC9A0' },
+  { i:'KB', name:'Kofi Boateng',    role:'Volunteer · Economic Affairs', c:'#6BB5D9' },
+  { i:'ZA', name:'Zinash Alemu',    role:'Intern · Political Affairs',  c:'#E07B7B' },
+  { i:'ND', name:'Nadia Diallo',    role:'Fellow · Social Affairs',     c:'#A78BFA' },
+];
+
+const DETAILS = [
+  ['Department', 'HRST'],
+  ['Role',       'Intern'],
+  ['Nationality','Ethiopian'],
+  ['Based in',   'Addis Ababa, Ethiopia'],
+  ['Start date', 'July 2026'],
+  ['End date',   'December 2026'],
+];
+
+const EDUCATION = [
+  ['University','Addis Ababa University'],
+  ['Degree',    'MSc International Relations'],
+  ['Year',      '2025–2026'],
 ];
 
 export default function ProfilePage() {
   return (
     <>
-      <div className={s.pageHeader}>
-        <h1 className={s.pageTitle}>Profile</h1>
-        <p className={s.pageSubtitle}>Your public presence on the AU Youth Network.</p>
+      {/* ── Profile hero ───────────────────────────── */}
+      <div className={s.profileHeroBanner}>
+        {/* completion ring */}
+        <div className={s.completionRingLg}>
+          <svg viewBox="0 0 36 36" className={s.ringCircle} aria-hidden="true">
+            <circle cx="18" cy="18" r="15.9" fill="none" stroke="#ddd4c5" strokeWidth="2.5"/>
+            <circle
+              cx="18" cy="18" r="15.9"
+              fill="none" stroke="#D68B17" strokeWidth="2.5"
+              strokeDasharray="65 35"
+              strokeDashoffset="25"
+              strokeLinecap="round"
+            />
+          </svg>
+          <span className={s.ringPct}>65%</span>
+        </div>
+
+        {/* avatar */}
+        <div className={s.profileAvatarLg}>YD</div>
+
+        {/* name + details */}
+        <div className={s.profileHeroInfo}>
+          <p className={s.pageEyebrow}>YOUR PROFILE</p>
+          <h1 className={s.profileName}>Yididiya D.</h1>
+          <p className={s.profileSub}>Intern · Human Resources, Science &amp; Technology · AU Commission</p>
+          <div className={s.profileActions}>
+            <button className={s.btnPrimary}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              </svg>
+              Edit profile
+            </button>
+            <button className={s.btnSecondary}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/>
+              </svg>
+              Share profile
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Completion */}
-      <div className={s.completionBanner} style={{ marginBottom:16 }}>
+      {/* ── Completion notice ──────────────────────── */}
+      <div className={s.completionBanner}>
         <div className={s.completionLeft}>
-          <p className={s.completionPct}>65% complete</p>
+          <div className={s.completionMeta}>
+            <span className={s.completionPct}>65% complete</span>
+            <div className={s.progressBar}><div className={s.progressFill} style={{ width:'65%' }} /></div>
+          </div>
           <p className={s.completionTitle}>Complete your profile</p>
           <p className={s.completionSub}>Add a profile photo, bio and areas of interest to reach 100%.</p>
-          <div className={s.progressBar}><div className={s.progressFill} style={{ width:'65%' }} /></div>
         </div>
+        <button className={s.btnPrimary}>Finish profile</button>
       </div>
 
-      {/* Hero */}
-      <div className={s.profileHero}>
-        <div className={s.profileAvatarLg}>YD</div>
-        <div style={{ flex:1 }}>
-          <h2 className={s.profileName}>Yididiya D.</h2>
-          <p className={s.profileSub}>Intern · Human Resources, Science & Technology · AU Commission</p>
-          <div className={s.profileActions}>
-            <button className={s.btnPrimary}>Edit profile</button>
-            <button className={s.btnSecondary}>Share profile</button>
-          </div>
-        </div>
-      </div>
-
+      {/* ── Details grid ───────────────────────────── */}
       <div className={s.profileGrid}>
-        {/* Details */}
+        {/* Details card */}
         <div className={s.infoCard}>
           <p className={s.infoCardTitle}>Details</p>
-          <div className={s.infoRow}>
-            {[
-              ['Department', 'HRST'],
-              ['Role', 'Intern'],
-              ['Nationality', 'Ethiopian'],
-              ['Based in', 'Addis Ababa, Ethiopia'],
-              ['Start date', 'July 2026'],
-              ['End date', 'December 2026'],
-            ].map(([label, value]) => (
+          <div className={s.infoGrid}>
+            {DETAILS.map(([label, value]) => (
               <div key={label} className={s.infoItem}>
                 <p className={s.infoLabel}>{label}</p>
                 <p className={s.infoValue}>{value}</p>
@@ -62,15 +102,11 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        {/* Education */}
+        {/* Education + skills card */}
         <div className={s.infoCard}>
           <p className={s.infoCardTitle}>Education</p>
-          <div className={s.infoRow}>
-            {[
-              ['University', 'Addis Ababa University'],
-              ['Degree', 'MSc International Relations'],
-              ['Year', '2025–2026'],
-            ].map(([label, value]) => (
+          <div className={s.infoGrid}>
+            {EDUCATION.map(([label, value]) => (
               <div key={label} className={s.infoItem}>
                 <p className={s.infoLabel}>{label}</p>
                 <p className={s.infoValue}>{value}</p>
@@ -78,29 +114,34 @@ export default function ProfilePage() {
             ))}
           </div>
 
-          <p className={s.infoCardTitle} style={{ marginTop:20 }}>Skills &amp; Languages</p>
+          <p className={s.infoCardTitle} style={{ marginTop: 28 }}>Skills &amp; Languages</p>
           <div className={s.skillTags}>
             {SKILLS.map(sk => <span key={sk} className={s.skillTag}>{sk}</span>)}
           </div>
         </div>
       </div>
 
-      {/* Connections */}
-      <div className={s.card}>
-        <div className={s.cardHeader}>
-          <span className={s.cardTitle}>Connections</span>
-          <span style={{ fontSize:12, color:'rgba(3,34,16,0.4)' }}>5 people</span>
-        </div>
-        {CONNECTIONS.map(c => (
-          <div key={c.name} className={s.connectionRow}>
-            <div className={s.connectionAvatar} style={{ background: c.c }}>{c.i}</div>
-            <div style={{ flex:1 }}>
-              <p className={s.connectionName}>{c.name}</p>
-              <p className={s.connectionRole}>{c.role}</p>
-            </div>
-            <button className={s.msgBtn}>Message</button>
+      {/* ── Connections ────────────────────────────── */}
+      <div className={s.connectionsCard}>
+        <div className={s.cardHead}>
+          <div>
+            <p className={s.cardEyebrow}>NETWORK</p>
+            <h3 className={s.cardTitle}>Connections</h3>
           </div>
-        ))}
+          <span className={s.cardMeta}>{CONNECTIONS.length} people</span>
+        </div>
+        <div className={s.connectionsList}>
+          {CONNECTIONS.map(c => (
+            <div key={c.name} className={s.connectionRow}>
+              <div className={s.connectionAvatar} style={{ background: c.c }}>{c.i}</div>
+              <div className={s.connectionInfo}>
+                <p className={s.connectionName}>{c.name}</p>
+                <p className={s.connectionRole}>{c.role}</p>
+              </div>
+              <button className={s.msgBtn}>Message</button>
+            </div>
+          ))}
+        </div>
       </div>
     </>
   );
