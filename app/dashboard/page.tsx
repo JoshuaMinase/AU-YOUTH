@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { I, MiniCalendar, useToast } from '@/components/portal/ui';
+import { I, MiniCalendar, Modal, useToast } from '@/components/portal/ui';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
@@ -26,7 +26,10 @@ export default function DashboardHome() {
   const selKey = selected || (today ? ymd(today) : '');
 
   /* feed */
-  const { posts, total, loaded: feedLoaded, error: feedError, publish: post, remove, toggleLike, comment, hide, unhideAll } = useFeed();
+  const { posts, total, loaded: feedLoaded, error: feedError, publish: post, remove, toggleLike, comment, hide, unhideAll, requestDelete, decline } = useFeed();
+  /* post an admin is asking to have removed, and why */
+  const [asking, setAsking] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
   const [openComments, setOpenComments] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -147,8 +150,8 @@ export default function DashboardHome() {
             <Link href="/dashboard/calendar" className={s.btnLine}>{I.calendar} Open calendar</Link>
           </section>
 
-          {/* composer */}
-          <div className={`${s.card} ${s.composer}`} data-reveal>
+          {/* composer: only admins post; members join in through comments */}
+          {me.access !== 'user' && <div className={`${s.card} ${s.composer}`} data-reveal>
             <span className={s.av} style={{ background: '#E2CBA4', color: '#1E2A22' }}>{me.initials}</span>
             <form onSubmit={publish}>
               <label className={s.agendaLabel} htmlFor="composer">Share with the community</label>
@@ -159,7 +162,7 @@ export default function DashboardHome() {
                 <button type="submit" className={s.btnDark} disabled={!draft.trim() || posting}>{I.send} {posting ? 'Posting…' : 'Post'}</button>
               </div>
             </form>
-          </div>
+          </div>}
 
           {posts.map((p) => {
             const { comments } = p;
@@ -177,7 +180,10 @@ export default function DashboardHome() {
                     {menu === p.id && (
                       <div className={s.menu} role="menu">
                         <button type="button" role="menuitem" onClick={() => { setMenu(null); act(hide(p.id), 'Post hidden'); }}>Hide post</button>
-                        {(p.mine || me.access !== 'user') && (
+                        {me.access === 'admin' && !p.mine && !p.requests.some((r) => r.mine) && (
+                          <button type="button" role="menuitem" onClick={() => { setMenu(null); setReason(''); setAsking(p.id); }}>Request deletion</button>
+                        )}
+                        {(p.mine || me.access === 'super_admin') && (
                           <button type="button" role="menuitem" onClick={() => { setMenu(null); act(remove(p.id), 'Post deleted'); }}>Delete post</button>
                         )}
                         <button type="button" role="menuitem" onClick={() => setMenu(null)}>Cancel</button>
@@ -186,6 +192,15 @@ export default function DashboardHome() {
                   </div>
                 </div>
                 <p className={s.postBody}>{p.body}</p>
+                {p.requests.map((r) => (p.mine || me.access === 'super_admin') ? (
+                  <div key={r.id} className={s.comments} role="status">
+                    <p className={s.comment}><b>{r.who}</b>asked to remove this post{r.reason ? `: ${r.reason}` : '.'}</p>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button type="button" className={`${s.btnDark} ${s.btnSm}`} onClick={() => act(remove(p.id), 'Post deleted')}>Delete post</button>
+                      <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={() => act(decline(r.id), 'Post kept')}>Keep post</button>
+                    </div>
+                  </div>
+                ) : r.mine && <p key={r.id} className={s.cardMeta}>You asked for this post to be removed. Waiting for a decision.</p>)}
                 {p.image && (
                   <div className={s.postImg}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -219,7 +234,7 @@ export default function DashboardHome() {
           })}
           {feedError && <p className={s.empty} role="alert">Could not load the feed: {feedError}</p>}
           {!feedLoaded && !feedError && <p className={s.empty}>Loading posts…</p>}
-          {feedLoaded && !feedError && !total && <p className={s.empty}>No posts yet. Be the first to share something.</p>}
+          {feedLoaded && !feedError && !total && <p className={s.empty}>{me.access === 'user' ? 'No posts yet. Updates from your admins will appear here.' : 'No posts yet. Be the first to share something.'}</p>}
           {feedLoaded && !feedError && total > 0 && !posts.length && <p className={s.empty}>You have hidden every post. <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => act(unhideAll())}>Show them again</button></p>}
         </section>
 
@@ -320,6 +335,23 @@ export default function DashboardHome() {
 
         </aside>
       </div>
+      {asking && (
+        <Modal title="Request deletion" onClose={() => setAsking(null)}>
+          <form className={s.form} onSubmit={async (e) => {
+            e.preventDefault();
+            if (await act(requestDelete(asking, reason.trim()), 'Request sent to the author and the super admin')) setAsking(null);
+          }}>
+            <div className={s.field}>
+              <label className={s.label} htmlFor="del-reason">Why should this post be removed? (optional)</label>
+              <textarea id="del-reason" className={s.textarea} value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} />
+            </div>
+            <div className={s.formActions}>
+              <button type="button" className={s.btnLine} onClick={() => setAsking(null)}>Cancel</button>
+              <button type="submit" className={s.btnDark}>Send request</button>
+            </div>
+          </form>
+        </Modal>
+      )}
       {toastNode}
     </>
   );

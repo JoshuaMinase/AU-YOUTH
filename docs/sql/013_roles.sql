@@ -1,6 +1,8 @@
 -- Run once in Supabase: SQL Editor -> New query -> paste -> Run.
--- Needs 008, 009, 010. Replaces "editors" with a hierarchy:
---   super admin (exactly one) -> admins (chosen by the super admin) -> users -> visitors (public site only).
+-- Needs 008-012. Replaces "editors" with a hierarchy:
+--   super admin (exactly one) -> admins (chosen by the super admin, one per department) -> users -> visitors.
+-- Only admins post on the feed; users comment. Admins delete only their own posts and can ask for
+-- another admin's post to be deleted: the super admin or that post's author approves (deletes) or declines.
 -- Sign-up is limited to AU email domains.
 
 create schema if not exists private;
@@ -99,7 +101,7 @@ select p.id, 'super_admin' from public.profiles p join auth.users u on u.id = p.
 where lower(u.email) = 'zemena@africanunion.org'
 on conflict (user_id) do nothing;
 
--- ── move every "editor" policy over to admins ────────────────────────
+-- ── news: admins write; feed: only admins post ───────────────────────
 alter policy "read published news" on public.news
   using (published_at <= now() or (select private.is_admin()));
 alter policy "editors add news" on public.news with check ((select private.is_admin()));
@@ -111,14 +113,12 @@ alter policy "editors edit news" on public.news rename to "admins edit news";
 alter policy "editors delete news" on public.news rename to "admins delete news";
 
 alter policy "write own post" on public.posts
-  with check (
-    (select auth.uid()) = author_id
-    and ((not as_org and not pinned) or (select private.is_admin()))
-  );
+  with check ((select auth.uid()) = author_id and (select private.is_admin()));
+-- your own post, or any post if you are the super admin (that is also how a deletion request is approved)
 alter policy "delete own post" on public.posts
-  using ((select auth.uid()) = author_id or (select private.is_admin()));
+  using ((select auth.uid()) = author_id or (select private.is_super_admin()));
 alter policy "delete own comment" on public.post_comments
-  using ((select auth.uid()) = author_id or (select private.is_admin()));
+  using ((select auth.uid()) = author_id or (select private.is_super_admin()));
 
 drop function if exists private.is_editor();
 drop table if exists public.editors;
@@ -134,6 +134,81 @@ create policy "admins update tickets"
 
 revoke update on public.support_tickets from authenticated;
 grant update (status) on public.support_tickets to authenticated;
+
+-- ── deletion requests ────────────────────────────────────────────────
+create table if not exists public.post_delete_requests (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.posts (id) on delete cascade,  -- approving = deleting the post
+  requested_by uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  reason text not null default '' check (char_length(reason) <= 300),
+  status text not null default 'pending' check (status in ('pending', 'declined')),
+  created_at timestamptz not null default now(),
+  unique (post_id, requested_by)
+);
+
+create index if not exists post_delete_requests_requester_idx on public.post_delete_requests (requested_by);
+
+alter table public.post_delete_requests enable row level security;
+
+-- an admin asks about someone else's post
+create policy "admins request deletion"
+  on public.post_delete_requests for insert to authenticated
+  with check (
+    (select auth.uid()) = requested_by and status = 'pending' and (select private.is_admin())
+    and exists (select 1 from public.posts p where p.id = post_id and p.author_id <> (select auth.uid()))
+  );
+
+-- seen by whoever asked, the post's author and the super admin
+create policy "see deletion requests"
+  on public.post_delete_requests for select to authenticated
+  using (
+    (select auth.uid()) = requested_by or (select private.is_super_admin())
+    or exists (select 1 from public.posts p where p.id = post_id and p.author_id = (select auth.uid()))
+  );
+
+-- the author or the super admin declines (approving deletes the post instead)
+create policy "decline deletion request"
+  on public.post_delete_requests for update to authenticated
+  using (
+    (select private.is_super_admin())
+    or exists (select 1 from public.posts p where p.id = post_id and p.author_id = (select auth.uid()))
+  )
+  with check (status = 'declined');
+
+revoke update on public.post_delete_requests from authenticated;
+grant update (status) on public.post_delete_requests to authenticated;
+
+alter publication supabase_realtime add table public.post_delete_requests;
+
+-- tell the super admin and the post's author
+alter table public.notifications drop constraint if exists notifications_kind_check;
+alter table public.notifications add constraint notifications_kind_check
+  check (kind in ('connection_request', 'connection_accepted', 'post_comment', 'news', 'delete_request'));
+
+create or replace function private.notify_delete_request()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  insert into public.notifications (user_id, kind, title, body, href)
+  select distinct u, 'delete_request', 'Post deletion requested',
+         private.display_name(new.requested_by) || ' asked for a post to be removed'
+           || case when new.reason <> '' then ': ' || left(new.reason, 120) else '.' end,
+         '/dashboard#' || new.post_id
+  from (
+    select author_id as u from public.posts where id = new.post_id
+    union select user_id from public.admins where role = 'super_admin'
+  ) r
+  where u <> new.requested_by;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_delete_request_notify on public.post_delete_requests;
+create trigger on_delete_request_notify
+  after insert on public.post_delete_requests
+  for each row execute function private.notify_delete_request();
 
 -- ── visitors can't sign up: AU email domains only ────────────────────
 create or replace function private.check_email_domain()

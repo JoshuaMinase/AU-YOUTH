@@ -300,7 +300,7 @@ Dashboard rules:
 
 ## 12. Known gaps / backlog (not bugs — just not built yet)
 
-- Roles (docs/sql/013_roles.sql): one super admin (ZemenA@africanunion.org) → admins (super admin sets them on People) → users. Sign-up only for @africanunion.org / @africa-union.org. No in-app UI yet for writing news or handling support tickets: admins do that in Supabase.
+- Roles (docs/sql/013_roles.sql): one super admin (ZemenA@africanunion.org) → admins (super admin sets them on People, one per department) → users. Only admins post on the feed; users comment. Admins delete only their own posts and can request deletion of another's; the author or the super admin approves or declines. Sign-up only for @africanunion.org / @africa-union.org. No in-app UI yet for writing news or handling support tickets: admins do that in Supabase.
 - Unused legacy files that can be deleted once the person approves: `styles/Dashboard.module.css`
   and the original JPG/PNG photos listed in §8.
 - Ideas the person may want later: text-only headers on Chats and Profile too, a rotating

@@ -215,15 +215,18 @@ export function useNews() {
 }
 
 export interface FeedComment { id: string; who: string; text: string }
+/** a pending request to remove a post (visible to whoever asked, the post's author and the super admin) */
+export interface DeleteRequest { id: string; who: string; reason: string; mine: boolean }
 export interface FeedPost {
   id: string; initials: string; bg: string; name: string; meta: string; body: string; image?: string;
-  likes: number; liked: boolean; mine: boolean; comments: FeedComment[];
+  likes: number; liked: boolean; mine: boolean; comments: FeedComment[]; requests: DeleteRequest[];
 }
 
 const FEED_COLS = `id, author_id, as_org, pinned, body, image, created_at,
   author:profiles!posts_author_id_fkey(first_name, last_name),
   post_likes(user_id),
-  post_comments(id, body, created_at, author:profiles!post_comments_author_id_fkey(first_name, last_name))`;
+  post_comments(id, body, created_at, author:profiles!post_comments_author_id_fkey(first_name, last_name)),
+  post_delete_requests(id, status, reason, requested_by, requester:profiles!post_delete_requests_requested_by_fkey(first_name, last_name))`;
 
 
 /** Community feed (Supabase `posts`, `post_likes`, `post_comments`, `post_hides`) with live updates. Actions return an error message or null. */
@@ -255,6 +258,8 @@ export function useFeed() {
         id: r.id, name, initials: r.as_org ? 'AU' : initialsOf(name), bg: r.as_org ? '#032210' : colorFor(r.author_id),
         meta: `${timeAgo(r.created_at, now)} · ${r.pinned ? 'Pinned' : 'Public'}`, body: r.body, image: r.image ?? undefined,
         likes: likes.length, liked: likes.some((l) => l.user_id === me.id), mine: r.author_id === me.id, comments,
+        requests: (r.post_delete_requests ?? []).filter((q: Record<string, any>) => q.status === 'pending')
+          .map((q: Record<string, any>) => ({ id: q.id, who: fullName(q.requester), reason: q.reason ?? '', mine: q.requested_by === me.id })),
       };
     }));
     setLoaded(true);
@@ -270,6 +275,7 @@ export function useFeed() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, () => { load(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_likes' }, () => { load(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comments' }, () => { load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_delete_requests' }, () => { load(); })
       .subscribe();
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
@@ -296,8 +302,14 @@ export function useFeed() {
     run(createClient().from('post_comments').insert({ post_id: postId, author_id: me.id, body })), [me.id, run]);
   const hide = useCallback((id: string) => run(createClient().from('post_hides').insert({ post_id: id, user_id: me.id })), [me.id, run]);
   const unhideAll = useCallback(() => run(createClient().from('post_hides').delete().eq('user_id', me.id)), [me.id, run]);
+  /** admins: ask for someone else's post to be removed; the author or the super admin decides */
+  const requestDelete = useCallback((postId: string, reason: string) =>
+    run(createClient().from('post_delete_requests').insert({ post_id: postId, requested_by: me.id, reason })), [me.id, run]);
+  /** keep the post (approving a request = deleting the post with remove) */
+  const decline = useCallback((requestId: string) =>
+    run(createClient().from('post_delete_requests').update({ status: 'declined' }).eq('id', requestId)), [run]);
 
-  return { posts, total: rows.length, loaded, error, publish, remove, toggleLike, comment, hide, unhideAll };
+  return { posts, total: rows.length, loaded, error, publish, remove, toggleLike, comment, hide, unhideAll, requestDelete, decline };
 }
 
 export interface Notif { id: string; icon: string; bg: string; fg: string; title: string; body: string; time: string; href: string; read: boolean }
@@ -308,6 +320,7 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   connection_request: { icon: '+', bg: '#F3EEE4', fg: '#8a6a3c' },
   connection_accepted: { icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A' },
   post_comment: { icon: '💬', bg: '#F3EEE4', fg: '#8a6a3c' },
+  delete_request: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
 };
 
 /** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */
