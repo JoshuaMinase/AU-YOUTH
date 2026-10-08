@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Hero, I, useToast } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
 import { useListAnimation } from '@/lib/hooks';
+import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
 import s from '@/styles/Portal.module.css';
 
@@ -16,7 +17,8 @@ export default function PeoplePage() {
   const [dept, setDept] = useState('All');
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const { members, incoming, relationOf, request, remove, accept, message, loaded, error } = usePeople();
+  const { members, incoming, relationOf, request, remove, accept, message, setAdmin, loaded, error } = usePeople();
+  const { me } = useMe();
   const router = useRouter();
   const [toast, toastNode] = useToast();
   const grid = useRef<HTMLDivElement>(null);
@@ -108,6 +110,7 @@ export default function PeoplePage() {
               <span className={s.personAv} style={softAvatar(p.color)}>{p.initials}</span>
               <h2 className={s.personName}>{p.name}</h2>
               {p.role && <span className={`${s.tag} ${ROLE_TAG[p.role] ?? s.tBlue}`}>{p.role}</span>}
+              {p.access !== 'user' && <span className={`${s.tag} ${s.tMuted}`}>{p.access === 'super_admin' ? 'Super admin' : 'Admin'}</span>}
               <p className={s.personDept}>{p.dept || '—'}</p>
               <p className={s.personCountry}>{p.place || ' '}</p>
               <div className={s.personActions}>
@@ -129,6 +132,12 @@ export default function PeoplePage() {
                 <button type="button" className={`${s.btnDark} ${s.btnSm}`} aria-label={`Message ${p.name}`} disabled={busy === p.id}
                   onClick={() => openChat(p.id, p.name)}>{I.chat}</button>
               </div>
+              {me.access === 'super_admin' && p.access !== 'super_admin' && (
+                <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer', marginTop: 8 }} disabled={busy === p.id}
+                  onClick={() => act(p.id, () => setAdmin(p.id, p.access !== 'admin'), p.access === 'admin' ? `${p.name} is no longer an admin` : `${p.name} is now an admin`)}>
+                  {p.access === 'admin' ? 'Remove admin' : 'Make admin'}
+                </button>
+              )}
             </article>
           );
         })}

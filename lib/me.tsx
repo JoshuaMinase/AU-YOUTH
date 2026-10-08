@@ -1,12 +1,14 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Profile } from '@/lib/data';
+import type { Access, Profile } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
 
 export interface Me {
   id: string; email: string; first: string; last: string;
   name: string; initials: string; role: string; dept: string;
+  /** from the Supabase `admins` table */
+  access: Access;
 }
 
 export const EMPTY_PROFILE: Profile = {
@@ -14,7 +16,7 @@ export const EMPTY_PROFILE: Profile = {
   university: '', degree: '', year: '', skills: [], languages: [],
 };
 
-const EMPTY_ME: Me = { id: '', email: '', first: '', last: '', name: '…', initials: '·', role: '', dept: '' };
+const EMPTY_ME: Me = { id: '', email: '', first: '', last: '', name: '…', initials: '·', role: '', dept: '', access: 'user' };
 
 interface Ctx {
   me: Me;
@@ -27,13 +29,13 @@ interface Ctx {
 const MeContext = createContext<Ctx>({ me: EMPTY_ME, profile: EMPTY_PROFILE, ready: false, save: async () => 'Not ready' });
 export const useMe = () => useContext(MeContext);
 
-function buildMe(id: string, email: string, row: Record<string, any> | null): Me {
+function buildMe(id: string, email: string, row: Record<string, any> | null, access: Access): Me {
   const first = (row?.first_name ?? '').trim();
   const last = (row?.last_name ?? '').trim();
   const fallback = email.split('@')[0] || 'Member';
   const name = first ? `${first}${last ? ` ${last[0].toUpperCase()}.` : ''}` : fallback;
   const initials = ((first[0] ?? '') + (last[0] ?? '')).toUpperCase() || (fallback[0] ?? '·').toUpperCase();
-  return { id, email, first: first || fallback, last, name, initials, role: row?.role ?? '', dept: row?.dept ?? '' };
+  return { id, email, first: first || fallback, last, name, initials, role: row?.role ?? '', dept: row?.dept ?? '', access };
 }
 
 function buildProfile(row: Record<string, any> | null): Profile {
@@ -57,9 +59,12 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { if (alive) setReady(true); return; }
-      const { data: row } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      const [{ data: row }, { data: admin }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+        supabase.from('admins').select('role').eq('user_id', user.id).maybeSingle(),
+      ]);
       if (!alive) return;
-      setMe(buildMe(user.id, user.email ?? '', row));
+      setMe(buildMe(user.id, user.email ?? '', row, (admin?.role as Access | undefined) ?? 'user'));
       setProfile(buildProfile(row));
       setReady(true);
     })();

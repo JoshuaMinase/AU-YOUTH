@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { Access } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { createClient } from '@/lib/supabase/client';
 
 export interface Member {
-  id: string; name: string; initials: string; role: string; dept: string; place: string; color: string;
+  id: string; name: string; initials: string; role: string; dept: string; place: string; color: string; access: Access;
 }
 export type Relation = 'none' | 'sent' | 'incoming' | 'connected';
 
@@ -13,14 +14,14 @@ const PALETTE = ['#C9AB5C', '#117302', '#0072C6', '#8F2D56', '#218380', '#FBB13C
 /** stable avatar colour per member id (People, feed) */
 export const colorFor = (id: string) => PALETTE[[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length];
 
-function toMember(r: Record<string, any>): Member {
+function toMember(r: Record<string, any>, access: Access = 'user'): Member {
   const first = (r.first_name ?? '').trim();
   const last = (r.last_name ?? '').trim();
   const name = `${first} ${last}`.trim() || 'Member';
   const initials = ((first[0] ?? '') + (last[0] ?? '')).toUpperCase() || 'M';
   return {
     id: r.id, name, initials, role: r.role ?? '', dept: r.dept ?? '',
-    place: (r.based_in || r.nationality || '').trim(), color: colorFor(r.id),
+    place: (r.based_in || r.nationality || '').trim(), color: colorFor(r.id), access,
   };
 }
 
@@ -37,13 +38,15 @@ export function usePeople() {
   const load = useCallback(async () => {
     if (!me.id) return;
     const supabase = createClient();
-    const [p, c] = await Promise.all([
+    const [p, c, a] = await Promise.all([
       supabase.from('profiles').select('id, first_name, last_name, role, dept, nationality, based_in').neq('id', me.id),
       supabase.from('connections').select('id, requester_id, addressee_id, status'),
+      supabase.from('admins').select('user_id, role'),
     ]);
-    if (p.error || c.error) setError((p.error ?? c.error)!.message);
+    if (p.error || c.error || a.error) setError((p.error ?? c.error ?? a.error)!.message);
     else setError(null);
-    setMembers((p.data ?? []).map(toMember).sort((a, b) => a.name.localeCompare(b.name)));
+    const access = Object.fromEntries((a.data ?? []).map((r) => [r.user_id, r.role as Access]));
+    setMembers((p.data ?? []).map((r) => toMember(r, access[r.id])).sort((x, y) => x.name.localeCompare(y.name)));
     setConns((c.data ?? []) as Conn[]);
     setLoaded(true);
   }, [me.id]);
@@ -99,8 +102,11 @@ export function usePeople() {
     return err ? { error: err.message } : { chatId: data as string };
   };
 
+  /** super admin only (checked again by `set_admin` in Supabase) */
+  const setAdmin = (id: string, make: boolean) => run(createClient().rpc('set_admin', { target: id, make }));
+
   const incoming = members.filter((m) => relationOf(m.id) === 'incoming');
   const connected = members.filter((m) => relationOf(m.id) === 'connected');
 
-  return { members, incoming, connected, relationOf, request, remove, accept, message, loaded, error };
+  return { members, incoming, connected, relationOf, request, remove, accept, message, setAdmin, loaded, error };
 }

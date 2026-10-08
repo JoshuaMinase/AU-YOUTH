@@ -177,7 +177,7 @@ export default function DashboardHome() {
                     {menu === p.id && (
                       <div className={s.menu} role="menu">
                         <button type="button" role="menuitem" onClick={() => { setMenu(null); act(hide(p.id), 'Post hidden'); }}>Hide post</button>
-                        {p.mine && (
+                        {(p.mine || me.access !== 'user') && (
                           <button type="button" role="menuitem" onClick={() => { setMenu(null); act(remove(p.id), 'Post deleted'); }}>Delete post</button>
                         )}
                         <button type="button" role="menuitem" onClick={() => setMenu(null)}>Cancel</button>

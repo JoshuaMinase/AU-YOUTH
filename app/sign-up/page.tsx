@@ -3,8 +3,11 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ALLOWED_DOMAINS, isAllowedEmail } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
 import s from '@/styles/Auth.module.css';
+
+const DOMAIN_MSG = `Sign-up is only open to AU staff emails (${ALLOWED_DOMAINS.map((d) => `@${d}`).join(' or ')}).`;
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -16,6 +19,10 @@ export default function SignUpPage() {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const email = String(form.get('email')).trim();
+    if (!isAllowedEmail(email)) {
+      setError(DOMAIN_MSG);
+      return;
+    }
     setBusy(true);
     setError(null);
     const { data, error: err } = await createClient().auth.signUp({
@@ -31,7 +38,8 @@ export default function SignUpPage() {
     });
     setBusy(false);
     if (err) {
-      setError(err.message);
+      // the database also refuses other domains; Supabase reports that as a generic error
+      setError(/database error/i.test(err.message) ? DOMAIN_MSG : err.message);
       return;
     }
     if (data.session) {
@@ -101,7 +109,7 @@ export default function SignUpPage() {
               name="email"
               className={s.input}
               type="email"
-              placeholder="you@example.com"
+              placeholder="you@africanunion.org"
               autoComplete="email"
               required
             />

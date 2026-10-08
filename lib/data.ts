@@ -29,6 +29,12 @@ export const PROFILE_DEFAULT: Profile = {
 };
 
 /** completeness: base 50% + bio (25) + 5+ skills (15) + education (10) */
+/** sign-up is limited to these email domains (enforced in Supabase by docs/sql/013_roles.sql) */
+export const ALLOWED_DOMAINS = ['africanunion.org', 'africa-union.org'];
+export const isAllowedEmail = (email: string) => ALLOWED_DOMAINS.includes(email.trim().toLowerCase().split('@')[1] ?? '');
+/** super admin (one) > admin (set by the super admin) > user */
+export type Access = 'super_admin' | 'admin' | 'user';
+
 export const profileScore = (p: Profile) =>
   Math.min(100, 50 + (p.bio.trim().length >= 20 ? 25 : 0) + (p.skills.length >= 5 ? 15 : 0) + (p.university && p.degree ? 10 : 0));
 
