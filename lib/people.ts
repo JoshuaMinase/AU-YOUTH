@@ -49,6 +49,23 @@ export function usePeople() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Live updates: reload whenever a connection or profile changes, and when the tab regains focus.
+  useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`people-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'connections' }, () => { load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => { load(); })
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [me.id, load]);
+
   const rel = useMemo(() => {
     const map: Record<string, { relation: Relation; connId?: string }> = {};
     for (const c of conns) {
