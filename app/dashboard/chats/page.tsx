@@ -8,13 +8,20 @@ import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 export default function ChatsPage() {
-  const { chats, unread, markRead, send } = useChats();
-  const [activeId, setActiveId] = useState(chats[0].id);
+  const { chats, unread, markRead, send, loaded, error } = useChats();
+  const [activeId, setActiveId] = useState('');
   const [view, setView] = useState<'list' | 'chat'>('list');
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
+  const [sendErr, setSendErr] = useState<string | null>(null);
   const msgs = useRef<HTMLDivElement>(null);
   const chat = chats.find((c) => c.id === activeId) ?? chats[0];
+
+  /* /dashboard/chats?c=<id> (the People "Message" button) opens that conversation */
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('c');
+    if (id) { setActiveId(id); setView('chat'); }
+  }, []);
 
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -23,20 +30,21 @@ export default function ChatsPage() {
 
   /* a conversation counts as read once it is on screen (always on desktop, after tapping on mobile) */
   useEffect(() => {
-    if (view === 'chat' || window.matchMedia('(min-width: 861px)').matches) markRead(activeId);
-  }, [activeId, view, markRead]);
+    if (chat && (view === 'chat' || window.matchMedia('(min-width: 861px)').matches)) markRead(chat.id);
+  }, [chat, view, markRead]);
   /* keep the newest message in view */
   useEffect(() => {
     const el = msgs.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [chat.messages.length, activeId]);
+  }, [chat?.messages.length, activeId]);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
-    if (!text) return;
-    send(chat.id, text);
-    setInput('');
+    if (!text || !chat) return;
+    setInput(''); setSendErr(null);
+    const err = await send(chat.id, text);
+    if (err) { setInput(text); setSendErr(`Not sent: ${err}`); }
   };
 
   return (
@@ -64,7 +72,7 @@ export default function ChatsPage() {
           </div>
           <div className={s.chatItems} data-lenis-prevent>
             {list.map((c) => (
-              <button key={c.id} type="button" className={s.chatItem} aria-current={c.id === chat.id}
+              <button key={c.id} type="button" className={s.chatItem} aria-current={c.id === chat?.id}
                 onClick={() => { setActiveId(c.id); setView('chat'); }}>
                 <span className={s.av} style={softAvatar(c.color)}>{c.initials}</span>
                 <span className={s.chatInfo}>
@@ -77,33 +85,44 @@ export default function ChatsPage() {
                 </span>
               </button>
             ))}
-            {!list.length && <p className={s.agendaEmpty} style={{ padding: 12 }}>No conversations found.</p>}
+            {error && <p className={s.agendaEmpty} style={{ padding: 12 }} role="alert">Could not load chats: {error}</p>}
+            {!loaded && !error && <p className={s.agendaEmpty} style={{ padding: 12 }}>Loading…</p>}
+            {loaded && !error && !list.length && <p className={s.agendaEmpty} style={{ padding: 12 }}>
+              {chats.length ? 'No conversations found.' : 'No conversations yet. Connect with someone on People, then message them.'}
+            </p>}
           </div>
         </div>
 
         <div className={s.chatArea}>
+          {chat ? (<>
           <div className={s.chatAreaHead}>
             <button type="button" className={`${s.iconBtn} ${s.chatBack}`} onClick={() => setView('list')} aria-label="Back to conversations">{I.left}</button>
             <span className={s.av} style={{ ...softAvatar(chat.color), width: 38, height: 38 }}>{chat.initials}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p className={s.chatName}>{chat.name}</p>
-              <span className={s.chatStatus}>Active now</span>
+              <span className={s.chatStatus}>{chat.group ? 'Group chat' : 'Direct message'}</span>
             </div>
           </div>
 
           <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite">
             {chat.messages.map((m, i) => (
-              <div key={i} className={`${s.msg} ${m.from === 'me' ? s.msgMe : s.msgThem}`}>
+              <div key={m.id ?? i} className={`${s.msg} ${m.from === 'me' ? s.msgMe : s.msgThem}`}>
+                {m.who && <b style={{ display: 'block', fontSize: 12 }}>{m.who}</b>}
                 {m.text}<small>{m.time}</small>
               </div>
             ))}
+            {!chat.messages.length && <p className={s.agendaEmpty}>No messages yet. Say hello!</p>}
           </div>
 
+          {sendErr && <p className={s.agendaEmpty} role="alert" style={{ padding: '0 16px' }}>{sendErr}</p>}
           <form className={s.chatForm} onSubmit={submit}>
             <input className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
               placeholder={`Message ${chat.name.split(' ')[0]}…`} aria-label="Write a message" maxLength={1000} />
             <button type="submit" className={s.btnDark} disabled={!input.trim()}>{I.send} Send</button>
           </form>
+          </>) : (
+            <p className={s.agendaEmpty} style={{ margin: 'auto', padding: 24 }}>{loaded ? 'Pick a conversation to start chatting.' : 'Loading…'}</p>
+          )}
         </div>
       </div>
     </>

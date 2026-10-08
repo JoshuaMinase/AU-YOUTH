@@ -7,16 +7,16 @@ Last updated: 2026-10-08
 - Dashboard header (real name, initials, log out) and route protection (middleware)
 - /dashboard/profile (profiles table, full edit form)
 - /dashboard/people (real members, connection requests, live updates)
+- /dashboard/chats (conversations + messages, unread counts, live updates; header badge and home quick chat use the same data)
 - /dashboard/news (news table, live updates)
 - /dashboard/news/[slug] (article + more stories, read on the server)
 - /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook and FAQ stay static on purpose)
 
 ## Partly done
-- /dashboard (home): greeting, avatar, profile-completion card, mini calendar, day agenda and Coming up are real (events table), latest announcement is real (news table), feed is real (posts, likes, comments, hidden posts, live updates); notifications and quick chat are still mock
+- /dashboard (home): greeting, avatar, profile-completion card, mini calendar, day agenda and Coming up are real (events table), latest announcement is real (news table), feed is real (posts, likes, comments, hidden posts, live updates); quick chat is real (chats); notifications are still mock
 - /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates)
 
 ## Not done (still mock or static)
-- /dashboard/chats
 - Dashboard home notifications
 - Public pages (/, /community, /opportunities, /why-join): static marketing pages, no backend needed
 

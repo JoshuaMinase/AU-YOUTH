@@ -166,33 +166,9 @@ export const PEOPLE: Person[] = [
 export const DEPARTMENTS = Array.from(new Set(PEOPLE.map((p) => p.dept))).sort();
 
 /* ── Chats ────────────────────────────────────────────────────────── */
-export interface Msg { from: 'me' | 'them'; text: string; time: string }
-export interface Chat { id: string; initials: string; name: string; color: string; time: string; unread: number; messages: Msg[] }
-
-export const CHATS: Chat[] = [
-  { id: 'amara', initials: 'AM', name: 'Amara Mensah', color: PC[0], time: '10:22', unread: 2, messages: [
-    { from: 'them', text: 'Hey! Did you get a chance to look at the agenda for tomorrow?', time: '10:02' },
-    { from: 'me',   text: 'Yes, just finished reading it. Looks solid.', time: '10:15' },
-    { from: 'them', text: 'Thanks for sharing the report! I will review it tonight.', time: '10:22' },
-  ] },
-  { id: 'fatima', initials: 'FO', name: 'Fatima Osei', color: PC[1], time: '09:45', unread: 1, messages: [
-    { from: 'them', text: 'Are you joining the workshop today?', time: '09:30' },
-    { from: 'me',   text: 'Of course! What time does it start?', time: '09:41' },
-    { from: 'them', text: 'The session starts at 14:00, Nyerere Room.', time: '09:45' },
-  ] },
-  { id: 'kofi', initials: 'KB', name: 'Kofi Boateng', color: PC[2], time: 'Yesterday', unread: 0, messages: [
-    { from: 'me',   text: 'Did you connect with the trade department lead?', time: '16:10' },
-    { from: 'them', text: 'Great, I will ping the group channel.', time: '16:24' },
-  ] },
-  { id: 'community', initials: 'AU', name: 'AU Intern Community', color: '#032210', time: 'Monday', unread: 0, messages: [
-    { from: 'them', text: 'Welcome everyone to the new cohort!', time: '08:00' },
-    { from: 'them', text: 'Reminder: monthly roundup is this Friday at 15:00.', time: '08:01' },
-  ] },
-  { id: 'zinash', initials: 'ZA', name: 'Zinash Alemu', color: PC[3], time: 'Sunday', unread: 0, messages: [
-    { from: 'me',   text: 'Could you share the policy brief draft?', time: '12:40' },
-    { from: 'them', text: 'I sent you the document link.', time: '13:05' },
-  ] },
-];
+/** `who` names the sender in group chats */
+export interface Msg { id?: string; from: 'me' | 'them'; text: string; time: string; who?: string }
+export interface Chat { id: string; initials: string; name: string; color: string; time: string; unread: number; messages: Msg[]; group?: boolean }
 
 /** readable text colour on a coloured avatar */
 export const onColor = (hex: string) => {

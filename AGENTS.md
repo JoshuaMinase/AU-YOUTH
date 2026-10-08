@@ -170,7 +170,7 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
 
    | Key | Holds |
    |---|---|
-      | `auy-chats-read` / `auy-chats-sent` | read conversations / messages the user sent |
+      | `auy-chats-read` / `auy-chats-sent` | no longer used: chats live in Supabase (`useChats()`) |
    | `auy-posts`, `auy-likes`, `auy-hidden`, `auy-comments` | no longer used: the feed lives in Supabase (`useFeed()`) |
    | `auy-notifs-read` | read notifications |
    | `auy-connections` | people the user sent connection requests to |

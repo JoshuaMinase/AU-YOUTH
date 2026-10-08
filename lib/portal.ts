@@ -1,11 +1,10 @@
 'use client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CHATS, sortEvents, type CalEvent, type EventType, type Msg, type NewsItem } from './data';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { MONTHS, WEEKDAYS, sortEvents, startOfDay, type CalEvent, type Chat, type EventType, type Msg, type NewsItem } from './data';
 import { useMe } from './me';
 import { NEWS_COLS, timeAgo, toNews } from './news';
 import { colorFor } from './people';
 import { createClient } from './supabase/client';
-import { usePersisted } from './store';
 
 export type EventInput = Omit<CalEvent, 'id'>;
 
@@ -69,23 +68,115 @@ export function useEvents(today: Date | null) {
   return { events, add, update, remove, loaded, error };
 }
 
-/** Chat read-state + messages the user sent, shared by the header badge and the chats page. */
+const fullName = (p: { first_name?: string | null; last_name?: string | null } | null) =>
+  `${(p?.first_name ?? '').trim()} ${(p?.last_name ?? '').trim()}`.trim() || 'Member';
+const initialsOf = (name: string) => name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+
+const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+/** chat list time: "10:22" today, "Yesterday", the weekday this week, then the date */
+function chatTime(iso: string, now: Date) {
+  const d = new Date(iso);
+  const days = Math.round((startOfDay(now).getTime() - startOfDay(d).getTime()) / 86400000);
+  if (days <= 0) return hhmm(d);
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return WEEKDAYS[d.getDay()];
+  return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
+}
+
+const CHAT_COLS = `id, is_group, title, last_message_at,
+  conversation_members(user_id, last_read_at, profile:profiles!conversation_members_user_id_fkey(first_name, last_name)),
+  messages(id, sender_id, body, created_at)`;
+
+/**
+ * Your conversations (Supabase `conversations`, `conversation_members`, `messages`) with live updates.
+ * Shared by the header badge, the chats page and home quick chat. send/markRead return an error message or null.
+ */
 export function useChats() {
-  const [read, setRead] = usePersisted<string[]>('auy-chats-read', []);
-  const [sent, setSent] = usePersisted<Record<string, Msg[]>>('auy-chats-sent', {});
-  const chats = useMemo(() => CHATS.map((c) => {
-    const messages = [...c.messages, ...(sent[c.id] ?? [])];
-    const last = messages[messages.length - 1];
-    return { ...c, messages, unread: read.includes(c.id) ? 0 : c.unread, preview: last?.text ?? '', time: sent[c.id]?.length ? last.time : c.time };
-  }), [read, sent]);
-  const unread = chats.reduce((n, c) => n + c.unread, 0);
-  const markRead = useCallback((id: string) => setRead((p) => (p.includes(id) ? p : [...p, id])), [setRead]);
-  const send = useCallback((id: string, text: string) => {
+  const { me } = useMe();
+  const [chats, setChats] = useState<(Chat & { preview: string })[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('conversations').select(CHAT_COLS)
+      .order('last_message_at', { ascending: false })
+      .order('created_at', { referencedTable: 'messages', ascending: false })
+      .limit(200, { referencedTable: 'messages' });
+    if (err) { setError(err.message); setLoaded(true); return; }
     const now = new Date();
-    const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    setSent((p) => ({ ...p, [id]: [...(p[id] ?? []), { from: 'me', text, time }] }));
-  }, [setSent]);
-  return { chats, unread, markRead, send };
+    setError(null);
+    setChats((data ?? []).map((r: Record<string, any>): Chat & { preview: string } => {
+      const members: { user_id: string; last_read_at: string; profile: { first_name: string | null; last_name: string | null } | null }[] = r.conversation_members ?? [];
+      const mine = members.find((m) => m.user_id === me.id);
+      const other = members.find((m) => m.user_id !== me.id);
+      const name = r.is_group ? r.title ?? 'Group' : fullName(other?.profile ?? null);
+      const names = Object.fromEntries(members.map((m) => [m.user_id, fullName(m.profile)]));
+      const rows: Record<string, any>[] = [...(r.messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
+      const messages: Msg[] = rows.map((m) => ({
+        id: m.id, from: m.sender_id === me.id ? 'me' : 'them', text: m.body, time: hhmm(new Date(m.created_at)),
+        who: r.is_group && m.sender_id !== me.id ? names[m.sender_id] ?? 'Member' : undefined,
+      }));
+      const last = rows[rows.length - 1];
+      return {
+        id: r.id, name, group: !!r.is_group,
+        initials: r.is_group ? 'AU' : initialsOf(name), color: r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
+        unread: rows.filter((m) => m.sender_id !== me.id && (!mine || m.created_at > mine.last_read_at)).length,
+        time: chatTime(last?.created_at ?? r.last_message_at, now), messages,
+        preview: last ? last.body : 'No messages yet',
+      };
+    }));
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // Live updates. Several components use this hook at once, so each gets its own channel name.
+  useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`chats-${me.id}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => { load(); })
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [me.id, load]);
+
+  const unread = chats.reduce((n, c) => n + c.unread, 0);
+
+  /* only write when there is something unread, so opening a chat doesn't spam updates */
+  const unreadOf = useRef<Record<string, number>>({});
+  unreadOf.current = Object.fromEntries(chats.map((c) => [c.id, c.unread]));
+  const markRead = useCallback(async (id: string) => {
+    if (!me.id || !unreadOf.current[id]) return null;
+    const { error: err } = await createClient().from('conversation_members')
+      .update({ last_read_at: new Date().toISOString() }).eq('conversation_id', id).eq('user_id', me.id);
+    if (err) return err.message; // no reload, so a failing write can't loop with the chats page effect
+    await load();
+    return null;
+  }, [me.id, load]);
+
+  const send = useCallback(async (id: string, text: string) => {
+    const { error: err } = await createClient().from('messages').insert({ conversation_id: id, sender_id: me.id, body: text });
+    await load();
+    return err ? err.message : null;
+  }, [me.id, load]);
+
+  /** open (or create) a 1:1 chat with a connection; returns the conversation id or an error */
+  const start = useCallback(async (otherId: string): Promise<{ id?: string; error?: string }> => {
+    const { data, error: err } = await createClient().rpc('start_dm', { other: otherId });
+    if (err) return { error: err.message };
+    await load();
+    return { id: data as string };
+  }, [load]);
+
+  return { chats, unread, markRead, send, start, loaded, error };
 }
 
 /** Published articles (Supabase `news` table), newest first, with live updates. Shared by the news page and home. */
@@ -134,9 +225,6 @@ const FEED_COLS = `id, author_id, as_org, pinned, body, image, created_at,
   post_likes(user_id),
   post_comments(id, body, created_at, author:profiles!post_comments_author_id_fkey(first_name, last_name))`;
 
-const fullName = (p: { first_name?: string | null; last_name?: string | null } | null) =>
-  `${(p?.first_name ?? '').trim()} ${(p?.last_name ?? '').trim()}`.trim() || 'Member';
-const initialsOf = (name: string) => name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase();
 
 /** Community feed (Supabase `posts`, `post_likes`, `post_comments`, `post_hides`) with live updates. Actions return an error message or null. */
 export function useFeed() {

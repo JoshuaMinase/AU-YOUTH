@@ -240,7 +240,7 @@ export default function DashboardHome() {
             </div>
             <div className={s.qc}>
               {recentChats.map((c) => (
-                <button key={c.id} type="button" className={s.qcRow} aria-pressed={c.id === qc.id}
+                <button key={c.id} type="button" className={s.qcRow} aria-pressed={c.id === qc?.id}
                   onClick={() => { setQcId(c.id); markRead(c.id); }}>
                   <span className={`${s.av} ${s.qcAv}`} style={softAvatar(c.color)}>{c.initials}</span>
                   <span className={s.qcMain}>
@@ -250,15 +250,18 @@ export default function DashboardHome() {
                   {c.unread > 0 && <span className={s.chatUnread}>{c.unread}</span>}
                 </button>
               ))}
+              {!recentChats.length && <p className={s.agendaEmpty}>No conversations yet.</p>}
             </div>
-            <form className={s.qcReply} onSubmit={(e) => {
+            {qc && <form className={s.qcReply} onSubmit={async (e) => {
               e.preventDefault();
               const t = qcDraft.trim(); if (!t) return;
-              send(qc.id, t); markRead(qc.id); setQcDraft(''); toast(`Sent to ${qc.name.split(' ')[0]}`);
+              setQcDraft('');
+              const err = await send(qc.id, t);
+              if (err) { setQcDraft(t); toast(`Not sent: ${err}`); } else toast(`Sent to ${qc.name.split(' ')[0]}`);
             }}>
               <input value={qcDraft} onChange={(e) => setQcDraft(e.target.value)} placeholder={`Reply to ${qc.name.split(' ')[0]}…`} aria-label={`Reply to ${qc.name}`} maxLength={1000} />
               <button type="submit" className={s.qcSend} disabled={!qcDraft.trim()} aria-label="Send">{I.send}</button>
-            </form>
+            </form>}
             <div className={s.qcFoot}><Link href="/dashboard/chats" className={s.cardLink}>Open all chats →</Link></div>
           </div>
 
