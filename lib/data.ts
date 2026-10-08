@@ -75,72 +75,7 @@ export interface NewsItem {
 
 export const NEWS_CATS: ('All' | NewsCat)[] = ['All', 'Initiatives', 'Opportunities', 'Events', 'Partnerships', 'Development', 'Announcements'];
 
-export const NEWS: NewsItem[] = [
-  {
-    slug: 'youth-engagement-framework', tag: 'Initiative', cat: 'Initiatives', featured: true,
-    title: 'AU launches new Youth Engagement Framework for 2026–2030',
-    excerpt: 'The African Union Commission has unveiled an ambitious five-year strategy to deepen youth participation across all member states and institutional bodies.',
-    body: [
-      'The framework sets out how young people will be consulted on continental policy, from early drafting through to implementation reviews.',
-      'Interns, volunteers and fellows will be able to contribute through structured working groups, with quarterly sessions hosted both online and at the AU headquarters in Addis Ababa.',
-      'Departments are asked to nominate a youth focal point before the end of the quarter, so that every programme has a clear contact for the network.',
-    ],
-    meta: '2 hours ago', source: 'AU Commission', img: '/assets/card-img-1.webp',
-  },
-  {
-    slug: 'volunteer-programme-cohort-7', tag: 'Opportunity', cat: 'Opportunities',
-    title: 'Applications open: AU Youth Volunteer Programme — Cohort 7',
-    excerpt: 'Young professionals from across the continent are invited to apply for a six-month volunteer placement at the AU headquarters in Addis Ababa.',
-    body: [
-      'Cohort 7 placements cover policy, communications, data and operations roles across eight departments.',
-      'Applicants should be between 21 and 35, hold a degree or equivalent experience, and be a citizen of an AU member state.',
-      'Shortlisted candidates will be invited to a short online interview before final selection.',
-    ],
-    meta: 'Yesterday', source: 'Political Affairs', img: '/assets/card-img-2.webp',
-  },
-  {
-    slug: 'youth-innovation-summit', tag: 'Event', cat: 'Events',
-    title: 'Pan-African Youth Innovation Summit to be held in Addis Ababa',
-    excerpt: 'The annual summit convenes over 500 young innovators, entrepreneurs and policy makers from 55 member states.',
-    body: [
-      'This year’s summit focuses on digital public infrastructure, climate resilience and youth-led enterprise.',
-      'Members of the network can register for a limited number of delegate places through the portal.',
-    ],
-    meta: '3 days ago', source: 'HRST Department', img: '/assets/card-img-3.webp',
-  },
-  {
-    slug: 'skills-programme-10000', tag: 'Development', cat: 'Development',
-    title: 'New skills programme targets 10,000 young professionals across member states',
-    excerpt: 'A joint initiative between the AU and key continental partners will provide digital and vocational training to youth across all regions.',
-    body: [
-      'Tracks include data analysis, project management, public speaking and policy writing.',
-      'Courses are self-paced, with live mentorship sessions every fortnight.',
-    ],
-    meta: '4 days ago', source: 'AU Commission', img: '/assets/card-img-4.webp',
-  },
-  {
-    slug: 'au-afdb-youth-employment', tag: 'Partnership', cat: 'Partnerships',
-    title: 'AU and AfDB deepen cooperation on youth employment and entrepreneurship',
-    excerpt: 'The two continental institutions have signed a memorandum of understanding to co-fund youth-led businesses and employment hubs.',
-    body: [
-      'The agreement will fund incubation hubs in each of the five AU regions.',
-      'Network members will be among the first invited to apply for mentorship and seed funding rounds.',
-    ],
-    meta: '5 days ago', source: 'Economic Affairs', img: '/assets/card-img-1.webp',
-  },
-  {
-    slug: 'intern-coordination-meeting', tag: 'Announcement', cat: 'Announcements',
-    title: 'Quarterly intern coordination meeting — agenda and venue confirmed',
-    excerpt: 'All active interns and fellows are requested to attend the upcoming coordination session in Mandela Hall.',
-    body: [
-      'The agenda covers onboarding feedback, project matching and the upcoming Leadership Forum.',
-      'Please bring your updated work plan and confirm attendance with your cohort lead.',
-    ],
-    meta: '6 days ago', source: 'Protocol Office', img: '/assets/card-img-2.webp',
-  },
-];
-
-export const findNews = (slug: string) => NEWS.find((n) => n.slug === slug);
+/* articles live in the Supabase `news` table (seeded by docs/sql/009_news.sql) */
 
 /* ── People ───────────────────────────────────────────────────────── */
 export type Role = 'Intern' | 'Fellow' | 'Volunteer';

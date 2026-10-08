@@ -20,8 +20,9 @@ A Next.js website for the African Union Youth Community (interns, volunteers, fe
 | **Auth** | `/login`, `/sign-up` | Split screen, form left, photo right |
 | **Dashboard (portal)** | `/dashboard`, `/dashboard/news`, `/dashboard/news/[slug]`, `/dashboard/people`, `/dashboard/calendar`, `/dashboard/chats`, `/dashboard/get-help`, `/dashboard/profile` | **Calm, neutral & minimal**: soft grey background, white cards, near-black green text, bronze used sparingly |
 
-**There is no backend.** Login and sign-up just redirect to `/dashboard`. All dashboard data is mock
-data in `lib/data.ts`, and user actions are saved in the browser's `localStorage` (see §6).
+**Backend: Supabase** (auth + Postgres with RLS + realtime). Every dashboard page reads and writes real
+data through the hooks in `lib/portal.ts`, `lib/people.ts` and `lib/me.tsx`. Schema changes live in
+`docs/sql/NNN_*.sql`, run in order (see §6 and `PAGES_STATUS.md`).
 
 **Stack:** Next.js 14 (App Router), React 18, TypeScript, CSS Modules, GSAP 3 + ScrollTrigger,
 Lenis smooth scroll. Tailwind v4 is installed and imported in `globals.css` but is **not used** for
@@ -162,8 +163,9 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
 
 ## 6. Data & state rules
 
-1. All mock content lives in **`lib/data.ts`**: `ME`, `PROFILE_DEFAULT`, `NEWS`, `PEOPLE`,
-   `CHATS` and the event seed. **MUST NOT** scatter mock data across pages.
+1. Remaining mock content lives in **`lib/data.ts`** (`ME`, `PROFILE_DEFAULT`, `PEOPLE`, used for
+   department suggestions). News, chats, the feed and notifications come from Supabase. **MUST NOT**
+   scatter mock data across pages.
 2. Shared or persisted state uses **`usePersisted(key, initial)`** from `lib/store.ts`. Every
    component using the same key stays in sync (e.g. the chat badge in the header ↔ the chats page).
 3. Existing `localStorage` keys. Reuse them; prefix any new key with `auy-`:
@@ -298,7 +300,7 @@ Dashboard rules:
 
 ## 12. Known gaps / backlog (not bugs — just not built yet)
 
-- Real authentication and a backend (forms only redirect; data lives in `localStorage`).
+- Editors (who can write news and post as "AU Youth Network") are added by hand in Supabase: Table Editor → `editors`.
 - Unused legacy files that can be deleted once the person approves: `styles/Dashboard.module.css`
   and the original JPG/PNG photos listed in §8.
 - Ideas the person may want later: text-only headers on Chats and Profile too, a rotating

@@ -2,7 +2,8 @@
 
 Last updated: 2026-10-08
 
-## Done (real data, live on Render)
+## Done (real data)
+- /dashboard (home): greeting, profile completion, mini calendar, Coming up (events), latest announcement (news), feed (posts, likes, comments, hidden posts), quick chat (chats), notifications (filled by database triggers)
 - /login, /sign-up, /auth/callback (Supabase auth, email confirmation)
 - Dashboard header (real name, initials, log out) and route protection (middleware)
 - /dashboard/profile (profiles table, full edit form)
@@ -13,7 +14,6 @@ Last updated: 2026-10-08
 - /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook and FAQ stay static on purpose)
 
 ## Partly done
-- /dashboard (home): greeting, avatar, profile-completion card, mini calendar, day agenda and Coming up are real (events table), latest announcement is real (news table), feed is real (posts, likes, comments, hidden posts, live updates); quick chat is real (chats); notifications are real (notifications table, filled by database triggers)
 - /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates)
 
 ## Not done (still mock or static)
