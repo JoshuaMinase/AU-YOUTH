@@ -39,9 +39,12 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
   id: string; label: string; items: string[]; options: string[]; draft: string; setDraft: (v: string) => void;
   onChange: (next: string[]) => void; placeholder: string;
 }) {
-  const add = () => { const t = draft.trim(); if (t && !items.includes(t)) onChange([...items, t]); setDraft(''); };
+  const [open, setOpen] = useState(false);
+  const [hi, setHi] = useState(0);
   const q = draft.trim().toLowerCase();
-  const suggestions = options.filter((o) => !items.includes(o) && (!q || o.toLowerCase().includes(q))).slice(0, 10);
+  const matches = options.filter((o) => !items.includes(o) && (!q || o.toLowerCase().includes(q)));
+  const add = (v: string) => { const t = v.trim(); if (t && !items.includes(t)) onChange([...items, t]); setDraft(''); setHi(0); };
+  const custom = draft.trim() && !options.some((o) => o.toLowerCase() === q) && !items.some((x) => x.toLowerCase() === q);
   return (
     <div className={s.field}>
       <label className={s.label} htmlFor={id}>{label}</label>
@@ -53,21 +56,49 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
         ))}
       </div>
       <div className={s.inlineForm}>
-        <input id={id} className={s.input} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
-        <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={add} disabled={!draft.trim()}>Add</button>
-      </div>
-      {suggestions.length > 0 && (
-        <div className={s.skills} style={{ marginTop: 10 }} aria-label={`${label} suggestions`}>
-          {suggestions.map((o) => (
-            <button key={o} type="button" className={s.skill}
-              style={{ cursor: 'pointer', border: '1px dashed currentColor', background: 'transparent' }}
-              onClick={() => { onChange([...items, o]); setDraft(''); }}>
-              + {o}
-            </button>
-          ))}
+        <div style={{ position: 'relative', flex: 1 }}>
+          <input id={id} className={s.input} value={draft} autoComplete="off" placeholder={placeholder}
+            role="combobox" aria-expanded={open} aria-controls={`${id}-list`}
+            onChange={(e) => { setDraft(e.target.value); setHi(0); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi((h) => Math.min(h + 1, matches.length - 1)); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+              else if (e.key === 'Escape') { setOpen(false); }
+              else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (open && matches[hi] && (!custom || q === matches[hi].toLowerCase())) add(matches[hi]);
+                else add(draft);
+              }
+            }} />
+          {open && (matches.length > 0 || custom) && (
+            <ul id={`${id}-list`} role="listbox"
+              style={{
+                position: 'absolute', left: 0, right: 0, top: 'calc(100% + 6px)', zIndex: 30, margin: 0, padding: 6,
+                listStyle: 'none', maxHeight: 220, overflowY: 'auto', background: '#fff',
+                border: '1px solid rgba(0,0,0,0.12)', borderRadius: 14, boxShadow: '0 12px 30px rgba(0,0,0,0.14)',
+              }}>
+              {matches.map((o, i) => (
+                <li key={o} role="option" aria-selected={i === hi}
+                  onMouseDown={(e) => { e.preventDefault(); add(o); }}
+                  onMouseEnter={() => setHi(i)}
+                  style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontSize: 15, background: i === hi ? '#F1EFE8' : 'transparent' }}>
+                  {o}
+                </li>
+              ))}
+              {custom && (
+                <li role="option" aria-selected={false}
+                  onMouseDown={(e) => { e.preventDefault(); add(draft); }}
+                  style={{ padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontSize: 15, color: '#5b5b52' }}>
+                  Add “{draft.trim()}”
+                </li>
+              )}
+            </ul>
+          )}
         </div>
-      )}
+        <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={() => add(draft)} disabled={!draft.trim()}>Add</button>
+      </div>
     </div>
   );
 }
@@ -125,9 +156,9 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           </label>
         </div>
         <Tags id="p-skill" label="Skills" items={f.skills} options={SKILL_OPTIONS} draft={skill} setDraft={setSkill}
-          onChange={(skills) => setF({ ...f, skills })} placeholder="Pick one below or type your own" />
+          onChange={(skills) => setF({ ...f, skills })} placeholder="Tap to choose, or type your own" />
         <Tags id="p-lang" label="Languages" items={f.languages} options={LANGUAGE_OPTIONS} draft={lang} setDraft={setLang}
-          onChange={(languages) => setF({ ...f, languages })} placeholder="Pick one below or type your own" />
+          onChange={(languages) => setF({ ...f, languages })} placeholder="Tap to choose, or type your own" />
         <div className={s.formActions}>
           <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
           <button type="submit" className={s.btnDark} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
