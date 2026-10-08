@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { MONTHS, PEOPLE, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { DEPARTMENTS, MONTHS, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { usePeople } from '@/lib/people';
 import { useMe } from '@/lib/me';
 import { copyText } from '@/lib/hooks';
 import { usePersisted } from '@/lib/store';
@@ -142,8 +143,12 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           <textarea id="p-bio" className={s.textarea} value={f.bio} onChange={set('bio')} maxLength={400} placeholder="A few lines about you, your work and interests (20+ characters)" />
         </div>
         <div className={s.formRow}>
-          <div className={s.field}><label className={s.label} htmlFor="p-role">Role</label><input id="p-role" className={s.input} value={f.role} onChange={set('role')} placeholder="e.g. Intern" /></div>
-          <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="e.g. HRST" /></div>
+          <div className={s.field}><label className={s.label} htmlFor="p-role">Role</label><select id="p-role" className={s.input} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
+              <option value="">Select role</option>
+              {['Intern', 'Fellow', 'Volunteer', ...(f.role && !['Intern', 'Fellow', 'Volunteer'].includes(f.role) ? [f.role] : [])].map((r) => <option key={r} value={r}>{r}</option>)}
+            </select></div>
+          <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="e.g. HRST" list="p-dept-list" autoComplete="off" />
+            <datalist id="p-dept-list">{DEPARTMENTS.map((d) => <option key={d} value={d} />)}</datalist></div>
         </div>
         <div className={s.formRow}>
           <div className={s.field}><label className={s.label} htmlFor="p-start">Start date</label><input id="p-start" className={s.input} type="date" value={f.start} onChange={set('start')} /></div>
@@ -186,12 +191,10 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
 
 export default function ProfilePage() {
   const { me, profile, save } = useMe();
-  const [connections] = usePersisted<string[]>('auy-connections', []);
+  const { connected: network } = usePeople();
   const [editing, setEditing] = useState(false);
   const [toast, toastNode] = useToast();
   const pct = profileScore(profile);
-
-  const network = PEOPLE.filter((p) => ['amara', 'fatima', 'kofi', 'zinash', 'nadia'].includes(p.id) || connections.includes(p.id));
 
   const details: [string, string][] = [
     ['Department', me.dept], ['Role', me.role], ['Nationality', profile.nationality],
@@ -260,14 +263,15 @@ export default function ProfilePage() {
         <div className={s.list}>
           {network.map((c) => (
             <div key={c.id} className={s.listRow}>
-              <span className={s.av} style={softAvatar(c.c)}>{c.i}</span>
+              <span className={s.av} style={softAvatar(c.color)}>{c.initials}</span>
               <div className={s.rowMain}>
                 <p className={s.rowTitle}>{c.name}</p>
-                <p className={s.rowSub}>{c.role} · {c.dept}{connections.includes(c.id) ? ' · Request sent' : ''}</p>
+                <p className={s.rowSub}>{[c.role, c.dept].filter(Boolean).join(' · ') || 'Member'}</p>
               </div>
               <Link href="/dashboard/chats" className={`${s.btnLine} ${s.btnSm}`}>{I.chat} Message</Link>
             </div>
           ))}
+          {!network.length && <p className={s.cardMeta}>No connections yet. Find people to connect with.</p>}
         </div>
       </section>
 
