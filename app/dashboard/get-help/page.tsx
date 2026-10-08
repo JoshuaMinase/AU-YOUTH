@@ -2,7 +2,8 @@
 
 import { useRef, useState } from 'react';
 import { Hero, I } from '@/components/portal/ui';
-import { ME, softAvatar } from '@/lib/data';
+import { softAvatar } from '@/lib/data';
+import { useMe } from '@/lib/me';
 import { useIso } from '@/lib/hooks';
 import { getLenis } from '@/components/SmoothScroll';
 import s from '@/styles/Portal.module.css';
@@ -40,6 +41,7 @@ const FAQ = [
 ];
 
 export default function GetHelpPage() {
+  const { me } = useMe();
   const [panel, setPanel] = useState<Panel | null>(null);
   const [sent, setSent] = useState(false);
   const [openFaq, setOpenFaq] = useState(0);
@@ -79,7 +81,7 @@ export default function GetHelpPage() {
                 <div key={d.abbr} className={s.listRow}>
                   <span className={s.abbr}>{d.abbr}</span>
                   <div className={s.rowMain}><p className={s.rowTitle}>{d.name}</p><p className={s.rowSub}>{d.email}</p></div>
-                  <a href={`mailto:${d.email}?subject=${encodeURIComponent(`AU Youth Network — question from ${ME.name}`)}`} className={`${s.btnDark} ${s.btnSm}`}>{I.mail} Email</a>
+                  <a href={`mailto:${d.email}?subject=${encodeURIComponent(`AU Youth Network — question from ${me.name}`)}`} className={`${s.btnDark} ${s.btnSm}`}>{I.mail} Email</a>
                 </div>
               ))}
             </div>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { I } from '@/components/portal/ui';
-import { ME } from '@/lib/data';
+import { MeProvider, useMe } from '@/lib/me';
 import { useReveal } from '@/lib/hooks';
 import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
@@ -18,7 +18,8 @@ const NAV = [
   { href: '/dashboard/get-help', label: 'Get Help', icon: I.help },
 ];
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function Shell({ children }: { children: React.ReactNode }) {
+  const { me } = useMe();
   const pathname = usePathname();
   const router = useRouter();
   const main = useRef<HTMLElement>(null);
@@ -60,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </Link>
             <Link href="/dashboard/profile" className={s.avatar} aria-label="Your profile"
               aria-current={active('/dashboard/profile') ? 'page' : undefined}>
-              {ME.initials}
+              {me.initials}
             </Link>
             <button type="button" className={s.chatsBtn} onClick={signOut}>
               <span>Log out</span>
@@ -79,5 +80,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ))}
       </nav>
     </div>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <MeProvider>
+      <Shell>{children}</Shell>
+    </MeProvider>
   );
 }

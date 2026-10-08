@@ -3,15 +3,18 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { ME, PEOPLE, PROFILE_DEFAULT, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { PEOPLE, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { useMe } from '@/lib/me';
 import { copyText } from '@/lib/hooks';
 import { usePersisted } from '@/lib/store';
 import s from '@/styles/Portal.module.css';
 
-function EditProfile({ value, onSave, onClose }: { value: Profile; onSave: (p: Profile) => void; onClose: () => void }) {
+type Editable = Profile & { role: string; dept: string };
+
+function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: Editable) => void; onClose: () => void }) {
   const [f, setF] = useState(value);
   const [skill, setSkill] = useState('');
-  const set = (k: keyof Profile) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
+  const set = (k: keyof Editable) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
   const addSkill = () => { const t = skill.trim(); if (t && !f.skills.includes(t)) setF({ ...f, skills: [...f.skills, t] }); setSkill(''); };
   return (
     <Modal title="Edit profile" onClose={onClose}>
@@ -19,6 +22,10 @@ function EditProfile({ value, onSave, onClose }: { value: Profile; onSave: (p: P
         <div className={s.field}>
           <label className={s.label} htmlFor="p-bio">Bio</label>
           <textarea id="p-bio" className={s.textarea} value={f.bio} onChange={set('bio')} maxLength={400} placeholder="A few lines about you, your work and interests (20+ characters)" />
+        </div>
+        <div className={s.formRow}>
+          <div className={s.field}><label className={s.label} htmlFor="p-role">Role</label><input id="p-role" className={s.input} value={f.role} onChange={set('role')} placeholder="e.g. Intern" /></div>
+          <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="e.g. HRST" /></div>
         </div>
         <div className={s.formRow}>
           <div className={s.field}><label className={s.label} htmlFor="p-nat">Nationality</label><input id="p-nat" className={s.input} value={f.nationality} onChange={set('nationality')} /></div>
@@ -53,7 +60,7 @@ function EditProfile({ value, onSave, onClose }: { value: Profile; onSave: (p: P
 }
 
 export default function ProfilePage() {
-  const [profile, setProfile] = usePersisted<Profile>('auy-profile', PROFILE_DEFAULT);
+  const { me, profile, save } = useMe();
   const [connections] = usePersisted<string[]>('auy-connections', []);
   const [editing, setEditing] = useState(false);
   const [toast, toastNode] = useToast();
@@ -62,15 +69,15 @@ export default function ProfilePage() {
   const network = PEOPLE.filter((p) => ['amara', 'fatima', 'kofi', 'zinash', 'nadia'].includes(p.id) || connections.includes(p.id));
 
   const details: [string, string][] = [
-    ['Department', ME.dept], ['Role', ME.role], ['Nationality', profile.nationality],
+    ['Department', me.dept], ['Role', me.role], ['Nationality', profile.nationality],
     ['Based in', profile.basedIn], ['Start date', profile.start], ['End date', profile.end],
   ];
   const education: [string, string][] = [['University', profile.university], ['Degree', profile.degree], ['Year', profile.year]];
 
   return (
     <>
-      <Hero eyebrow="Your profile" title={`*${ME.name}*`} desc={`${ME.role} · ${ME.deptLong} · ${ME.org}`}>
-        <span className={s.avatarLg} aria-hidden="true">{ME.initials}</span>
+      <Hero eyebrow="Your profile" title={`*${me.name}*`} desc={[me.role, me.dept].filter(Boolean).join(' · ') || me.email}>
+        <span className={s.avatarLg} aria-hidden="true">{me.initials}</span>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" className={s.btn} onClick={() => setEditing(true)}>{I.edit} Edit profile</button>
           <button type="button" className={s.btnGhost}
@@ -138,8 +145,13 @@ export default function ProfilePage() {
       </section>
 
       {editing && (
-        <EditProfile value={profile} onClose={() => setEditing(false)}
-          onSave={(p) => { setProfile(p); setEditing(false); toast('Profile saved'); }} />
+        <EditProfile value={{ ...profile, role: me.role, dept: me.dept }} onClose={() => setEditing(false)}
+          onSave={async ({ role, dept, ...p }) => {
+            const err = await save(p, { role, dept });
+            if (err) { toast(`Could not save: ${err}`); return; }
+            setEditing(false);
+            toast('Profile saved');
+          }} />
       )}
       {toastNode}
     </>

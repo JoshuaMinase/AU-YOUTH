@@ -1,0 +1,87 @@
+'use client';
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import type { Profile } from '@/lib/data';
+import { createClient } from '@/lib/supabase/client';
+
+export interface Me {
+  id: string; email: string; first: string; last: string;
+  name: string; initials: string; role: string; dept: string;
+}
+
+export const EMPTY_PROFILE: Profile = {
+  bio: '', nationality: '', basedIn: '', start: '', end: '',
+  university: '', degree: '', year: '', skills: [],
+};
+
+const EMPTY_ME: Me = { id: '', email: '', first: '', last: '', name: '…', initials: '·', role: '', dept: '' };
+
+interface Ctx {
+  me: Me;
+  profile: Profile;
+  ready: boolean;
+  /** returns an error message, or null on success */
+  save: (p: Profile, extra: { role: string; dept: string }) => Promise<string | null>;
+}
+
+const MeContext = createContext<Ctx>({ me: EMPTY_ME, profile: EMPTY_PROFILE, ready: false, save: async () => 'Not ready' });
+export const useMe = () => useContext(MeContext);
+
+function buildMe(id: string, email: string, row: Record<string, any> | null): Me {
+  const first = (row?.first_name ?? '').trim();
+  const last = (row?.last_name ?? '').trim();
+  const fallback = email.split('@')[0] || 'Member';
+  const name = first ? `${first}${last ? ` ${last[0].toUpperCase()}.` : ''}` : fallback;
+  const initials = ((first[0] ?? '') + (last[0] ?? '')).toUpperCase() || (fallback[0] ?? '·').toUpperCase();
+  return { id, email, first: first || fallback, last, name, initials, role: row?.role ?? '', dept: row?.dept ?? '' };
+}
+
+function buildProfile(row: Record<string, any> | null): Profile {
+  if (!row) return EMPTY_PROFILE;
+  return {
+    bio: row.bio ?? '', nationality: row.nationality ?? '', basedIn: row.based_in ?? '',
+    start: row.start_date ?? '', end: row.end_date ?? '',
+    university: row.university ?? '', degree: row.degree ?? '', year: row.study_year ?? '',
+    skills: row.skills ?? [],
+  };
+}
+
+export function MeProvider({ children }: { children: React.ReactNode }) {
+  const [me, setMe] = useState<Me>(EMPTY_ME);
+  const [profile, setProfile] = useState<Profile>(EMPTY_PROFILE);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { if (alive) setReady(true); return; }
+      const { data: row } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+      if (!alive) return;
+      setMe(buildMe(user.id, user.email ?? '', row));
+      setProfile(buildProfile(row));
+      setReady(true);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const save = useCallback<Ctx['save']>(async (p, extra) => {
+    if (!me.id) return 'You are not signed in.';
+    const { error } = await createClient().from('profiles').upsert({
+      id: me.id,
+      first_name: me.first, last_name: me.last,
+      role: extra.role.trim(), dept: extra.dept.trim(),
+      bio: p.bio, nationality: p.nationality, based_in: p.basedIn,
+      start_date: p.start, end_date: p.end,
+      university: p.university, degree: p.degree, study_year: p.year, skills: p.skills,
+    });
+    if (error) return error.message;
+    setProfile(p);
+    setMe((m) => ({ ...m, role: extra.role.trim(), dept: extra.dept.trim() }));
+    return null;
+  }, [me.id, me.first, me.last]);
+
+  const value = useMemo(() => ({ me, profile, ready, save }), [me, profile, ready, save]);
+  return <MeContext.Provider value={value}>{children}</MeContext.Provider>;
+}

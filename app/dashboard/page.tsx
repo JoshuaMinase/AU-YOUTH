@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { I, MiniCalendar, useToast } from '@/components/portal/ui';
-import { ME, MONTHS, MONTHS_SHORT, NEWS, PROFILE_DEFAULT, WEEKDAYS, parseYmd, profileScore, ymd, type Profile, softAvatar } from '@/lib/data';
+import { MONTHS, MONTHS_SHORT, NEWS, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
+import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
 import { useChats, useEvents } from '@/lib/portal';
 import { usePersisted, toggleIn } from '@/lib/store';
@@ -46,7 +47,7 @@ export default function DashboardHome() {
   const [commentDraft, setCommentDraft] = useState('');
   const posts = [...myPosts, ...SEED_POSTS].filter((p) => !hidden.includes(p.id));
 
-  const [profile] = usePersisted<Profile>('auy-profile', PROFILE_DEFAULT);
+  const { me, profile } = useMe();
   const completion = profileScore(profile);
 
   const [readNotifs, setReadNotifs] = usePersisted<string[]>('auy-notifs-read', []);
@@ -64,7 +65,7 @@ export default function DashboardHome() {
     e.preventDefault();
     const body = draft.trim();
     if (!body) return;
-    setMyPosts((p) => [{ id: `me-${Date.now()}`, initials: ME.initials, bg: '#E2CBA4', name: ME.name, meta: 'Just now · Public', body, likes: 0, comments: [] }, ...p]);
+    setMyPosts((p) => [{ id: `me-${Date.now()}`, initials: me.initials, bg: '#E2CBA4', name: me.name, meta: 'Just now · Public', body, likes: 0, comments: [] }, ...p]);
     setDraft('');
     toast('Posted to the community');
   };
@@ -72,7 +73,7 @@ export default function DashboardHome() {
   const addComment = (id: string) => {
     const text = commentDraft.trim();
     if (!text) return;
-    setExtraComments((p) => ({ ...p, [id]: [...(p[id] ?? []), { who: ME.name, text }] }));
+    setExtraComments((p) => ({ ...p, [id]: [...(p[id] ?? []), { who: me.name, text }] }));
     setCommentDraft('');
   };
 
@@ -147,7 +148,7 @@ export default function DashboardHome() {
               <p className={s.greetDate}>{today ? `${WEEKDAYS[today.getDay()]}, ${today.getDate()} ${MONTHS[today.getMonth()]}` : 'Welcome back'}</p>
               <h1 className={s.greetTitle}>
                 <span className={s.mask}><span data-w className={s.word}>{today ? greet(new Date()) : 'Hello'},</span></span>{' '}
-                <span className={s.mask}><span data-w className={s.word}><em>{ME.first}.</em></span></span>
+                <span className={s.mask}><span data-w className={s.word}><em>{me.first || 'there'}.</em></span></span>
               </h1>
               <p className={s.greetSub}>Here is what is happening across your AU intern community.</p>
             </div>
@@ -156,7 +157,7 @@ export default function DashboardHome() {
 
           {/* composer */}
           <div className={`${s.card} ${s.composer}`} data-reveal>
-            <span className={s.av} style={{ background: '#E2CBA4', color: '#1E2A22' }}>{ME.initials}</span>
+            <span className={s.av} style={{ background: '#E2CBA4', color: '#1E2A22' }}>{me.initials}</span>
             <form onSubmit={publish}>
               <label className={s.agendaLabel} htmlFor="composer">Share with the community</label>
               <textarea id="composer" className={s.textarea} style={{ minHeight: 70 }} value={draft}
