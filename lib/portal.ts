@@ -321,6 +321,7 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   connection_accepted: { icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A' },
   post_comment: { icon: '💬', bg: '#F3EEE4', fg: '#8a6a3c' },
   delete_request: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
+  new_department: { icon: '+', bg: '#ECECE8', fg: '#1E2A22' },
 };
 
 /** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */
@@ -374,4 +375,17 @@ export function useNotifications() {
   }, [me.id]);
 
   return { notifs, unread, markRead, markAllRead, loaded, error };
+}
+
+/** Department pick-list (Supabase `departments`). A name typed on the profile that isn't listed is added by the database. */
+export function useDepartments() {
+  const [departments, setDepartments] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    createClient().from('departments').select('name').order('name').then(({ data }) => {
+      if (alive) setDepartments((data ?? []).map((r) => r.name));
+    });
+    return () => { alive = false; };
+  }, []);
+  return departments;
 }

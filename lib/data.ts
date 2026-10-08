@@ -84,27 +84,7 @@ export const NEWS_CATS: ('All' | NewsCat)[] = ['All', 'Initiatives', 'Opportunit
 /* articles live in the Supabase `news` table (seeded by docs/sql/009_news.sql) */
 
 /* ── People ───────────────────────────────────────────────────────── */
-export type Role = 'Intern' | 'Fellow' | 'Volunteer';
-export interface Person { id: string; i: string; name: string; role: Role; dept: string; country: string; flag: string; c: string }
-
-const PC = ['#C9AB5C', '#117302', '#0072C6', '#8F2D56', '#218380', '#FBB13C', '#73D2DE', '#032210'];
-
-export const PEOPLE: Person[] = [
-  { id: 'amara',    i: 'AM', name: 'Amara Mensah',    role: 'Intern',    dept: 'HRST',              country: 'Ghana',       flag: '🇬🇭', c: PC[0] },
-  { id: 'fatima',   i: 'FO', name: 'Fatima Osei',     role: 'Fellow',    dept: 'Peace & Security',  country: 'Nigeria',     flag: '🇳🇬', c: PC[1] },
-  { id: 'kofi',     i: 'KB', name: 'Kofi Boateng',    role: 'Volunteer', dept: 'Economic Affairs',  country: 'Senegal',     flag: '🇸🇳', c: PC[2] },
-  { id: 'zinash',   i: 'ZA', name: 'Zinash Alemu',    role: 'Intern',    dept: 'Political Affairs', country: 'Ethiopia',    flag: '🇪🇹', c: PC[3] },
-  { id: 'nadia',    i: 'ND', name: 'Nadia Diallo',    role: 'Fellow',    dept: 'Social Affairs',    country: 'Ivory Coast', flag: '🇨🇮', c: PC[4] },
-  { id: 'tariq',    i: 'TM', name: 'Tariq Moussa',    role: 'Intern',    dept: 'Infrastructure',    country: 'Morocco',     flag: '🇲🇦', c: PC[5] },
-  { id: 'amina',    i: 'AA', name: 'Amina Abdi',      role: 'Volunteer', dept: 'Agriculture',       country: 'Kenya',       flag: '🇰🇪', c: PC[6] },
-  { id: 'jean',     i: 'JN', name: 'Jean Nkosi',      role: 'Intern',    dept: 'Trade & Industry',  country: 'DRC',         flag: '🇨🇩', c: PC[7] },
-  { id: 'binta',    i: 'BS', name: 'Binta Sow',       role: 'Fellow',    dept: 'HRST',              country: 'Guinea',      flag: '🇬🇳', c: PC[0] },
-  { id: 'emmanuel', i: 'EW', name: 'Emmanuel Waweru', role: 'Intern',    dept: 'Legal Affairs',     country: 'Uganda',      flag: '🇺🇬', c: PC[1] },
-  { id: 'layla',    i: 'LT', name: 'Layla Tadesse',   role: 'Volunteer', dept: 'Education',         country: 'Eritrea',     flag: '🇪🇷', c: PC[2] },
-  { id: 'sola',     i: 'SM', name: 'Sola Martins',    role: 'Intern',    dept: 'Finance',           country: 'Nigeria',     flag: '🇳🇬', c: PC[3] },
-];
-
-export const DEPARTMENTS = Array.from(new Set(PEOPLE.map((p) => p.dept))).sort();
+/* members and departments live in Supabase (`profiles`, `departments`) */
 
 /* ── Chats ────────────────────────────────────────────────────────── */
 /** `who` names the sender in group chats */

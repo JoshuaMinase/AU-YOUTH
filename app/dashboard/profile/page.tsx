@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { DEPARTMENTS, MONTHS, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { MONTHS, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { useDepartments } from '@/lib/portal';
 import { usePeople } from '@/lib/people';
 import { useMe } from '@/lib/me';
 import { copyText } from '@/lib/hooks';
@@ -113,6 +114,7 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
 }
 
 function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: Editable) => void; onClose: () => void }) {
+  const departments = useDepartments();
   const [f, setF] = useState(value);
   const [skill, setSkill] = useState('');
   const [lang, setLang] = useState('');
@@ -147,8 +149,8 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
               <option value="">Select role</option>
               {['Intern', 'Fellow', 'Volunteer', ...(f.role && !['Intern', 'Fellow', 'Volunteer'].includes(f.role) ? [f.role] : [])].map((r) => <option key={r} value={r}>{r}</option>)}
             </select></div>
-          <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="e.g. HRST" list="p-dept-list" autoComplete="off" />
-            <datalist id="p-dept-list">{DEPARTMENTS.map((d) => <option key={d} value={d} />)}</datalist></div>
+          <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="Pick from the list or type your own" list="p-dept-list" autoComplete="off" />
+            <datalist id="p-dept-list">{departments.map((d) => <option key={d} value={d} />)}</datalist></div>
         </div>
         <div className={s.formRow}>
           <div className={s.field}><label className={s.label} htmlFor="p-start">Start date</label><input id="p-start" className={s.input} type="date" value={f.start} onChange={set('start')} /></div>

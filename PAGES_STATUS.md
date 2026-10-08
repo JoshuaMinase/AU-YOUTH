@@ -23,4 +23,4 @@ Last updated: 2026-10-08
 - 001 profiles, 002 profile fields, 003 languages, 004 connections, 005 realtime
 - 006 events
 - 007 hardening, 008 support tickets, 009 news (+ editors, 6 seeded articles), 010 posts, 011 chats, 012 notifications
-- 013 roles (super admin, admins, AU email domains only; replaces editors)
+- 013 roles (super admin, admins, AU email domains only; replaces editors), 014 departments (pick-list; new typed names are added and the super admin is notified). NOT RUN YET: paste 013 then 014 in the SQL Editor
