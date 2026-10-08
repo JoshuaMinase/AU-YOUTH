@@ -9,7 +9,7 @@ import { useTickets, type Ticket, type TicketStatus } from '@/lib/portal';
 import { getLenis } from '@/components/SmoothScroll';
 import s from '@/styles/Portal.module.css';
 
-type Panel = 'contact' | 'report' | 'handbook' | 'faq';
+type Panel = 'report' | 'handbook' | 'faq';
 
 const STATUS_LABEL: Record<TicketStatus, string> = { open: 'Open', in_progress: 'In progress', closed: 'Closed' };
 const STATUS_TAG: Record<TicketStatus, string> = { open: s.tGold, in_progress: s.tBlue, closed: s.tMuted };
@@ -33,18 +33,9 @@ function TicketRow({ t, admin, onStatus }: { t: Ticket; admin: boolean; onStatus
 }
 
 const CARDS: { id: Panel; title: string; sub: string; bg: string; icon: JSX.Element }[] = [
-  { id: 'contact', title: 'Contact a department', sub: 'Email an AU department or office directly.', bg: '#C9AB5C', icon: I.mail },
   { id: 'report', title: 'Report an issue', sub: 'Tell us about a technical problem or platform concern.', bg: '#8F2D56', icon: I.alert },
   { id: 'handbook', title: 'Intern handbook', sub: 'The AU intern guide, policies and code of conduct.', bg: '#117302', icon: I.book },
   { id: 'faq', title: 'FAQs', sub: 'Frequently asked questions from the community.', bg: '#0072C6', icon: I.help },
-];
-
-const DEPTS = [
-  { name: 'Human Resources, Science & Technology', abbr: 'HRST', email: 'hrst@au.int' },
-  { name: 'Political Affairs, Peace & Security', abbr: 'PAPS', email: 'paps@au.int' },
-  { name: 'Economic Development, Trade & Industry', abbr: 'ETTIM', email: 'ettim@au.int' },
-  { name: 'Health, Humanitarian Affairs & Social Development', abbr: 'HHS', email: 'hhs@au.int' },
-  { name: 'Infrastructure & Energy', abbr: 'I&E', email: 'ie@au.int' },
 ];
 
 const HANDBOOK = [
@@ -100,7 +91,7 @@ export default function GetHelpPage() {
 
   return (
     <>
-      <Hero plain eyebrow="Support" title="Get *Help*" desc="Find support, contact departments and access intern resources." />
+      <Hero plain eyebrow="Support" title="Get *Help*" desc="Report a problem and find intern resources." />
 
       <div className={s.helpGrid}>
         {CARDS.map((c) => (
@@ -114,21 +105,6 @@ export default function GetHelpPage() {
       </div>
 
       <div id="help-panel" ref={panelRef}>
-        {panel === 'contact' && (
-          <section className={`${s.card} ${s.panel}`}>
-            <div className={s.cardHead}><div><p className={s.cardEyebrow}>Directory</p><h2 className={s.cardTitle}>Department contacts</h2></div></div>
-            <div className={s.list}>
-              {DEPTS.map((d) => (
-                <div key={d.abbr} className={s.listRow}>
-                  <span className={s.abbr}>{d.abbr}</span>
-                  <div className={s.rowMain}><p className={s.rowTitle}>{d.name}</p><p className={s.rowSub}>{d.email}</p></div>
-                  <a href={`mailto:${d.email}?subject=${encodeURIComponent(`AU Youth Network — question from ${me.name}`)}`} className={`${s.btnDark} ${s.btnSm}`}>{I.mail} Email</a>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {panel === 'report' && (
           <section className={`${s.card} ${s.panel}`}>
             <div className={s.cardHead}><div><p className={s.cardEyebrow}>Support ticket</p><h2 className={s.cardTitle}>Report an issue</h2></div></div>
@@ -228,7 +204,6 @@ export default function GetHelpPage() {
           <p className={s.rowTitle}>Welfare &amp; Wellbeing</p>
           <p className={s.rowSub}>Confidential support for interns — available Mon–Fri, 09:00–17:00.</p>
         </div>
-        <a href="mailto:welfare@au.int" className={s.btn}>{I.mail} welfare@au.int</a>
       </section>
     </>
   );
