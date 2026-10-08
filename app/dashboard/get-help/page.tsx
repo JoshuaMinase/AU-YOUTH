@@ -5,6 +5,7 @@ import { Hero, I } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useIso } from '@/lib/hooks';
+import { createClient } from '@/lib/supabase/client';
 import { getLenis } from '@/components/SmoothScroll';
 import s from '@/styles/Portal.module.css';
 
@@ -44,6 +45,8 @@ export default function GetHelpPage() {
   const { me } = useMe();
   const [panel, setPanel] = useState<Panel | null>(null);
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState(0);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +58,20 @@ export default function GetHelpPage() {
     else panelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [panel]);
 
-  const toggle = (p: Panel) => { setPanel((cur) => (cur === p ? null : p)); setSent(false); };
+  const toggle = (p: Panel) => { setPanel((cur) => (cur === p ? null : p)); setSent(false); setErr(null); };
+
+  /* file a support ticket (Supabase `support_tickets`, own rows only) */
+  const report = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    setBusy(true); setErr(null);
+    const { error } = await createClient().from('support_tickets').insert({
+      user_id: me.id, area: f.get('area'), urgency: f.get('urgency'), description: String(f.get('description') ?? '').trim(),
+    });
+    setBusy(false);
+    if (error) setErr(`Could not send your report: ${error.message}`);
+    else setSent(true);
+  };
 
   return (
     <>
@@ -94,28 +110,29 @@ export default function GetHelpPage() {
             {sent ? (
               <div className={s.success} role="status">{I.check} Thanks — your report was received. The platform team will reply within two working days.</div>
             ) : (
-              <form className={s.form} onSubmit={(e) => { e.preventDefault(); setSent(true); }}>
+              <form className={s.form} onSubmit={report}>
                 <div className={s.formRow}>
                   <div className={s.field}>
                     <label className={s.label} htmlFor="r-area">Area</label>
-                    <select id="r-area" className={s.input} defaultValue="Dashboard">
+                    <select id="r-area" name="area" className={s.input} defaultValue="Dashboard">
                       {['Dashboard', 'Chats', 'Calendar', 'People', 'News', 'Account & login', 'Other'].map((o) => <option key={o}>{o}</option>)}
                     </select>
                   </div>
                   <div className={s.field}>
                     <label className={s.label} htmlFor="r-urg">Urgency</label>
-                    <select id="r-urg" className={s.input} defaultValue="Normal">
+                    <select id="r-urg" name="urgency" className={s.input} defaultValue="Normal">
                       {['Low', 'Normal', 'High'].map((o) => <option key={o}>{o}</option>)}
                     </select>
                   </div>
                 </div>
                 <div className={s.field}>
                   <label className={s.label} htmlFor="r-desc">What happened?</label>
-                  <textarea id="r-desc" className={s.textarea} required minLength={10} placeholder="Describe the problem and the steps to reproduce it…" />
+                  <textarea id="r-desc" name="description" className={s.textarea} required minLength={10} maxLength={2000} placeholder="Describe the problem and the steps to reproduce it…" />
                 </div>
+                {err && <p className={s.agendaEmpty} role="alert">{err}</p>}
                 <div className={s.formActions}>
                   <button type="button" className={s.btnLine} onClick={() => setPanel(null)}>Cancel</button>
-                  <button type="submit" className={s.btnDark}>{I.send} Send report</button>
+                  <button type="submit" className={s.btnDark} disabled={busy}>{I.send} {busy ? 'Sending…' : 'Send report'}</button>
                 </div>
               </form>
             )}
