@@ -123,7 +123,7 @@
   margin: 0;
   font-family: 'Chopin', system-ui, sans-serif;
   font-weight: 700;
-  font-size: clamp(52px, 8.4vw, 150px);
+  font-size: clamp(48px, 7.4vw, 128px);
   line-height: 0.92;
   letter-spacing: -0.045em;
   color: #fff;
@@ -170,8 +170,8 @@
 .spacer :global(.s4-sub) {
   margin: 0;
   font-family: 'Chopin', system-ui, sans-serif;
-  font-weight: 300;
-  font-size: clamp(20px, 2vw, 32px);
+  font-weight: 400;
+  font-size: clamp(20px, 2vw, 30px);
   line-height: 1.08;
   letter-spacing: -0.01em;
   color: #fff;
@@ -486,7 +486,7 @@
   }
 
   .spacer :global(.s4-title) {
-    font-size: clamp(44px, 14vw, 84px);
+    font-size: clamp(40px, 12vw, 76px);
   }
 
   .spacer :global(.s4-bottom) {

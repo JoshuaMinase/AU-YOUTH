@@ -42,18 +42,26 @@ export default function PhotoStackSection() {
       const MOVE = 1.8, HOLD = 0.3, TAIL = 1.0;
       const total = HOLD + (N - 1) * (MOVE + HOLD) + TAIL;
       // 1.2 multiplier gives enough scroll distance for controlled, individual box fills
-      const scrollDist = () => Math.round(window.innerHeight * total * 1.2);
+      // Viewport height, ignoring the phone address bar showing/hiding (a ~60–120px height-only
+      // resize). Re-measuring on that made the page jump mid-scroll on mobile.
+      let vh = window.innerHeight, vw = window.innerWidth;
+      const scrollDist = () => Math.round(vh * total * 1.2);
 
       // Spacer height = scroll distance + one viewport for the sticky stage
-      const setSpacer = () => { root.style.height = `${scrollDist() + window.innerHeight}px`; };
+      const setSpacer = () => { root.style.height = `${scrollDist() + vh}px`; };
+      const onResize = () => {
+        if (window.innerWidth === vw && Math.abs(window.innerHeight - vh) < 150) return;
+        vw = window.innerWidth; vh = window.innerHeight;
+        setSpacer();
+      };
       setSpacer();
-      window.addEventListener('resize', setSpacer);
+      window.addEventListener('resize', onResize);
 
       // Park cards 2..N below the screen
       gsap.set(els.slice(1), { yPercent: 100 });
       root.setAttribute('data-ready', '1');
 
-      const tl = gsap.timeline({ defaults: { ease: 'none', force3D: true } });
+      const tl = gsap.timeline({ defaults: { ease: 'none' } });
 
       els.forEach((card, i) => {
         const lines = card.querySelectorAll('.s4-line');
@@ -105,7 +113,7 @@ export default function PhotoStackSection() {
       return () => {
         root.removeAttribute('data-ready');
         root.style.height = '';
-        window.removeEventListener('resize', setSpacer);
+        window.removeEventListener('resize', onResize);
         st.kill();
         tl.kill();
       };

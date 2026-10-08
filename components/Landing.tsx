@@ -5,17 +5,30 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Nav from './Nav';
 import { BOX } from './assetBoxes';
-import { W, H, HERO_H, PANEL_Y, SLOT, POSE, PLACES, BASE_AT, CARDS, WORDS, WORD_TOP, box } from './layout';
+import {
+  W, H, HERO_H, PANEL_Y, SLOT, POSE, PLACES, BASE_AT, CARDS, place,
+  MOBILE_MQ, M_W, M_H, M_HERO_H, M_PANEL_Y, M_SLOT, M_POSE, M_PLACES, M_SLOTS, M_BOX,
+} from './layout';
 import { useIso } from '../lib/hooks';
 import s from '../styles/Landing.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
 const A = (n: string) => `/assets/${n}.svg`;
-const pct = (v: number) => `${(v / H) * 100}%`;
 
 const TYPING_WORDS = ['connect.', 'experience.', 'learn.'] as const;
 /** where each hero card leads */
 const CARD_HREF: Record<string, string> = { gold: '/community', blue: '/dashboard/news', green: '/why-join', yellow: '/opportunities' };
+
+/** the two canvases the hero can run on (CSS picks the matching boxes with the same media query) */
+const CANVAS = {
+  desktop: { w: W, slot: SLOT, pose: POSE, places: PLACES, slots: CARDS.map((c) => c.slot) },
+  mobile:  { w: M_W, slot: M_SLOT, pose: M_POSE, places: M_PLACES, slots: M_SLOTS },
+};
+/** scroll timeline: card i starts flying at 0.05 + i·0.06 and takes 0.5 */
+const FLY = 0.5, FLY_END = 0.05 + (CARDS.length - 1) * 0.06 + FLY;
+const out2 = (t: number) => 1 - (1 - t) * (1 - t);
+const in2 = (t: number) => t * t;
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t));
 
 /** Typewriter loop. Lives in its own component so its 10–20 state updates per second
  *  re-render only this <span>, not the whole hero. */
@@ -39,8 +52,8 @@ function TypingWord({ style }: { style: React.CSSProperties }) {
   }, [state]);
   const word = TYPING_WORDS[state.word];
   return (
-    <div className={s.typingContainer} style={style} aria-hidden="true">
-      <span className={s.typingText} data-word={word}>{word.slice(0, state.chars)}</span>
+    <div className={`${s.abs} ${s.typingContainer}`} style={style} aria-hidden="true">
+      <span className={s.typingText}>{word.slice(0, state.chars)}</span>
       <span className={s.cursor}></span>
     </div>
   );
@@ -48,202 +61,177 @@ function TypingWord({ style }: { style: React.CSSProperties }) {
 
 export default function Landing() {
   const stage = useRef<HTMLDivElement>(null);
-  const cardRefs = useRef<HTMLDivElement[]>([]);
+  const introDone = useRef(false);
+
   useIso(() => {
     const el = stage.current!;
-    const u = () => el.clientWidth / W;
-    const setU = () => document.documentElement.style.setProperty('--u', `${u()}px`);
-    setU();
-    const ro = new ResizeObserver(setU); ro.observe(el);
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const q = gsap.utils.selector(el);
     const cards = q('[data-card]') as HTMLElement[];
-    const hoverCleanups: (() => void)[] = [];
+    const mm = gsap.matchMedia();
 
-    const ctx = gsap.context(() => {
-      /* ---------- card poses ---------- */
-      const posed = (i: number, place: number) => {
-        const p = PLACES[place];
+    /* re-runs (and reverts the previous run) whenever the layout or motion preference flips.
+       `desktop` is listed so at least one condition always matches (matchMedia skips the callback otherwise). */
+    mm.add({ mobile: MOBILE_MQ, desktop: `not all and ${MOBILE_MQ}`, reduce: '(prefers-reduced-motion: reduce)' }, (mctx) => {
+      const { mobile, reduce } = mctx.conditions as { mobile: boolean; reduce: boolean };
+      const L = mobile ? CANVAS.mobile : CANVAS.desktop;
+      const u = () => el.clientWidth / L.w;
+      const headingWords = q(`[data-section-heading] .${s.wordInner}`);
+      const subWords = q(`[data-section-sub] .${s.wordInner}`);
+
+      /* reduced motion: final state — cards sit in the grid, heading shown */
+      if (reduce) {
+        gsap.set(cards, { x: 0, y: 0, scale: 1, rotation: 0 });
+        return;
+      }
+
+      /* ---------- card poses (design units, so they survive any resize) ---------- */
+      const posed = (i: number, at: number) => {
+        const p = L.places[at], sl = L.slots[i];
         return {
-          x: (p.x + POSE.w / 2 - (CARDS[i].slot.x + SLOT.w / 2)) * u(),
-          y: (p.y + POSE.h / 2 - (CARDS[i].slot.y + SLOT.h / 2)) * u(),
-          scale: POSE.w / SLOT.w, rotation: 0,
+          x: p.x + L.pose.w / 2 - (sl.x + L.slot.w / 2),
+          y: p.y + L.pose.h / 2 - (sl.y + L.slot.h / 2),
+          s: L.pose.w / L.slot.w,
         };
       };
-      const base = () => cards.forEach((c, i) => {
-        gsap.set(c, { ...posed(i, BASE_AT[i]), zIndex: PLACES[BASE_AT[i]].z });
-      });
-      base();
+      /* hero pose of each card (animated by the shuffle) + scroll progress (animated by the scrub).
+         Separate objects, so the two animations can never overwrite each other. */
+      const hero = cards.map((_, i) => posed(i, BASE_AT[i]));
+      const fly = { p: 0 };
 
-      /* ---------- carousel shuffle ---------- */
+      const render = () => {
+        const k = u();
+        cards.forEach((c, i) => {
+          const t = clamp01((fly.p - (0.05 + i * 0.06)) / FLY);
+          const e = out2(t), h = hero[i], tilt = i % 2 ? -4 : 4;
+          gsap.set(c, {
+            x: h.x * (1 - e) * k,
+            y: h.y * (1 - e) * k,
+            scale: h.s + (1 - h.s) * e,
+            rotation: t < 0.5 ? tilt * out2(t * 2) : tilt * (1 - in2(t * 2 - 1)),
+          });
+        });
+      };
+      cards.forEach((c, i) => gsap.set(c, { zIndex: L.places[BASE_AT[i]].z }));
+
+      /* ---------- carousel shuffle (only while the page is at the very top) ---------- */
       let at = [...BASE_AT];
       let timer: gsap.core.Tween | null = null;
-      const shuf = gsap.timeline({ defaults: { overwrite: 'auto' } });
+      let shuf: gsap.core.Timeline | null = null;
       let shuffling = false;
       const step = () => {
-        shuf.clear();
         const next = at.map((p) => (p + 3) % 4);
+        shuf = gsap.timeline({ onUpdate: render });
         next.forEach((np, i) => {
           const c = cards[i], wrap = at[i] === 0, arriving = np === 2;
-          const to = posed(i, np);
-          gsap.set(c, { zIndex: arriving ? 5 : wrap ? 0 : PLACES[np].z });
-          shuf.to(c, { ...to, duration: 0.85, delay: arriving ? 0 : 0.06, ease: 'power3.inOut' }, 0);
-          if (arriving || wrap) shuf.set(c, { zIndex: PLACES[np].z }, 0.9);
+          gsap.set(c, { zIndex: arriving ? 5 : wrap ? 0 : L.places[np].z });
+          shuf!.to(hero[i], { ...posed(i, np), duration: 0.85, ease: 'power3.inOut' }, arriving ? 0 : 0.06);
+          if (arriving || wrap) shuf!.set(c, { zIndex: L.places[np].z }, 0.9);
         });
         at = next;
         timer = gsap.delayedCall(2.75, step);
       };
-      const startShuffle = () => { if (shuffling || reduce) return; shuffling = true; timer = gsap.delayedCall(1.6, step); };
+      const startShuffle = () => {
+        if (shuffling) return;
+        shuffling = true;
+        timer = gsap.delayedCall(1.6, step);
+      };
       const stopShuffle = () => {
-        if (!shuffling) return; shuffling = false;
-        timer?.kill(); shuf.clear(); at = [...BASE_AT];
+        if (!shuffling) return;
+        shuffling = false;
+        timer?.kill(); shuf?.kill(); shuf = null;
+        at = [...BASE_AT];
         cards.forEach((c, i) => {
-          gsap.set(c, { zIndex: PLACES[at[i]].z });
-          gsap.to(c, { ...posed(i, at[i]), duration: 0.4, ease: 'power2.out', overwrite: 'auto' });
+          gsap.set(c, { zIndex: L.places[at[i]].z });
+          gsap.to(hero[i], { ...posed(i, at[i]), duration: 0.4, ease: 'power2.out', overwrite: true, onUpdate: render });
         });
       };
 
-      /* ---------- scroll flight ---------- */
-      const slotCenterY = CARDS[0].slot.y + SLOT.h / 2;
-      const flight = gsap.timeline({
-        defaults: { overwrite: 'auto' },
+      /* ---------- scroll flight: hero stack → grid ---------- */
+      const firstSlot = L.slots[0].y + L.slot.h / 2;
+      gsap.to(fly, {
+        p: FLY_END, ease: 'none', onUpdate: render,
         scrollTrigger: {
-          start: 0, 
-          end: () => `+=${Math.max(300, slotCenterY * u() - innerHeight * 0.5)}`, // even shorter for less lag
+          start: 0,
+          end: () => `+=${Math.max(300, firstSlot * u() - innerHeight * 0.5)}`,
           scrub: 0.6,
           invalidateOnRefresh: true,
           onUpdate: (self) => { self.scroll() < 6 ? startShuffle() : stopShuffle(); },
         },
       });
-      cards.forEach((c, i) => {
-        const at0 = 0.05 + i * 0.06; // even tighter stagger for faster progression
-        flight.fromTo(c, { ...posed(i, BASE_AT[i]) },
-          { x: 0, y: 0, scale: 1, duration: 0.5, ease: 'power2.out', immediateRender: false }, at0) // faster, more responsive
-          .to(c, { rotation: i % 2 ? -4 : 4, duration: 0.25, ease: 'power2.out' }, at0) // quicker rotation
-          .to(c, { rotation: 0, duration: 0.25, ease: 'power2.in' }, at0 + 0.25); // quicker counter-rotation
-      });
-      flight.fromTo(q('[data-labels]'), { opacity: 0, y: 14 * u() }, { opacity: 1, y: 0, duration: 0.15, ease: 'power2.out', immediateRender: false }, 0.6); // faster labels
+      render();
       if (window.scrollY < 6) startShuffle();
 
-      /* ---------- card hover: dark overlay + label ---------- */
-      if (!reduce) {
-        cardRefs.current.forEach((card) => {
-          const overlay = card.querySelector('[data-hover-overlay]');
-          const label = card.querySelector('[data-hover-label]');
-          const onEnter = () => {
-            gsap.to(overlay, { opacity: 1, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
-            gsap.to(label, { opacity: 1, y: 0, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
-          };
-          const onLeave = () => {
-            gsap.to(overlay, { opacity: 0, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
-            gsap.to(label, { opacity: 0, y: 12, duration: 0.35, ease: 'power3.out', overwrite: 'auto' });
-          };
-          card.addEventListener('mouseenter', onEnter);
-          card.addEventListener('mouseleave', onLeave);
-          card.addEventListener('focusin', onEnter);
-          card.addEventListener('focusout', onLeave);
-          hoverCleanups.push(() => {
-            card.removeEventListener('mouseenter', onEnter);
-            card.removeEventListener('mouseleave', onLeave);
-            card.removeEventListener('focusin', onEnter);
-            card.removeEventListener('focusout', onLeave);
-          });
-        });
-      }
+      /* keep cards glued to the layout while the stage resizes (rotation, window drag) */
+      const ro = new ResizeObserver(render);
+      ro.observe(el);
 
-      /* ---------- hero intro, parallax ---------- */
-      gsap.from(q('[data-in]'), { y: 34 * u(), opacity: 0, duration: 1, stagger: 0.12, ease: 'power3.out', delay: 0.25 });
+      /* ---------- hero intro (once per visit, not on every breakpoint change), parallax ---------- */
+      if (!introDone.current) {
+        introDone.current = true;
+        gsap.from(q('[data-in]'), { y: 34 * u() * (mobile ? 0.5 : 1), opacity: 0, duration: 1, stagger: 0.12, ease: 'power3.out', delay: 0.25, clearProps: 'transform,opacity' });
+      }
       gsap.set(q('[data-pattern]'), { scale: 1.08, transformOrigin: '50% 0%' });
       gsap.to(q('[data-pattern]'), { yPercent: -5, ease: 'none',
-        scrollTrigger: { start: 0, end: () => `+=${H * u() * 0.5}`, scrub: true } });
+        scrollTrigger: { start: 0, end: () => `+=${el.clientHeight * 0.4}`, scrub: true, invalidateOnRefresh: true } });
       gsap.to(q('[data-herotext]'), { y: () => -40 * u(), ease: 'none',
         scrollTrigger: { start: 0, end: () => `+=${500 * u()}`, scrub: true, invalidateOnRefresh: true } });
 
-      /* ---------- panel copy ---------- */
-      q('[data-reveal]').forEach((t) => gsap.from(t, { y: 60 * u(), opacity: 0, duration: 1.2, ease: 'power2.out',
-        scrollTrigger: { trigger: t, start: 'top 65%' } }));
-
       /* ---------- section heading — scroll-scrubbed word reveal ---------- */
-      const headingEl = q('[data-section-heading]')[0] as HTMLElement | undefined;
-      const subEl     = q('[data-section-sub]')[0]     as HTMLElement | undefined;
+      gsap.set(headingWords, { y: '115%' });
+      gsap.set(subWords, { y: '115%', opacity: 0 });
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: q('[data-section-heading]')[0],
+          start: 'top 85%',
+          end: 'top 35%',
+          scrub: 0.5,
+          invalidateOnRefresh: true,
+        },
+      });
+      headingWords.forEach((w, i) => { tl.to(w, { y: '0%', ease: 'power3.out', duration: 0.4 }, i * 0.35); });
+      tl.to(subWords, { y: '0%', opacity: 1, ease: 'power2.out', duration: 0.35, stagger: 0.06 }, headingWords.length * 0.35);
 
-      if (!reduce && headingEl && subEl) {
-        const headWords = Array.from(headingEl.querySelectorAll<HTMLElement>(`.${s.wordInner}`));
-        const subWords  = Array.from(subEl.querySelectorAll<HTMLElement>(`.${s.wordInner}`));
+      return () => {
+        ro.disconnect();
+        timer?.kill(); shuf?.kill();
+        gsap.killTweensOf(hero);
+      };
+    });
 
-        /* start everything hidden */
-        gsap.set([...headWords, ...subWords], { y: '115%' });
-        gsap.set(subWords, { opacity: 0 });
-
-        const tl = gsap.timeline({
-          scrollTrigger: {
-            trigger: headingEl,
-            start: 'top 65%',
-            end:   'top 15%',
-            scrub: 0.5,
-            invalidateOnRefresh: true,
-          },
-        });
-
-        /* heading words stagger in, each occupying its own slice of scroll */
-        headWords.forEach((w, i) => {
-          tl.to(w, { y: '0%', ease: 'power3.out', duration: 0.4 }, i * 0.35);
-        });
-
-        /* sub fades + rises after last heading word */
-        tl.to(subWords, { y: '0%', opacity: 1, ease: 'power2.out', duration: 0.35, stagger: 0.06 },
-          headWords.length * 0.35);
-
-      } else {
-        /* reduced-motion or SSR: show immediately */
-        if (headingEl) gsap.set(headingEl.querySelectorAll<HTMLElement>(`.${s.wordInner}`), { y: '0%' });
-        if (subEl)     gsap.set(subEl.querySelectorAll<HTMLElement>(`.${s.wordInner}`), { y: '0%', opacity: 1 });
-      }
-    }, el);
-
-    return () => {
-      hoverCleanups.forEach((f) => f());
-      ro.disconnect();
-      ctx.revert();
-    };
+    return () => mm.revert();
   }, []);
 
-  const word = (k: (typeof WORDS)[number]['key']) => ({ ...box({ ...BOX[k], y: WORD_TOP }) });
+  const typingBox = { ...BOX['word-connect'], y: 250 };
+  const headingBox = { x: (W - BOX.heading.w) / 2, y: 747.8, w: BOX.heading.w, h: BOX.heading.h };
   return (
     <div className={s.page}>
       <Nav />
       <div ref={stage} className={s.stage}>
         <h1 className={s.sr}>Where you can connect, experience and learn — AU Youth Community</h1>
-        <div className={`${s.frame} ${s.hero}`} style={{ height: pct(HERO_H) }}>
-          <img data-pattern className={s.fill} src={A('pattern')} alt="" />
+        <div className={`${s.abs} ${s.frame} ${s.hero}`} style={place({ x: 0, y: 0, w: W, h: HERO_H }, { x: 0, y: 0, w: M_W, h: M_HERO_H })}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img data-pattern className={s.fill} src={A('pattern')} alt="" aria-hidden="true" />
         </div>
-        <div className={`${s.frame} ${s.panel}`} style={{ top: pct(PANEL_Y), height: pct(H - PANEL_Y) }}>
-          <img className={s.panelPattern} src="/assets/section2-bg.svg" alt="" />
+        <div className={`${s.abs} ${s.frame} ${s.panel}`} style={place({ x: 0, y: PANEL_Y, w: W, h: H - PANEL_Y }, { x: 0, y: M_PANEL_Y, w: M_W, h: M_H - M_PANEL_Y })}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={s.panelPattern} src="/assets/section2-bg.svg" alt="" aria-hidden="true" />
         </div>
 
         <div className={s.layer} data-herotext>
-          <h2 data-in style={box(BOX.headline)} className={s.headlineText}>Where you can</h2>
-          <TypingWord style={{ ...word('word-connect'), top: `${(250 / H) * 100}%` }} />
-          <p data-in style={box(BOX.paragraph)} className={s.paragraphText}>Join a vibrant community of young people building meaningful connections, gaining valuable experiences, and learning together to shape a brighter future.</p>
+          <h2 data-in style={place(BOX.headline, M_BOX.headline)} className={`${s.abs} ${s.headlineText}`}>Where you can</h2>
+          <TypingWord style={place(typingBox, M_BOX.typing)} />
+          <p data-in style={place(BOX.paragraph, M_BOX.paragraph)} className={`${s.abs} ${s.paragraphText}`}>Join a vibrant community of young people building meaningful connections, gaining valuable experiences, and learning together to shape a brighter future.</p>
         </div>
 
         <h2 className={s.sr}>The Experience You get</h2>
-        <h3
-          data-section-heading
-          style={{ position: 'absolute', top: `${(747.8 / H) * 100}%`, left: '50%', transform: 'translateX(-50%)', width: `${(BOX.heading.w / W) * 100}%` }}
-          className={s.headingText}
-        >
+        <h3 data-section-heading style={place(headingBox, M_BOX.heading)} className={`${s.abs} ${s.headingText}`} aria-hidden="true">
           {['The', 'Experience', 'You', 'get'].map((w) => (
             <span key={w} className={s.wordMask}>
               <span className={s.wordInner}>{w}</span>
             </span>
           ))}
         </h3>
-        <p
-          data-section-sub
-          style={{ position: 'absolute', top: `${(820 / H) * 100}%`, left: '50%', transform: 'translateX(-50%)', width: '60%' }}
-          className={s.subheadingText}
-        >
+        <p data-section-sub style={place({ x: W * 0.2, y: 820, w: W * 0.6, h: 22 }, M_BOX.sub)} className={`${s.abs} ${s.subheadingText}`}>
           {['Discover', 'endless', 'opportunities', 'for', 'growth', 'and', 'connection'].map((w) => (
             <span key={w} className={s.wordMask}>
               <span className={s.wordInner}>{w}</span>
@@ -252,14 +240,13 @@ export default function Landing() {
         </p>
 
         {CARDS.map((c, i) => (
-          <div key={c.id} data-card className={s.card}
-            ref={(el) => { if (el) cardRefs.current[i] = el; }}
-            style={{ ...box({ x: c.slot.x, y: c.slot.y, w: SLOT.w, h: SLOT.h }), zIndex: i + 1 }}>
+          <div key={c.id} data-card className={`${s.abs} ${s.card}`}
+            style={{ ...place({ ...c.slot, ...SLOT }, { ...M_SLOTS[i], ...M_SLOT }), zIndex: i + 1 }}>
             <Link href={CARD_HREF[c.id]} className={s.cardInner} style={{ background: c.color }} aria-label={c.label}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className={s.cardPhoto} src={c.img} alt="" decoding="async" />
-              <div data-hover-overlay className={s.hoverOverlay} />
-              <div data-hover-label className={s.hoverLabel}>{c.label}</div>
+              <div className={s.hoverOverlay} />
+              <div className={s.hoverLabel} aria-hidden="true">{c.label}</div>
             </Link>
           </div>
         ))}

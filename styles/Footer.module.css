@@ -204,7 +204,7 @@
 /* ── Mobile < 768px ─────────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .overlap {
-    --folder-overlap: -100px;
+    --folder-overlap: -64px;
   }
 
   .inner {

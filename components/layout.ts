@@ -24,6 +24,32 @@ export const CARDS = [
   { id: 'green',  color: '#117302', label: 'Share',   img: '/assets/card-img-3.webp', slot: { x: 742,  y: 920 } },
   { id: 'yellow', color: '#FCD116', label: 'Learn',   img: '/assets/card-img-4.webp', slot: { x: 1055, y: 920 } },
 ] as const;
+/* ---------- phone canvas (≤760px): 390 wide, stacked text → card stack → 2×2 grid ----------
+   Unlike the desktop canvas it is not stretched vertically: the stage is exactly 390 × M_H. */
+export const MOBILE_MQ = '(max-width: 760px)';
+export const M_W = 390, M_H = 1384, M_HERO_H = 700, M_PANEL_Y = 680;
+export const M_SLOT = { w: 165, h: 238 };
+export const M_POSE = { w: 196, h: 283 };
+export const M_PLACES = [
+  { x: 24,  y: 350, z: 1 },
+  { x: 58,  y: 350, z: 2 },
+  { x: 97,  y: 350, z: 4 },
+  { x: 144, y: 349, z: 3 },
+] as const;
+export const M_SLOTS = [{ x: 20, y: 852 }, { x: 205, y: 852 }, { x: 20, y: 1106 }, { x: 205, y: 1106 }] as const;
+/** phone boxes for the hero copy and section heading (design px on the 390 canvas) */
+export const M_BOX = {
+  headline:  { x: 20, y: 112, w: 350, h: 50 },
+  typing:    { x: 22, y: 166, w: 300, h: 42 },
+  paragraph: { x: 20, y: 224, w: 340, h: 100 },
+  heading:   { x: 20, y: 724, w: 350, h: 40 },
+  sub:       { x: 30, y: 774, w: 330, h: 44 },
+} as const;
+/** desktop box + phone box → CSS variables read by `.abs` in Landing.module.css */
+export const place = (d: Box, m: Box) => ({
+  '--l': `${(d.x / W) * 100}%`, '--t': `${(d.y / H) * 100}%`, '--w': `${(d.w / W) * 100}%`, '--h': `${(d.h / H) * 100}%`,
+  '--ml': `${(m.x / M_W) * 100}%`, '--mt': `${(m.y / M_H) * 100}%`, '--mw': `${(m.w / M_W) * 100}%`, '--mh': `${(m.h / M_H) * 100}%`,
+}) as CSSProperties;
 // words typed in a loop
 export const WORDS = [
   { key: 'word-connect', n: 8 }, { key: 'word-experience', n: 10 }, { key: 'word-learn', n: 5 },

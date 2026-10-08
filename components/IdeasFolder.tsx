@@ -79,7 +79,7 @@ export default function IdeasFolder({
   const pills = useRef<(HTMLButtonElement | null)[]>([]);
   const timers = useRef<{ pop?: ReturnType<typeof setTimeout> }>({});
   const n = items.length;
-  const k = Math.min(1, Math.max(0.78, width / FOLDER_ART.w));     // pill scale on small screens
+  const k = Math.min(1, Math.max(0.7, width / FOLDER_ART.w));     // pill scale on small screens
   const height = (width * FOLDER_ART.h) / FOLDER_ART.w;
 
   const pos = useMemo(() => layout(items, spread, lift, tilt, sizes), [items, spread, lift, tilt, sizes]);

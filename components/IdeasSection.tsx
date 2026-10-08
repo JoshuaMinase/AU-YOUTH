@@ -60,9 +60,10 @@ export default function IdeasSection() {
     return () => ctx.revert();
   }, []);
 
-  /* Size the folder to fill the stage width, capped at a large max */
-  const folderW  = Math.min(stageW, FOLDER_ART.w * 1.6);
-  const spread   = folderW * 0.38;
+  /* Size the folder to the stage width (16px gutter each side), capped at a large max */
+  const folderW  = Math.max(240, Math.min(stageW - 32, FOLDER_ART.w * 1.6));
+  const spread   = folderW * (folderW < 600 ? 0.5 : 0.38);   // wider cloud on phones so pills don't collide
+  const lift     = folderW < 600 ? 64 : 100;    // pills fly lower on phones
 
   return (
     <section ref={root} id="ideas" className={s.wrap} aria-labelledby="ideas-title">
@@ -78,7 +79,7 @@ export default function IdeasSection() {
         </p>
       </div>
 
-      {/* ── Folder: absolute, bottom 0, bleeds into footer ───────────── */}
+      {/* ── Folder: in flow under the text, bleeds into the footer ────── */}
       <div ref={stageRef} className={s.folderStage} data-folder-wrap>
         <div className={s.slot}>
           <div data-folder className={s.folder}>
@@ -87,7 +88,7 @@ export default function IdeasSection() {
               label="Ideas"
               width={folderW}
               spread={spread}
-              lift={100}
+              lift={lift}
               tilt={10}
             />
           </div>
