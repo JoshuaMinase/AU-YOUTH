@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { I } from '@/components/portal/ui';
 import { MeProvider, useMe } from '@/lib/me';
-import { useReveal } from '@/lib/hooks';
+import { useReveal, useSwipeTabs } from '@/lib/hooks';
 import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
@@ -17,6 +17,7 @@ const NAV = [
   { href: '/dashboard/calendar', label: 'Calendar', icon: I.calendar },
   { href: '/dashboard/get-help', label: 'Get Help', icon: I.help },
 ];
+const TABS = NAV.map((n) => n.href);
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { me } = useMe();
@@ -25,6 +26,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const main = useRef<HTMLElement>(null);
   const { unread } = useChats();
   useReveal(main, [pathname]);
+  useSwipeTabs(main, TABS, pathname, (href) => router.push(href));
 
   async function signOut() {
     await createClient().auth.signOut();
