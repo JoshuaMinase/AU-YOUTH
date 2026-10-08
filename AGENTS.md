@@ -170,14 +170,13 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
 
    | Key | Holds |
    |---|---|
-   | `auy-events` | events the user added on the calendar |
-   | `auy-chats-read` / `auy-chats-sent` | read conversations / messages the user sent |
+      | `auy-chats-read` / `auy-chats-sent` | read conversations / messages the user sent |
    | `auy-posts`, `auy-likes`, `auy-hidden`, `auy-comments` | dashboard feed activity |
    | `auy-notifs-read` | read notifications |
    | `auy-connections` | people the user sent connection requests to |
    | `auy-profile` | edited profile (bio, skills, education…) |
 
-4. Use the shared hooks. Do not re-implement them: `useEvents(today)` (calendar + home),
+4. `useEvents(today)` (calendar + home) now reads and writes the Supabase `events` table (own rows only, RLS). Use the other shared hooks too, do not re-implement them:
    `useChats()` (header badge, chats page, home quick chat). The profile completion % **MUST** come
    from `profileScore()` so the home ring and the profile page always agree.
 5. When a real backend arrives: replace the internals of `lib/data.ts`, `lib/store.ts` and

@@ -30,7 +30,7 @@ const greet = (d: Date) => { const h = d.getHours(); return h < 12 ? 'Good morni
 
 export default function DashboardHome() {
   const today = useToday();
-  const { events } = useEvents(today);
+  const { events, loaded: eventsLoaded } = useEvents(today);
   const { chats, unread, send, markRead } = useChats();
   const [toast, toastNode] = useToast();
   const [selected, setSelected] = useState('');
@@ -121,7 +121,7 @@ export default function DashboardHome() {
                       <span className={s.agendaTime}>{ev.time}</span>
                       <span className={s.agendaTitle}>{ev.title}</span>
                     </div>
-                  )) : <p className={s.agendaEmpty}>Nothing scheduled.</p>}
+                  )) : eventsLoaded && <p className={s.agendaEmpty}>Nothing scheduled.</p>}
                 </div>
               </>
             ) : <div style={{ height: 300 }} />}
@@ -306,7 +306,7 @@ export default function DashboardHome() {
                   </Link>
                 );
               })}
-              {today && !upcoming.length && <p className={s.agendaEmpty}>No upcoming events.</p>}
+              {today && eventsLoaded && !upcoming.length && <p className={s.agendaEmpty}>No upcoming events.</p>}
             </div>
           </div>
 

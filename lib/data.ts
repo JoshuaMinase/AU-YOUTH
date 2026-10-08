@@ -64,22 +64,6 @@ export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: 'call', label: 'Call' }, { id: 'forum', label: 'Forum' },
 ];
 
-const EVENT_SEED: { offset: number; time: string; title: string; type: EventType; location: string }[] = [
-  { offset: -6, time: '15:00', title: 'Monthly Cohort Roundup',      type: 'call',     location: 'Online' },
-  { offset: -2, time: '11:00', title: 'Policy Brief Peer Review',    type: 'session',  location: 'Nyerere Room' },
-  { offset: 0,  time: '10:00', title: 'Weekly Intern Coordination',  type: 'meeting',  location: 'Mandela Hall' },
-  { offset: 0,  time: '14:00', title: 'Youth Innovation Exchange',   type: 'event',    location: 'Online' },
-  { offset: 2,  time: '09:30', title: 'Skills Development Workshop', type: 'workshop', location: 'Mandela Hall' },
-  { offset: 5,  time: '11:00', title: 'One-on-one with Supervisor',  type: 'session',  location: 'HRST Office' },
-  { offset: 9,  time: '15:00', title: 'AU Intern Community Call',    type: 'call',     location: 'Online' },
-  { offset: 13, time: '09:00', title: 'Leadership Forum',            type: 'forum',    location: 'Plenary Hall' },
-  { offset: 20, time: '10:00', title: 'Weekly Intern Coordination',  type: 'meeting',  location: 'Mandela Hall' },
-  { offset: 27, time: '13:00', title: 'Climate & Youth Roundtable',  type: 'forum',    location: 'Online' },
-];
-
-export const buildEvents = (today: Date): CalEvent[] =>
-  EVENT_SEED.map((e, i) => ({ id: `seed-${i}`, date: ymd(addDays(today, e.offset)), time: e.time, title: e.title, type: e.type, location: e.location }));
-
 export const sortEvents = (a: CalEvent, b: CalEvent) => (a.date + a.time).localeCompare(b.date + b.time);
 
 /* ── News ─────────────────────────────────────────────────────────── */

@@ -4,17 +4,27 @@ import { useMemo, useState } from 'react';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
 import { EVENT_TYPES, MONTHS, MONTHS_SHORT, WEEKDAYS, monthCells, parseYmd, ymd, type CalEvent, type EventType } from '@/lib/data';
 import { useToday } from '@/lib/hooks';
-import { useEvents } from '@/lib/portal';
+import { useEvents, type EventInput } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const HEADS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
-function AddEvent({ date, onAdd, onClose }: { date: string; onAdd: (e: Omit<CalEvent, 'id'>) => void; onClose: () => void }) {
-  const [f, setF] = useState({ title: '', date, time: '10:00', type: 'meeting' as EventType, location: '' });
+function EventForm({ date, event, onSave, onClose }: { date: string; event?: CalEvent; onSave: (e: EventInput) => Promise<string | null>; onClose: () => void }) {
+  const [f, setF] = useState({
+    title: event?.title ?? '', date: event?.date ?? date, time: event?.time ?? '10:00',
+    type: (event?.type ?? 'meeting') as EventType, location: event && event.location !== 'TBC' ? event.location : '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   return (
-    <Modal title="Add event" onClose={onClose}>
-      <form className={s.form} onSubmit={(e) => { e.preventDefault(); onAdd({ ...f, title: f.title.trim(), location: f.location.trim() || 'TBC' }); }}>
+    <Modal title={event ? 'Edit event' : 'Add event'} onClose={onClose}>
+      <form className={s.form} onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true); setErr(null);
+        const msg = await onSave({ ...f, title: f.title.trim(), location: f.location.trim() || 'TBC' });
+        if (msg) { setErr(msg); setBusy(false); }
+      }}>
         <div className={s.field}>
           <label className={s.label} htmlFor="ev-title">Title</label>
           <input id="ev-title" className={s.input} value={f.title} onChange={set('title')} required maxLength={80} placeholder="e.g. Policy circle meetup" />
@@ -41,9 +51,10 @@ function AddEvent({ date, onAdd, onClose }: { date: string; onAdd: (e: Omit<CalE
             <input id="ev-loc" className={s.input} value={f.location} onChange={set('location')} placeholder="Online" maxLength={60} />
           </div>
         </div>
+        {err && <p className={s.agendaEmpty} role="alert">{err}</p>}
         <div className={s.formActions}>
           <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
-          <button type="submit" className={s.btnDark} disabled={!f.title.trim()}>Add event</button>
+          <button type="submit" className={s.btnDark} disabled={!f.title.trim() || busy}>{busy ? 'Saving…' : event ? 'Save changes' : 'Add event'}</button>
         </div>
       </form>
     </Modal>
@@ -52,11 +63,13 @@ function AddEvent({ date, onAdd, onClose }: { date: string; onAdd: (e: Omit<CalE
 
 export default function CalendarPage() {
   const today = useToday();
-  const { events, add, remove } = useEvents(today);
+  const { events, add, update, remove, loaded, error } = useEvents(today);
   const [toast, toastNode] = useToast();
   const [view, setView] = useState<{ y: number; m: number } | null>(null);
   const [selected, setSelected] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<CalEvent | null>(null);
+  const showEvent = (e: EventInput) => { setSelected(e.date); const d = parseYmd(e.date); setView({ y: d.getFullYear(), m: d.getMonth() }); };
 
   const v = view ?? (today ? { y: today.getFullYear(), m: today.getMonth() } : null);
   const todayKey = today ? ymd(today) : '';
@@ -131,12 +144,14 @@ export default function CalendarPage() {
                     <p className={s.dayItemTitle}>{ev.title}</p>
                     <p className={s.dayItemMeta}>{ev.time} · {ev.location}</p>
                   </div>
-                  {ev.id.startsWith('u-') && (
-                    <button type="button" className={s.iconBtn} aria-label={`Delete ${ev.title}`} onClick={() => { remove(ev.id); toast('Event deleted'); }}>{I.close}</button>
-                  )}
+                  <button type="button" className={s.iconBtn} aria-label={`Edit ${ev.title}`} onClick={() => setEditing(ev)}>{I.edit}</button>
+                  <button type="button" className={s.iconBtn} aria-label={`Delete ${ev.title}`}
+                    onClick={async () => { const msg = await remove(ev.id); toast(msg ?? 'Event deleted'); }}>{I.close}</button>
                 </div>
               ))}
-              {!dayEvents.length && <p className={s.agendaEmpty}>Nothing scheduled.</p>}
+              {!loaded && !error && <p className={s.agendaEmpty}>Loading…</p>}
+              {error && <p className={s.agendaEmpty} role="alert">Could not load events: {error}</p>}
+              {loaded && !error && !dayEvents.length && <p className={s.agendaEmpty}>Nothing scheduled.</p>}
               <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={() => setAdding(true)} disabled={!today}>{I.plus} Add to this day</button>
             </div>
           </section>
@@ -149,6 +164,7 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className={s.coming}>
+              {loaded && !error && !upcoming.length && <p className={s.agendaEmpty}>No upcoming events.</p>}
               {upcoming.map((ev) => {
                 const d = parseYmd(ev.date);
                 return (
@@ -168,8 +184,12 @@ export default function CalendarPage() {
       </div>
 
       {adding && (
-        <AddEvent date={selKey} onClose={() => setAdding(false)}
-          onAdd={(e) => { add(e); setAdding(false); setSelected(e.date); const d = parseYmd(e.date); setView({ y: d.getFullYear(), m: d.getMonth() }); toast('Event added'); }} />
+        <EventForm date={selKey} onClose={() => setAdding(false)}
+          onSave={async (e) => { const msg = await add(e); if (msg) return msg; setAdding(false); showEvent(e); toast('Event added'); return null; }} />
+      )}
+      {editing && (
+        <EventForm date={selKey} event={editing} onClose={() => setEditing(null)}
+          onSave={async (e) => { const msg = await update(editing.id, e); if (msg) return msg; setEditing(null); showEvent(e); toast('Event updated'); return null; }} />
       )}
       {toastNode}
     </>
