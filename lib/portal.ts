@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MONTHS, WEEKDAYS, sortEvents, startOfDay, type CalEvent, type Chat, type EventType, type Msg, type NewsItem } from './data';
+import { MONTHS, WEEKDAYS, sortEvents, startOfDay, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem } from './data';
 import { useMe } from './me';
 import { NEWS_COLS, timeAgo, toNews } from './news';
 import { colorFor } from './people';
@@ -177,6 +177,34 @@ export function useChats() {
   }, [load]);
 
   return { chats, unread, markRead, send, start, loaded, error };
+}
+
+export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean }
+
+/** url-safe slug from the title, with a short random tail so two titles never clash */
+const slugify = (title: string) =>
+  `${title.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '') || 'article'}-${Math.random().toString(36).slice(2, 6)}`;
+
+/** Admins: publish a new article, or update the one with `slug`. Only one article can be featured. */
+export async function saveNews(input: NewsInput, slug?: string): Promise<{ slug?: string; error?: string }> {
+  const supabase = createClient();
+  if (input.featured) {
+    const { error } = await supabase.from('news').update({ featured: false }).eq('featured', true).neq('slug', slug ?? '');
+    if (error) return { error: error.message };
+  }
+  if (slug) {
+    const { error } = await supabase.from('news').update(input).eq('slug', slug);
+    return error ? { error: error.message } : { slug };
+  }
+  const fresh = slugify(input.title);
+  const { error } = await supabase.from('news').insert({ ...input, slug: fresh });
+  return error ? { error: error.message } : { slug: fresh };
+}
+
+/** Admins: delete an article; returns an error message or null. */
+export async function deleteNews(slug: string) {
+  const { error } = await createClient().from('news').delete().eq('slug', slug);
+  return error ? error.message : null;
 }
 
 /** Published articles (Supabase `news` table), newest first, with live updates. Shared by the news page and home. */

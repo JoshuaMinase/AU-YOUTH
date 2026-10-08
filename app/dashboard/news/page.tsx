@@ -2,10 +2,13 @@
 
 import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Hero, I } from '@/components/portal/ui';
+import { NewsEditor } from '@/components/portal/NewsEditor';
 import { TAG_CLASS } from '@/components/portal/tags';
 import { NEWS_CATS, type NewsItem } from '@/lib/data';
 import { useListAnimation } from '@/lib/hooks';
+import { useMe } from '@/lib/me';
 import { useNews } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
@@ -15,6 +18,9 @@ function Meta({ n }: { n: NewsItem }) {
 
 export default function NewsPage() {
   const { news, loaded, error } = useNews();
+  const { me } = useMe();
+  const router = useRouter();
+  const [writing, setWriting] = useState(false);
   const [cat, setCat] = useState<(typeof NEWS_CATS)[number]>('All');
   const [q, setQ] = useState('');
   const grid = useRef<HTMLDivElement>(null);
@@ -31,7 +37,10 @@ export default function NewsPage() {
 
   return (
     <>
-      <Hero plain eyebrow="AU Youth Network" title="News & *Updates*" desc="Official initiatives, opportunities and developments from across the Union." />
+      <Hero plain eyebrow="AU Youth Network" title="News & *Updates*" desc="Official initiatives, opportunities and developments from across the Union.">
+        {me.access !== 'user' && <button type="button" className={s.btnDark} onClick={() => setWriting(true)}>{I.plus} New article</button>}
+      </Hero>
+      {writing && <NewsEditor onClose={() => setWriting(false)} onSaved={(slug) => router.push(`/dashboard/news/${slug}`)} />}
 
       <div className={s.toolbar} data-reveal>
         <div className={s.pills} role="group" aria-label="Filter by category">

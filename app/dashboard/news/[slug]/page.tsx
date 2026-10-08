@@ -3,6 +3,7 @@ import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Hero } from '@/components/portal/ui';
+import { ArticleAdmin } from '@/components/portal/ArticleAdmin';
 import { TAG_CLASS } from '@/components/portal/tags';
 import { NEWS_COLS, toNews } from '@/lib/news';
 import { createClient } from '@/lib/supabase/server';
@@ -48,6 +49,7 @@ export default async function ArticlePage({ params }: { params: { slug: string }
             <span className={`${s.tag} ${TAG_CLASS[item.tag]}`}>{item.tag}</span>
             <span className={`${s.tag} ${s.tMuted}`}>{item.source}</span>
           </div>
+          <ArticleAdmin item={item} />
         </article>
 
         <aside className={`${s.card} ${s.sticky}`} data-reveal>

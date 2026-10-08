@@ -3,6 +3,15 @@ import { MONTHS, type NewsCat, type NewsItem } from './data';
 /** Columns the news pages read from the Supabase `news` table. */
 export const NEWS_COLS = 'slug, cat, title, excerpt, body, source, img, featured, published_at';
 
+/** photos an admin can pick for an article (no uploads yet) */
+export const NEWS_IMAGES = [
+  { src: '/assets/card-img-1.webp', label: 'Photo 1' },
+  { src: '/assets/card-img-2.webp', label: 'Photo 2' },
+  { src: '/assets/card-img-3.webp', label: 'Photo 3' },
+  { src: '/assets/card-img-4.webp', label: 'Photo 4' },
+  { src: '/assets/baskets.webp', label: 'Baskets' },
+];
+
 /** category → the singular label on the chip (keys of TAG_CLASS) */
 const CAT_TAG: Record<NewsCat, string> = {
   Initiatives: 'Initiative', Opportunities: 'Opportunity', Events: 'Event',
