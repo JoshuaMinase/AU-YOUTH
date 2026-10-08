@@ -6,19 +6,9 @@ import { I, MiniCalendar, useToast } from '@/components/portal/ui';
 import { MONTHS, MONTHS_SHORT, NEWS, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
-import { useChats, useEvents, useNews } from '@/lib/portal';
-import { usePersisted, toggleIn } from '@/lib/store';
+import { useChats, useEvents, useFeed, useNews } from '@/lib/portal';
+import { usePersisted } from '@/lib/store';
 import s from '@/styles/Portal.module.css';
-
-interface Post { id: string; initials: string; bg: string; name: string; meta: string; body: string; image?: string; likes: number; comments: { who: string; text: string }[] }
-
-const SEED_POSTS: Post[] = [
-  { id: 'p1', initials: 'AU', bg: '#032210', name: 'AU Youth Network', meta: '2 hours ago · Pinned',
-    body: '🎉 Welcome to Intern Onboarding Week! Make sure to complete your profile so coordinators can match you to the right projects. Reach out to your cohort lead if you have any questions.',
-    image: '/assets/card-img-1.webp', likes: 124, comments: [{ who: 'Amara Mensah', text: 'So excited to be here!' }] },
-  { id: 'p2', initials: 'SD', bg: '#117302', name: 'Skills Development Team', meta: 'Yesterday · Public',
-    body: '📋 Registration is now open for the Skills Development Workshop in Mandela Hall. Seats are limited — secure yours today!', likes: 57, comments: [] },
-];
 
 const NOTIFS = [
   { id: 'n1', icon: 'AU', bg: '#ECECE8', fg: '#1E2A22', title: 'New announcement posted', body: 'AU Youth Network shared an update about Intern Onboarding Week.', time: '2 hours ago', href: `/dashboard/news/${NEWS[0].slug}` },
@@ -40,15 +30,12 @@ export default function DashboardHome() {
   const selKey = selected || (today ? ymd(today) : '');
 
   /* feed */
-  const [myPosts, setMyPosts] = usePersisted<Post[]>('auy-posts', []);
-  const [liked, setLiked] = usePersisted<string[]>('auy-likes', []);
-  const [hidden, setHidden] = usePersisted<string[]>('auy-hidden', []);
-  const [extraComments, setExtraComments] = usePersisted<Record<string, { who: string; text: string }[]>>('auy-comments', {});
+  const { posts, total, loaded: feedLoaded, error: feedError, publish: post, remove, toggleLike, comment, hide, unhideAll } = useFeed();
   const [openComments, setOpenComments] = useState<string | null>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
+  const [posting, setPosting] = useState(false);
   const [commentDraft, setCommentDraft] = useState('');
-  const posts = [...myPosts, ...SEED_POSTS].filter((p) => !hidden.includes(p.id));
 
   const { me, profile } = useMe();
   const completion = profileScore(profile);
@@ -64,20 +51,27 @@ export default function DashboardHome() {
   const [qcDraft, setQcDraft] = useState('');
   const qc = chats.find((c) => c.id === qcId) ?? recentChats[0];
 
-  const publish = (e: React.FormEvent) => {
-    e.preventDefault();
-    const body = draft.trim();
-    if (!body) return;
-    setMyPosts((p) => [{ id: `me-${Date.now()}`, initials: me.initials, bg: '#E2CBA4', name: me.name, meta: 'Just now · Public', body, likes: 0, comments: [] }, ...p]);
-    setDraft('');
-    toast('Posted to the community');
+  /* run a feed action, then toast its result (or the error) */
+  const act = async (op: Promise<string | null>, done?: string) => {
+    const err = await op;
+    if (err) toast(`Something went wrong: ${err}`);
+    else if (done) toast(done);
+    return !err;
   };
 
-  const addComment = (id: string) => {
+  const publish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const body = draft.trim();
+    if (!body || posting) return;
+    setPosting(true);
+    if (await act(post(body), 'Posted to the community')) setDraft('');
+    setPosting(false);
+  };
+
+  const addComment = async (id: string) => {
     const text = commentDraft.trim();
     if (!text) return;
-    setExtraComments((p) => ({ ...p, [id]: [...(p[id] ?? []), { who: me.name, text }] }));
-    setCommentDraft('');
+    if (await act(comment(id, text))) setCommentDraft('');
   };
 
   const selDate = selKey ? parseYmd(selKey) : null;
@@ -167,14 +161,13 @@ export default function DashboardHome() {
                 onChange={(e) => setDraft(e.target.value)} placeholder="Share an update, idea or question…" maxLength={600} />
               <div className={s.composerRow}>
                 <span className={s.cardMeta}>{draft.length}/600</span>
-                <button type="submit" className={s.btnDark} disabled={!draft.trim()}>{I.send} Post</button>
+                <button type="submit" className={s.btnDark} disabled={!draft.trim() || posting}>{I.send} {posting ? 'Posting…' : 'Post'}</button>
               </div>
             </form>
           </div>
 
           {posts.map((p) => {
-            const isLiked = liked.includes(p.id);
-            const comments = [...p.comments, ...(extraComments[p.id] ?? [])];
+            const { comments } = p;
             return (
               <article key={p.id} className={`${s.card} ${s.post}`} data-reveal>
                 <div className={s.postHead}>
@@ -188,9 +181,9 @@ export default function DashboardHome() {
                       onClick={() => setMenu(menu === p.id ? null : p.id)}>{I.more}</button>
                     {menu === p.id && (
                       <div className={s.menu} role="menu">
-                        <button type="button" role="menuitem" onClick={() => { setHidden((h) => [...h, p.id]); setMenu(null); toast('Post hidden'); }}>Hide post</button>
-                        {p.id.startsWith('me-') && (
-                          <button type="button" role="menuitem" onClick={() => { setMyPosts((m) => m.filter((x) => x.id !== p.id)); setMenu(null); toast('Post deleted'); }}>Delete post</button>
+                        <button type="button" role="menuitem" onClick={() => { setMenu(null); act(hide(p.id), 'Post hidden'); }}>Hide post</button>
+                        {p.mine && (
+                          <button type="button" role="menuitem" onClick={() => { setMenu(null); act(remove(p.id), 'Post deleted'); }}>Delete post</button>
                         )}
                         <button type="button" role="menuitem" onClick={() => setMenu(null)}>Cancel</button>
                       </div>
@@ -205,12 +198,12 @@ export default function DashboardHome() {
                   </div>
                 )}
                 <div className={s.postActions}>
-                  <button type="button" className={s.action} aria-pressed={isLiked} onClick={() => setLiked((l) => toggleIn(l, p.id))}>
-                    {I.like}{p.likes + (isLiked ? 1 : 0)} likes
+                  <button type="button" className={s.action} aria-pressed={p.liked} onClick={() => act(toggleLike(p))}>
+                    {I.like}{p.likes} {p.likes === 1 ? 'like' : 'likes'}
                   </button>
                   <button type="button" className={s.action} aria-expanded={openComments === p.id}
                     onClick={() => { setOpenComments(openComments === p.id ? null : p.id); setCommentDraft(''); }}>
-                    {I.comment}{comments.length} comments
+                    {I.comment}{comments.length} {comments.length === 1 ? 'comment' : 'comments'}
                   </button>
                   <button type="button" className={s.action}
                     onClick={async () => toast((await copyText(`${location.origin}/dashboard#${p.id}`)) ? 'Link copied' : 'Could not copy link')}>
@@ -219,7 +212,7 @@ export default function DashboardHome() {
                 </div>
                 {openComments === p.id && (
                   <div className={s.comments}>
-                    {comments.map((c, i) => <p key={i} className={s.comment}><b>{c.who}</b>{c.text}</p>)}
+                    {comments.map((c) => <p key={c.id} className={s.comment}><b>{c.who}</b>{c.text}</p>)}
                     <form className={s.inlineForm} onSubmit={(e) => { e.preventDefault(); addComment(p.id); }}>
                       <input className={s.input} value={commentDraft} onChange={(e) => setCommentDraft(e.target.value)} placeholder="Write a comment…" aria-label="Write a comment" autoFocus />
                       <button type="submit" className={`${s.btnDark} ${s.btnSm}`} disabled={!commentDraft.trim()}>Reply</button>
@@ -229,7 +222,10 @@ export default function DashboardHome() {
               </article>
             );
           })}
-          {!posts.length && <p className={s.empty}>You have hidden every post. <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => setHidden([])}>Show them again</button></p>}
+          {feedError && <p className={s.empty} role="alert">Could not load the feed: {feedError}</p>}
+          {!feedLoaded && !feedError && <p className={s.empty}>Loading posts…</p>}
+          {feedLoaded && !feedError && !total && <p className={s.empty}>No posts yet. Be the first to share something.</p>}
+          {feedLoaded && !feedError && total > 0 && !posts.length && <p className={s.empty}>You have hidden every post. <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => act(unhideAll())}>Show them again</button></p>}
         </section>
 
         {/* ── Right ────────────────────────────── */}

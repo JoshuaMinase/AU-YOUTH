@@ -10,7 +10,8 @@ export interface Member {
 export type Relation = 'none' | 'sent' | 'incoming' | 'connected';
 
 const PALETTE = ['#C9AB5C', '#117302', '#0072C6', '#8F2D56', '#218380', '#FBB13C', '#73D2DE', '#032210'];
-const colorFor = (id: string) => PALETTE[[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length];
+/** stable avatar colour per member id (People, feed) */
+export const colorFor = (id: string) => PALETTE[[...id].reduce((n, c) => n + c.charCodeAt(0), 0) % PALETTE.length];
 
 function toMember(r: Record<string, any>): Member {
   const first = (r.first_name ?? '').trim();
