@@ -4,8 +4,9 @@ import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Hero, I } from '@/components/portal/ui';
 import { TAG_CLASS } from '@/components/portal/tags';
-import { NEWS, NEWS_CATS, type NewsItem } from '@/lib/data';
+import { NEWS_CATS, type NewsItem } from '@/lib/data';
 import { useListAnimation } from '@/lib/hooks';
+import { useNews } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 function Meta({ n }: { n: NewsItem }) {
@@ -13,19 +14,20 @@ function Meta({ n }: { n: NewsItem }) {
 }
 
 export default function NewsPage() {
+  const { news, loaded, error } = useNews();
   const [cat, setCat] = useState<(typeof NEWS_CATS)[number]>('All');
   const [q, setQ] = useState('');
   const grid = useRef<HTMLDivElement>(null);
 
   const list = useMemo(() => {
     const t = q.trim().toLowerCase();
-    return NEWS.filter((n) => (cat === 'All' || n.cat === cat) && (!t || `${n.title} ${n.excerpt} ${n.source}`.toLowerCase().includes(t)));
-  }, [cat, q]);
+    return news.filter((n) => (cat === 'All' || n.cat === cat) && (!t || `${n.title} ${n.excerpt} ${n.source}`.toLowerCase().includes(t)));
+  }, [news, cat, q]);
   /* the featured story leads only on the unfiltered view */
   const featured = cat === 'All' && !q ? list.find((n) => n.featured) : undefined;
   const rest = list.filter((n) => n !== featured);
 
-  useListAnimation(grid, `${cat}|${q}`);
+  useListAnimation(grid, `${cat}|${q}|${loaded}`);
 
   return (
     <>
@@ -44,7 +46,7 @@ export default function NewsPage() {
       </div>
 
       {featured && (
-        <Link href={`/dashboard/news/${featured.slug}`} className={s.featured} data-reveal>
+        <Link href={`/dashboard/news/${featured.slug}`} className={s.featured}>
           <div className={s.featuredImg}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={featured.img} alt="" />
@@ -58,7 +60,9 @@ export default function NewsPage() {
         </Link>
       )}
 
-      <p className={s.count} aria-live="polite">{list.length} {list.length === 1 ? 'story' : 'stories'}</p>
+      <p className={s.count} aria-live="polite">
+        {error ? `Could not load news: ${error}` : !loaded ? 'Loading…' : `${list.length} ${list.length === 1 ? 'story' : 'stories'}`}
+      </p>
       <div ref={grid} className={s.newsGrid}>
         {rest.map((n) => (
           <Link key={n.slug} href={`/dashboard/news/${n.slug}`} className={s.newsCard}>
@@ -74,7 +78,7 @@ export default function NewsPage() {
             </div>
           </Link>
         ))}
-        {!list.length && <p className={s.empty}>No stories match that filter.</p>}
+        {loaded && !error && !list.length && <p className={s.empty}>{news.length ? 'No stories match that filter.' : 'No news yet.'}</p>}
       </div>
     </>
   );

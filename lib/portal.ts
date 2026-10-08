@@ -1,7 +1,8 @@
 'use client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CHATS, sortEvents, type CalEvent, type EventType, type Msg } from './data';
+import { CHATS, sortEvents, type CalEvent, type EventType, type Msg, type NewsItem } from './data';
 import { useMe } from './me';
+import { NEWS_COLS, toNews } from './news';
 import { createClient } from './supabase/client';
 import { usePersisted } from './store';
 
@@ -84,4 +85,39 @@ export function useChats() {
     setSent((p) => ({ ...p, [id]: [...(p[id] ?? []), { from: 'me', text, time }] }));
   }, [setSent]);
   return { chats, unread, markRead, send };
+}
+
+/** Published articles (Supabase `news` table), newest first, with live updates. Shared by the news page and home. */
+export function useNews() {
+  const { me } = useMe();
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('news').select(NEWS_COLS).order('published_at', { ascending: false });
+    if (err) setError(err.message);
+    else { setError(null); const now = new Date(); setNews((data ?? []).map((r) => toNews(r, now))); }
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`news-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'news' }, () => { load(); })
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [me.id, load]);
+
+  return { news, loaded, error };
 }
