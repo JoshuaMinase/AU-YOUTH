@@ -33,3 +33,6 @@ yarn-error.log*
 # Unused local files (not part of the app)
 components/Dashboard.tsx
 public/assets/charlotte-harrison-Pez23wGG1RM-unsplash.jpg
+
+# Claude Code personal settings
+.claude/settings.local.json
