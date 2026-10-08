@@ -11,6 +11,8 @@ import s from '@/styles/Portal.module.css';
 
 type Editable = Profile & { role: string; dept: string };
 
+const STUDYING = 'Currently studying';
+
 /** "2026-07-01" -> "1 July 2026"; anything else is shown as typed */
 const fmtDate = (v: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
@@ -47,6 +49,8 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
   const [skill, setSkill] = useState('');
   const [lang, setLang] = useState('');
   const [saving, setSaving] = useState(false);
+  const studying = f.year === STUDYING;
+  const [prevYear, setPrevYear] = useState('');
   const set = (k: keyof Editable) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
   // anything typed but not yet added with "Add" is included on save
   const withPending = (list: string[], draft: string) => { const t = draft.trim(); return t && !list.includes(t) ? [...list, t] : list; };
@@ -80,7 +84,17 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
         </div>
         <div className={s.field}>
           <label className={s.label} htmlFor="p-year">Year of study</label>
-          <input id="p-year" className={s.input} value={f.year} onChange={set('year')} placeholder="e.g. 2023–2027 or 4th year" />
+          <input id="p-year" className={s.input} value={f.year} onChange={set('year')} disabled={studying}
+            style={studying ? { opacity: 0.55, background: '#ECEBE6', cursor: 'not-allowed' } : undefined}
+            placeholder="e.g. 2023 – Present, or 3rd year" />
+          <label htmlFor="p-studying" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 14, cursor: 'pointer' }}>
+            <input id="p-studying" type="checkbox" checked={studying}
+              onChange={(e) => {
+                if (e.target.checked) { setPrevYear(f.year); setF({ ...f, year: STUDYING }); }
+                else setF({ ...f, year: prevYear });
+              }} />
+            I am currently studying
+          </label>
         </div>
         <Tags id="p-skill" label="Skills" items={f.skills} draft={skill} setDraft={setSkill}
           onChange={(skills) => setF({ ...f, skills })} placeholder="Add a skill, then press Enter" />
