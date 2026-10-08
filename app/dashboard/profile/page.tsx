@@ -41,10 +41,22 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
 }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
+  const [touched, setTouched] = useState(false);
   const q = draft.trim().toLowerCase();
   const matches = options.filter((o) => !items.includes(o) && (!q || o.toLowerCase().includes(q)));
-  const add = (v: string) => { const t = v.trim(); if (t && !items.includes(t)) onChange([...items, t]); setDraft(''); setHi(0); };
-  const custom = draft.trim() && !options.some((o) => o.toLowerCase() === q) && !items.some((x) => x.toLowerCase() === q);
+  const add = (v: string) => {
+    const t = v.trim();
+    const canon = options.find((o) => o.toLowerCase() === t.toLowerCase()) ?? t; // "english" -> "English"
+    if (canon && !items.some((x) => x.toLowerCase() === canon.toLowerCase())) onChange([...items, canon]);
+    setDraft(''); setHi(0); setTouched(false);
+  };
+  // Enter / Add: pick the highlighted suggestion. Free text is only accepted when nothing in the list matches,
+  // so partial typing like "ha" can never be saved as its own entry.
+  const commit = () => {
+    if (matches.length) { if (q || touched) add(matches[Math.min(hi, matches.length - 1)]); }
+    else add(draft);
+  };
+  const custom = !!draft.trim() && matches.length === 0 && !items.some((x) => x.toLowerCase() === q);
   return (
     <div className={s.field}>
       <label className={s.label} htmlFor={id}>{label}</label>
@@ -63,14 +75,10 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
             onFocus={() => setOpen(true)}
             onBlur={() => setOpen(false)}
             onKeyDown={(e) => {
-              if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setHi((h) => Math.min(h + 1, matches.length - 1)); }
-              else if (e.key === 'ArrowUp') { e.preventDefault(); setHi((h) => Math.max(h - 1, 0)); }
+              if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setTouched(true); setHi((h) => Math.min(h + 1, matches.length - 1)); }
+              else if (e.key === 'ArrowUp') { e.preventDefault(); setTouched(true); setHi((h) => Math.max(h - 1, 0)); }
               else if (e.key === 'Escape') { setOpen(false); }
-              else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (open && matches[hi] && (!custom || q === matches[hi].toLowerCase())) add(matches[hi]);
-                else add(draft);
-              }
+              else if (e.key === 'Enter') { e.preventDefault(); commit(); }
             }} />
           {open && (matches.length > 0 || custom) && (
             <ul id={`${id}-list`} role="listbox"
@@ -97,7 +105,7 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
             </ul>
           )}
         </div>
-        <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={() => add(draft)} disabled={!draft.trim()}>Add</button>
+        <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={commit} disabled={!draft.trim()}>Add</button>
       </div>
     </div>
   );
@@ -112,13 +120,21 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
   const [prevYear, setPrevYear] = useState('');
   const set = (k: keyof Editable) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
   // anything typed but not yet added with "Add" is included on save
-  const withPending = (list: string[], draft: string) => { const t = draft.trim(); return t && !list.includes(t) ? [...list, t] : list; };
+  // only an exact suggestion, or text that matches nothing in the list, is kept; partial typing like "ha" is dropped
+  const withPending = (list: string[], draft: string, options: string[]) => {
+    const t = draft.trim();
+    if (!t) return list;
+    const lower = t.toLowerCase();
+    const exact = options.find((o) => o.toLowerCase() === lower);
+    const next = exact ?? (options.some((o) => o.toLowerCase().includes(lower)) ? '' : t);
+    return next && !list.some((x) => x.toLowerCase() === next.toLowerCase()) ? [...list, next] : list;
+  };
   return (
     <Modal title="Edit profile" onClose={onClose}>
       <form className={s.form} onSubmit={async (e) => {
         e.preventDefault();
         setSaving(true);
-        await onSave({ ...f, skills: withPending(f.skills, skill), languages: withPending(f.languages, lang) });
+        await onSave({ ...f, skills: withPending(f.skills, skill, SKILL_OPTIONS), languages: withPending(f.languages, lang, LANGUAGE_OPTIONS) });
         setSaving(false);
       }}>
         <div className={s.field}>
