@@ -1,16 +1,35 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import s from '@/styles/Auth.module.css';
 
-export default function LoginPage() {
+function LoginView() {
   const router = useRouter();
+  const params = useSearchParams();
+  const [error, setError] = useState<string | null>(
+    params.get('error') === 'confirm' ? 'That confirmation link is invalid or expired. Please log in or sign up again.' : null,
+  );
+  const [busy, setBusy] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // TODO: replace with real auth call
+    const form = new FormData(e.currentTarget);
+    setBusy(true);
+    setError(null);
+    const { error: err } = await createClient().auth.signInWithPassword({
+      email: String(form.get('email')).trim(),
+      password: String(form.get('password')),
+    });
+    if (err) {
+      setError(err.message);
+      setBusy(false);
+      return;
+    }
     router.push('/dashboard');
+    router.refresh();
   }
 
   return (
@@ -41,6 +60,7 @@ export default function LoginPage() {
             <label className={s.label} htmlFor="login-email">Email</label>
             <input
               id="login-email"
+              name="email"
               className={s.input}
               type="email"
               placeholder="you@example.com"
@@ -53,6 +73,7 @@ export default function LoginPage() {
             <label className={s.label} htmlFor="login-password">Password</label>
             <input
               id="login-password"
+              name="password"
               className={s.input}
               type="password"
               placeholder="••••••••"
@@ -61,8 +82,10 @@ export default function LoginPage() {
             />
           </div>
 
-          <button type="submit" className={`${s.submitBtn} ${s.submitBtnDark}`}>
-            Log in
+          {error && <p className={s.formError} role="alert">{error}</p>}
+
+          <button type="submit" className={`${s.submitBtn} ${s.submitBtnDark}`} disabled={busy}>
+            {busy ? 'Logging in…' : 'Log in'}
           </button>
         </form>
 
@@ -82,5 +105,14 @@ export default function LoginPage() {
         />
       </div>
     </div>
+  );
+}
+
+// useSearchParams needs a Suspense boundary for static prerendering.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginView />
+    </Suspense>
   );
 }

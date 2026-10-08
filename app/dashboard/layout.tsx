@@ -2,7 +2,8 @@
 
 import { useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import { I } from '@/components/portal/ui';
 import { ME } from '@/lib/data';
 import { useReveal } from '@/lib/hooks';
@@ -19,9 +20,16 @@ const NAV = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const main = useRef<HTMLElement>(null);
   const { unread } = useChats();
   useReveal(main, [pathname]);
+
+  async function signOut() {
+    await createClient().auth.signOut();
+    router.push('/');
+    router.refresh();
+  }
 
   const active = (href: string) => (href === '/dashboard' ? pathname === href : pathname.startsWith(href));
 
@@ -54,6 +62,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               aria-current={active('/dashboard/profile') ? 'page' : undefined}>
               {ME.initials}
             </Link>
+            <button type="button" className={s.chatsBtn} onClick={signOut}>
+              <span>Log out</span>
+            </button>
           </div>
         </div>
       </header>

@@ -248,3 +248,23 @@
     padding: 40px 20px;
   }
 }
+
+/* ── Auth feedback (Supabase) ── */
+.formError {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #fdecea;
+  color: #8a1c13;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.formNote {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: #e8f3ec;
+  color: #0b4a22;
+  font-size: 14px;
+  line-height: 1.4;
+}

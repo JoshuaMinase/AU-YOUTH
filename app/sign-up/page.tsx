@@ -1,16 +1,46 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import s from '@/styles/Auth.module.css';
 
 export default function SignUpPage() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    // TODO: replace with real auth call
-    router.push('/dashboard');
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get('email')).trim();
+    setBusy(true);
+    setError(null);
+    const { data, error: err } = await createClient().auth.signUp({
+      email,
+      password: String(form.get('password')),
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          first_name: String(form.get('firstName')).trim(),
+          last_name: String(form.get('lastName')).trim(),
+        },
+      },
+    });
+    setBusy(false);
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    if (data.session) {
+      // Email confirmation is off: already signed in.
+      router.push('/dashboard');
+      router.refresh();
+    } else {
+      setSentTo(email);
+    }
   }
 
   return (
@@ -42,6 +72,7 @@ export default function SignUpPage() {
               <label className={s.label} htmlFor="signup-firstname">First name</label>
               <input
                 id="signup-firstname"
+                name="firstName"
                 className={s.input}
                 type="text"
                 placeholder="Amara"
@@ -53,6 +84,7 @@ export default function SignUpPage() {
               <label className={s.label} htmlFor="signup-lastname">Last name</label>
               <input
                 id="signup-lastname"
+                name="lastName"
                 className={s.input}
                 type="text"
                 placeholder="Diallo"
@@ -66,6 +98,7 @@ export default function SignUpPage() {
             <label className={s.label} htmlFor="signup-email">Email</label>
             <input
               id="signup-email"
+              name="email"
               className={s.input}
               type="email"
               placeholder="you@example.com"
@@ -78,16 +111,25 @@ export default function SignUpPage() {
             <label className={s.label} htmlFor="signup-password">Password</label>
             <input
               id="signup-password"
+              name="password"
               className={s.input}
               type="password"
               placeholder="••••••••"
               autoComplete="new-password"
+                minLength={8}
               required
             />
           </div>
 
-          <button type="submit" className={`${s.submitBtn} ${s.submitBtnGold}`}>
-            Create my account
+          {error && <p className={s.formError} role="alert">{error}</p>}
+          {sentTo && (
+            <p className={s.formNote} role="status">
+              Check your inbox: we sent a confirmation link to {sentTo}. Click it to finish creating your account.
+            </p>
+          )}
+
+          <button type="submit" className={`${s.submitBtn} ${s.submitBtnGold}`} disabled={busy || !!sentTo}>
+            {busy ? 'Creating account…' : 'Create my account'}
           </button>
         </form>
 
