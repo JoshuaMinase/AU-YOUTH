@@ -8,6 +8,7 @@ Last updated: 2026-10-08
 - /dashboard/profile (profiles table, full edit form)
 - /dashboard/people (real members, connection requests, live updates)
 - /dashboard/news (news table, live updates)
+- /dashboard/news/[slug] (article + more stories, read on the server)
 - /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook and FAQ stay static on purpose)
 
 ## Partly done
@@ -15,7 +16,6 @@ Last updated: 2026-10-08
 - /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates)
 
 ## Not done (still mock or static)
-- /dashboard/news/[slug] (article page)
 - /dashboard/chats
 - Dashboard home feed (posts, likes, comments) and notifications
 - Public pages (/, /community, /opportunities, /why-join): static marketing pages, no backend needed

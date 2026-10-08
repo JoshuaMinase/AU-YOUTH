@@ -1,23 +1,33 @@
 import type { Metadata } from 'next';
+import { cache } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Hero } from '@/components/portal/ui';
 import { TAG_CLASS } from '@/components/portal/tags';
-import { NEWS, findNews } from '@/lib/data';
+import { NEWS_COLS, toNews } from '@/lib/news';
+import { createClient } from '@/lib/supabase/server';
 import s from '@/styles/Portal.module.css';
 
-export function generateStaticParams() {
-  return NEWS.map((n) => ({ slug: n.slug }));
+/* the article + four latest others from Supabase `news`; cached so metadata and page share one fetch.
+   Rendered on the server only (no hydration), so reading the clock for "2 hours ago" is safe here. */
+const getArticle = cache(async (slug: string) => {
+  const supabase = createClient();
+  const [one, more] = await Promise.all([
+    supabase.from('news').select(NEWS_COLS).eq('slug', slug).maybeSingle(),
+    supabase.from('news').select(NEWS_COLS).neq('slug', slug).order('published_at', { ascending: false }).limit(4),
+  ]);
+  const now = new Date();
+  return { item: one.data ? toNews(one.data, now) : null, related: (more.data ?? []).map((r) => toNews(r, now)) };
+});
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const { item } = await getArticle(params.slug);
+  return { title: item?.title ?? 'News' };
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  return { title: findNews(params.slug)?.title ?? 'News' };
-}
-
-export default function ArticlePage({ params }: { params: { slug: string } }) {
-  const item = findNews(params.slug);
+export default async function ArticlePage({ params }: { params: { slug: string } }) {
+  const { item, related } = await getArticle(params.slug);
   if (!item) notFound();
-  const related = NEWS.filter((n) => n.slug !== item.slug).slice(0, 4);
 
   return (
     <>
