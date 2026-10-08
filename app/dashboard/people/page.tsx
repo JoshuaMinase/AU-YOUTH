@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Hero, I, useToast } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
 import { useListAnimation } from '@/lib/hooks';
@@ -16,7 +16,8 @@ export default function PeoplePage() {
   const [dept, setDept] = useState('All');
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
-  const { members, incoming, relationOf, request, remove, accept, loaded, error } = usePeople();
+  const { members, incoming, relationOf, request, remove, accept, message, loaded, error } = usePeople();
+  const router = useRouter();
   const [toast, toastNode] = useToast();
   const grid = useRef<HTMLDivElement>(null);
 
@@ -35,6 +36,16 @@ export default function PeoplePage() {
     const err = await fn();
     setBusy(null);
     toast(err ? `Something went wrong: ${err}` : done);
+  };
+
+  /* chats are for connections only (enforced by start_dm in Supabase) */
+  const openChat = async (id: string, name: string) => {
+    if (relationOf(id) !== 'connected') { toast(`Connect with ${name.split(' ')[0]} first to send a message`); return; }
+    setBusy(id);
+    const { chatId, error: err } = await message(id);
+    setBusy(null);
+    if (err || !chatId) toast(`Something went wrong: ${err}`);
+    else router.push(`/dashboard/chats?c=${chatId}`);
   };
 
   const sentCount = members.filter((m) => relationOf(m.id) === 'sent').length;
@@ -115,7 +126,8 @@ export default function PeoplePage() {
                 {rel === 'connected' && (
                   <button type="button" className={`${s.btnLine} ${s.btnSm} ${s.connected}`} disabled>{I.check} Connected</button>
                 )}
-                <Link href="/dashboard/chats" className={`${s.btnDark} ${s.btnSm}`} aria-label={`Message ${p.name}`}>{I.chat}</Link>
+                <button type="button" className={`${s.btnDark} ${s.btnSm}`} aria-label={`Message ${p.name}`} disabled={busy === p.id}
+                  onClick={() => openChat(p.id, p.name)}>{I.chat}</button>
               </div>
             </article>
           );

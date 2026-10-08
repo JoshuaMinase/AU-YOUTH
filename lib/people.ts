@@ -93,8 +93,14 @@ export function usePeople() {
   const accept = (id: string) =>
     rel[id]?.connId ? run(createClient().from('connections').update({ status: 'accepted' }).eq('id', rel[id].connId!)) : Promise.resolve(null);
 
+  /** open (or create) a 1:1 chat with a connection (Supabase `start_dm`); returns the conversation id or an error */
+  const message = async (id: string): Promise<{ chatId?: string; error?: string }> => {
+    const { data, error: err } = await createClient().rpc('start_dm', { other: id });
+    return err ? { error: err.message } : { chatId: data as string };
+  };
+
   const incoming = members.filter((m) => relationOf(m.id) === 'incoming');
   const connected = members.filter((m) => relationOf(m.id) === 'connected');
 
-  return { members, incoming, connected, relationOf, request, remove, accept, loaded, error };
+  return { members, incoming, connected, relationOf, request, remove, accept, message, loaded, error };
 }
