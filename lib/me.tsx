@@ -11,7 +11,7 @@ export interface Me {
 
 export const EMPTY_PROFILE: Profile = {
   bio: '', nationality: '', basedIn: '', start: '', end: '',
-  university: '', degree: '', year: '', skills: [],
+  university: '', degree: '', year: '', skills: [], languages: [],
 };
 
 const EMPTY_ME: Me = { id: '', email: '', first: '', last: '', name: '…', initials: '·', role: '', dept: '' };
@@ -42,7 +42,7 @@ function buildProfile(row: Record<string, any> | null): Profile {
     bio: row.bio ?? '', nationality: row.nationality ?? '', basedIn: row.based_in ?? '',
     start: row.start_date ?? '', end: row.end_date ?? '',
     university: row.university ?? '', degree: row.degree ?? '', year: row.study_year ?? '',
-    skills: row.skills ?? [],
+    skills: row.skills ?? [], languages: row.languages ?? [],
   };
 }
 
@@ -74,7 +74,7 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
       role: extra.role.trim(), dept: extra.dept.trim(),
       bio: p.bio, nationality: p.nationality, based_in: p.basedIn,
       start_date: p.start, end_date: p.end,
-      university: p.university, degree: p.degree, study_year: p.year, skills: p.skills,
+      university: p.university, degree: p.degree, study_year: p.year, skills: p.skills, languages: p.languages,
     });
     if (error) return error.message;
     setProfile(p);

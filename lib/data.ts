@@ -18,13 +18,14 @@ export const ME = {
 /* ── Editable profile ─────────────────────────────────────────────── */
 export interface Profile {
   bio: string; nationality: string; basedIn: string; start: string; end: string;
-  university: string; degree: string; year: string; skills: string[];
+  university: string; degree: string; year: string; skills: string[]; languages: string[];
 }
 
 export const PROFILE_DEFAULT: Profile = {
   bio: '', nationality: 'Ethiopian', basedIn: 'Addis Ababa, Ethiopia', start: 'July 2026', end: 'December 2026',
   university: 'Addis Ababa University', degree: 'MSc International Relations', year: '2025–2026',
   skills: ['Policy Analysis', 'Research', 'Public Speaking', 'Data Analysis', 'Project Management', 'French', 'English', 'Amharic'],
+  languages: [],
 };
 
 /** completeness: base 50% + bio (25) + 5+ skills (15) + education (10) */

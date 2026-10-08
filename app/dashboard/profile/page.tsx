@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { PEOPLE, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { MONTHS, PEOPLE, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { copyText } from '@/lib/hooks';
 import { usePersisted } from '@/lib/store';
@@ -11,14 +11,53 @@ import s from '@/styles/Portal.module.css';
 
 type Editable = Profile & { role: string; dept: string };
 
+/** "2026-07-01" -> "1 July 2026"; anything else is shown as typed */
+const fmtDate = (v: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  const d = parseYmd(v);
+  return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+};
+
+function Tags({ id, label, items, draft, setDraft, onChange, placeholder }: {
+  id: string; label: string; items: string[]; draft: string; setDraft: (v: string) => void;
+  onChange: (next: string[]) => void; placeholder: string;
+}) {
+  const add = () => { const t = draft.trim(); if (t && !items.includes(t)) onChange([...items, t]); setDraft(''); };
+  return (
+    <div className={s.field}>
+      <label className={s.label} htmlFor={id}>{label}</label>
+      <div className={s.skills} style={{ marginBottom: 8 }}>
+        {items.map((sk) => (
+          <span key={sk} className={s.skill}>{sk}
+            <button type="button" aria-label={`Remove ${sk}`} onClick={() => onChange(items.filter((x) => x !== sk))}>×</button>
+          </span>
+        ))}
+      </div>
+      <div className={s.inlineForm}>
+        <input id={id} className={s.input} value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={placeholder}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
+        <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={add} disabled={!draft.trim()}>Add</button>
+      </div>
+    </div>
+  );
+}
+
 function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: Editable) => void; onClose: () => void }) {
   const [f, setF] = useState(value);
   const [skill, setSkill] = useState('');
+  const [lang, setLang] = useState('');
+  const [saving, setSaving] = useState(false);
   const set = (k: keyof Editable) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
-  const addSkill = () => { const t = skill.trim(); if (t && !f.skills.includes(t)) setF({ ...f, skills: [...f.skills, t] }); setSkill(''); };
+  // anything typed but not yet added with "Add" is included on save
+  const withPending = (list: string[], draft: string) => { const t = draft.trim(); return t && !list.includes(t) ? [...list, t] : list; };
   return (
     <Modal title="Edit profile" onClose={onClose}>
-      <form className={s.form} onSubmit={(e) => { e.preventDefault(); onSave(f); }}>
+      <form className={s.form} onSubmit={async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        await onSave({ ...f, skills: withPending(f.skills, skill), languages: withPending(f.languages, lang) });
+        setSaving(false);
+      }}>
         <div className={s.field}>
           <label className={s.label} htmlFor="p-bio">Bio</label>
           <textarea id="p-bio" className={s.textarea} value={f.bio} onChange={set('bio')} maxLength={400} placeholder="A few lines about you, your work and interests (20+ characters)" />
@@ -28,6 +67,10 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="e.g. HRST" /></div>
         </div>
         <div className={s.formRow}>
+          <div className={s.field}><label className={s.label} htmlFor="p-start">Start date</label><input id="p-start" className={s.input} type="date" value={f.start} onChange={set('start')} /></div>
+          <div className={s.field}><label className={s.label} htmlFor="p-end">End date</label><input id="p-end" className={s.input} type="date" value={f.end} onChange={set('end')} /></div>
+        </div>
+        <div className={s.formRow}>
           <div className={s.field}><label className={s.label} htmlFor="p-nat">Nationality</label><input id="p-nat" className={s.input} value={f.nationality} onChange={set('nationality')} /></div>
           <div className={s.field}><label className={s.label} htmlFor="p-city">Based in</label><input id="p-city" className={s.input} value={f.basedIn} onChange={set('basedIn')} /></div>
         </div>
@@ -35,24 +78,13 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           <div className={s.field}><label className={s.label} htmlFor="p-uni">University</label><input id="p-uni" className={s.input} value={f.university} onChange={set('university')} /></div>
           <div className={s.field}><label className={s.label} htmlFor="p-deg">Degree</label><input id="p-deg" className={s.input} value={f.degree} onChange={set('degree')} /></div>
         </div>
-        <div className={s.field}>
-          <label className={s.label} htmlFor="p-skill">Skills &amp; languages</label>
-          <div className={s.skills} style={{ marginBottom: 8 }}>
-            {f.skills.map((sk) => (
-              <span key={sk} className={s.skill}>{sk}
-                <button type="button" aria-label={`Remove ${sk}`} onClick={() => setF({ ...f, skills: f.skills.filter((x) => x !== sk) })}>×</button>
-              </span>
-            ))}
-          </div>
-          <div className={s.inlineForm}>
-            <input id="p-skill" className={s.input} value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="Add a skill"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addSkill(); } }} />
-            <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={addSkill} disabled={!skill.trim()}>Add</button>
-          </div>
-        </div>
+        <Tags id="p-skill" label="Skills" items={f.skills} draft={skill} setDraft={setSkill}
+          onChange={(skills) => setF({ ...f, skills })} placeholder="Add a skill, then press Enter" />
+        <Tags id="p-lang" label="Languages" items={f.languages} draft={lang} setDraft={setLang}
+          onChange={(languages) => setF({ ...f, languages })} placeholder="Add a language, then press Enter" />
         <div className={s.formActions}>
           <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
-          <button type="submit" className={s.btnDark}>Save changes</button>
+          <button type="submit" className={s.btnDark} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
         </div>
       </form>
     </Modal>
@@ -70,7 +102,7 @@ export default function ProfilePage() {
 
   const details: [string, string][] = [
     ['Department', me.dept], ['Role', me.role], ['Nationality', profile.nationality],
-    ['Based in', profile.basedIn], ['Start date', profile.start], ['End date', profile.end],
+    ['Based in', profile.basedIn], ['Start date', fmtDate(profile.start)], ['End date', fmtDate(profile.end)],
   ];
   const education: [string, string][] = [['University', profile.university], ['Degree', profile.degree], ['Year', profile.year]];
 
@@ -120,8 +152,10 @@ export default function ProfilePage() {
           <div className={s.infoGrid}>
             {education.map(([l, v]) => <div key={l}><p className={s.infoLabel}>{l}</p><p className={s.infoValue}>{v || '—'}</p></div>)}
           </div>
-          <h3 className={s.cardTitle} style={{ fontSize: 16, margin: '22px 0 12px' }}>Skills &amp; languages</h3>
-          <div className={s.skills}>{profile.skills.map((sk) => <span key={sk} className={s.skill}>{sk}</span>)}</div>
+          <h3 className={s.cardTitle} style={{ fontSize: 16, margin: '22px 0 12px' }}>Skills</h3>
+          <div className={s.skills}>{profile.skills.length ? profile.skills.map((sk) => <span key={sk} className={s.skill}>{sk}</span>) : <span className={s.cardMeta}>None added yet</span>}</div>
+          <h3 className={s.cardTitle} style={{ fontSize: 16, margin: '22px 0 12px' }}>Languages</h3>
+          <div className={s.skills}>{profile.languages.length ? profile.languages.map((l) => <span key={l} className={s.skill}>{l}</span>) : <span className={s.cardMeta}>None added yet</span>}</div>
         </section>
       </div>
 
