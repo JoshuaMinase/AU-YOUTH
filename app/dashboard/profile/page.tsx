@@ -13,6 +13,21 @@ type Editable = Profile & { role: string; dept: string };
 
 const STUDYING = 'Currently studying';
 
+const SKILL_OPTIONS = [
+  'Communications', 'Policy Analysis', 'Research', 'Public Speaking', 'Data Analysis', 'Project Management',
+  'Leadership', 'Teamwork', 'Writing', 'Report Writing', 'Event Planning', 'Fundraising', 'Grant Writing',
+  'Advocacy', 'Diplomacy', 'Negotiation', 'Translation', 'Interpretation', 'Social Media', 'Graphic Design',
+  'Video Editing', 'Microsoft Office', 'Excel', 'Python', 'JavaScript', 'Web Development', 'Software Development',
+  'Cybersecurity', 'Database Management', 'Monitoring & Evaluation', 'Budgeting', 'Community Organizing',
+  'Teaching', 'Critical Thinking', 'Problem Solving', 'Time Management',
+];
+
+const LANGUAGE_OPTIONS = [
+  'English', 'French', 'Arabic', 'Portuguese', 'Spanish', 'Swahili', 'Amharic', 'Tigrinya', 'Oromo', 'Somali',
+  'Hausa', 'Yoruba', 'Igbo', 'Zulu', 'Xhosa', 'Afrikaans', 'Shona', 'Kinyarwanda', 'Lingala', 'Wolof',
+  'Tamazight', 'Malagasy', 'Chinese (Mandarin)', 'German', 'Italian', 'Russian', 'Hindi', 'Turkish',
+];
+
 /** "2026-07-01" -> "1 July 2026"; anything else is shown as typed */
 const fmtDate = (v: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
@@ -20,11 +35,13 @@ const fmtDate = (v: string) => {
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 };
 
-function Tags({ id, label, items, draft, setDraft, onChange, placeholder }: {
-  id: string; label: string; items: string[]; draft: string; setDraft: (v: string) => void;
+function Tags({ id, label, items, options, draft, setDraft, onChange, placeholder }: {
+  id: string; label: string; items: string[]; options: string[]; draft: string; setDraft: (v: string) => void;
   onChange: (next: string[]) => void; placeholder: string;
 }) {
   const add = () => { const t = draft.trim(); if (t && !items.includes(t)) onChange([...items, t]); setDraft(''); };
+  const q = draft.trim().toLowerCase();
+  const suggestions = options.filter((o) => !items.includes(o) && (!q || o.toLowerCase().includes(q))).slice(0, 10);
   return (
     <div className={s.field}>
       <label className={s.label} htmlFor={id}>{label}</label>
@@ -40,6 +57,17 @@ function Tags({ id, label, items, draft, setDraft, onChange, placeholder }: {
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }} />
         <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={add} disabled={!draft.trim()}>Add</button>
       </div>
+      {suggestions.length > 0 && (
+        <div className={s.skills} style={{ marginTop: 10 }} aria-label={`${label} suggestions`}>
+          {suggestions.map((o) => (
+            <button key={o} type="button" className={s.skill}
+              style={{ cursor: 'pointer', border: '1px dashed currentColor', background: 'transparent' }}
+              onClick={() => { onChange([...items, o]); setDraft(''); }}>
+              + {o}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -96,10 +124,10 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
             I am currently studying
           </label>
         </div>
-        <Tags id="p-skill" label="Skills" items={f.skills} draft={skill} setDraft={setSkill}
-          onChange={(skills) => setF({ ...f, skills })} placeholder="Add a skill, then press Enter" />
-        <Tags id="p-lang" label="Languages" items={f.languages} draft={lang} setDraft={setLang}
-          onChange={(languages) => setF({ ...f, languages })} placeholder="Add a language, then press Enter" />
+        <Tags id="p-skill" label="Skills" items={f.skills} options={SKILL_OPTIONS} draft={skill} setDraft={setSkill}
+          onChange={(skills) => setF({ ...f, skills })} placeholder="Pick one below or type your own" />
+        <Tags id="p-lang" label="Languages" items={f.languages} options={LANGUAGE_OPTIONS} draft={lang} setDraft={setLang}
+          onChange={(languages) => setF({ ...f, languages })} placeholder="Pick one below or type your own" />
         <div className={s.formActions}>
           <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
           <button type="submit" className={s.btnDark} disabled={saving}>{saving ? 'Saving…' : 'Save changes'}</button>
