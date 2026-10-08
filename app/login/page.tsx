@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { authErrorMessage } from '@/lib/authErrors';
 import { createClient } from '@/lib/supabase/client';
 import s from '@/styles/Auth.module.css';
 
@@ -24,7 +25,7 @@ function LoginView() {
       password: String(form.get('password')),
     });
     if (err) {
-      setError(err.message);
+      setError(authErrorMessage(err, 'login'));
       setBusy(false);
       return;
     }

@@ -222,6 +222,8 @@
 
 /* ── Mobile: stack vertically, hide image ───────────────────────────── */
 @media (max-width: 860px) {
+  /* 16px stops iPhones zooming in on a focused field (which pushed the form off-screen) */
+  .input { font-size: 16px; }
   .page {
     grid-template-columns: 1fr;
     height: auto;

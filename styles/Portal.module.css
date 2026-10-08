@@ -422,6 +422,8 @@
   .calLayout, .article { grid-template-columns: 1fr; }
 }
 @media (max-width: 860px) {
+  /* 16px stops iPhones zooming in on a focused field */
+  .input, .textarea, .search input, .qcReply input { font-size: 16px; }
   .shell { overflow-x: clip; }
   .main { touch-action: pan-y pinch-zoom; }   /* sideways swipes go to useSwipeTabs */
   .nav { display: none; }
