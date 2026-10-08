@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -17,7 +17,7 @@ const NAV = [
   { href: '/dashboard/calendar', label: 'Calendar', icon: I.calendar },
   { href: '/dashboard/get-help', label: 'Get Help', icon: I.help },
 ];
-const TABS = NAV.map((n) => n.href);
+const ADMIN_NAV = { href: '/dashboard/admin', label: 'Admin', icon: I.shield };
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { me } = useMe();
@@ -25,8 +25,11 @@ function Shell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const main = useRef<HTMLElement>(null);
   const { unread } = useChats();
+  /* admins and the super admin get an extra Admin tab */
+  const nav = useMemo(() => (me.access === 'user' ? NAV : [...NAV, ADMIN_NAV]), [me.access]);
+  const tabs = useMemo(() => nav.map((n) => n.href), [nav]);
   useReveal(main, [pathname]);
-  useSwipeTabs(main, TABS, pathname, (href) => router.push(href));
+  useSwipeTabs(main, tabs, pathname, (href) => router.push(href));
 
   async function signOut() {
     await createClient().auth.signOut();
@@ -40,7 +43,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className={s.shell}>
       <header className={s.header}>
         <div className={s.headerInner}>
-          <Link href="/" className={s.brand} aria-label="AU Youth Community — home">
+          <Link href="/dashboard" className={s.brand} aria-label="AU Youth Community — dashboard home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/logo.svg" alt="" className={s.brandLogo} />
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,7 +51,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </Link>
 
           <nav className={s.nav} aria-label="Portal">
-            {NAV.map(({ href, label, icon }) => (
+            {nav.map(({ href, label, icon }) => (
               <Link key={href} href={href} className={s.navLink} aria-current={active(href) ? 'page' : undefined}>
                 {icon}<span>{label}</span>
               </Link>
@@ -77,7 +80,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className={s.tabbar} aria-label="Portal (mobile)">
-        {NAV.map(({ href, label, icon }) => (
+        {nav.map(({ href, label, icon }) => (
           <Link key={href} href={href} aria-current={active(href) ? 'page' : undefined}>{icon}{label}</Link>
         ))}
       </nav>

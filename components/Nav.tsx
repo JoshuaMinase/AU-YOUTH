@@ -6,6 +6,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { NAV_LINKS } from './layout';
 import { useIso } from '../lib/hooks';
+import { createClient } from '../lib/supabase/client';
 import s from '../styles/Nav.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -90,12 +91,21 @@ export default function Nav() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
+  /* signed-in members: the logo takes them back to their dashboard */
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => setSignedIn(!!session));
+    return () => subscription.unsubscribe();
+  }, []);
+
   const isActive = (h: string) => (h === '/' ? pathname === '/' : pathname.startsWith(h));
 
   return (
     <>
       <header ref={nav} className={s.nav} id="top" data-open={open ? '' : undefined}>
-        <Link className={s.brand} href="/" aria-label="AU Youth Community — home">
+        <Link className={s.brand} href={signedIn ? '/dashboard' : '/'} aria-label={signedIn ? 'AU Youth Community — your dashboard' : 'AU Youth Community — home'}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img ref={logo} className={s.logo} src="/assets/logo.svg" alt="" />
           {/* eslint-disable-next-line @next/next/no-img-element */}

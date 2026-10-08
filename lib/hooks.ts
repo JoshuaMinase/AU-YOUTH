@@ -147,7 +147,7 @@ export function useSwipeTabs(scope: RefObject<HTMLElement | null>, tabs: readonl
       root.removeEventListener('touchcancel', onEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, tabs.length]);
 }
 
 /** Copy text to the clipboard; resolves false if the browser refuses. */

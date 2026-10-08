@@ -18,7 +18,7 @@ A Next.js website for the African Union Youth Community (interns, volunteers, fe
 |---|---|---|
 | **Public site** | `/`, `/about`, `/opportunities`, `/community`, `/why-join`, 404 | Bold: deep AU green `#032210`, AU pattern, amber/yellow CTAs, big Chopin headings, GSAP scroll animation |
 | **Auth** | `/login`, `/sign-up` | Split screen, form left, photo right |
-| **Dashboard (portal)** | `/dashboard`, `/dashboard/news`, `/dashboard/news/[slug]`, `/dashboard/people`, `/dashboard/calendar`, `/dashboard/chats`, `/dashboard/get-help`, `/dashboard/profile` | **Calm, neutral & minimal**: soft grey background, white cards, near-black green text, bronze used sparingly |
+| **Dashboard (portal)** | `/dashboard`, `/dashboard/admin` (admins only), `/dashboard/news`, `/dashboard/news/[slug]`, `/dashboard/people`, `/dashboard/calendar`, `/dashboard/chats`, `/dashboard/get-help`, `/dashboard/profile` | **Calm, neutral & minimal**: soft grey background, white cards, near-black green text, bronze used sparingly |
 
 **Backend: Supabase** (auth + Postgres with RLS + realtime). Every dashboard page reads and writes real
 data through the hooks in `lib/portal.ts`, `lib/people.ts` and `lib/me.tsx`. Schema changes live in
@@ -300,7 +300,7 @@ Dashboard rules:
 
 ## 12. Known gaps / backlog (not bugs — just not built yet)
 
-- Roles (docs/sql/013_roles.sql): one super admin (ZemenA@africanunion.org) → admins (super admin sets them on People, one per department) → users. Only admins post on the feed; users comment. Admins delete only their own posts and can request deletion of another's; the author or the super admin approves or declines. Sign-up only for @africanunion.org / @africa-union.org. Admins write news on /dashboard/news (Edit/Delete on the article) and handle support tickets on /dashboard/get-help.
+- Roles (docs/sql/013_roles.sql): one super admin (ZemenA@africanunion.org) → admins (super admin sets them on People, one per department) → users. Only admins post on the feed; users comment. Admins delete only their own posts and can request deletion of another's; the author or the super admin approves or declines. Sign-up only for @africanunion.org / @africa-union.org. Admins write news on /dashboard/news (Edit/Delete on the article) Admin panel at /dashboard/admin (Admin tab, admins only): admins list (super admin adds/removes), deletion requests, support tickets, departments added by members.
 - Unused legacy files that can be deleted once the person approves: `styles/Dashboard.module.css`
   and the original JPG/PNG photos listed in §8.
 - Ideas the person may want later: text-only headers on Chats and Profile too, a rotating

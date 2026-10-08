@@ -470,3 +470,89 @@ export function useTickets() {
 
   return { tickets, loaded, error, file, setStatus };
 }
+
+export interface PendingDelete {
+  id: string; postId: string; post: string; author: string; who: string; reason: string; time: string;
+  /** you asked (so you wait), or you can decide (your post, or you are the super admin) */
+  mine: boolean; canDecide: boolean;
+}
+
+/** Pending post deletion requests you can see (Supabase `post_delete_requests`), with live updates. */
+export function useDeleteRequests() {
+  const { me } = useMe();
+  const [requests, setRequests] = useState<PendingDelete[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('post_delete_requests')
+      .select(`id, post_id, reason, requested_by, created_at,
+        requester:profiles!post_delete_requests_requested_by_fkey(first_name, last_name),
+        post:posts!post_delete_requests_post_id_fkey(body, author_id, author:profiles!posts_author_id_fkey(first_name, last_name))`)
+      .eq('status', 'pending').order('created_at', { ascending: false });
+    if (err) { setError(err.message); setLoaded(true); return; }
+    const now = new Date();
+    setError(null);
+    setRequests((data ?? []).map((r: Record<string, any>) => ({
+      id: r.id, postId: r.post_id, post: r.post?.body ?? '', author: fullName(r.post?.author ?? null),
+      who: fullName(r.requester), reason: r.reason ?? '', time: timeAgo(r.created_at, now),
+      mine: r.requested_by === me.id, canDecide: me.access === 'super_admin' || r.post?.author_id === me.id,
+    })));
+    setLoaded(true);
+  }, [me.id, me.access]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`delete-requests-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'post_delete_requests' }, () => { load(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [me.id, load]);
+
+  const run = useCallback(async (op: PromiseLike<{ error: { message: string } | null }>) => {
+    const { error: err } = await op;
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  /** approving = deleting the post (the request goes with it) */
+  const approve = useCallback((postId: string) => run(createClient().from('posts').delete().eq('id', postId)), [run]);
+  const decline = useCallback((id: string) =>
+    run(createClient().from('post_delete_requests').update({ status: 'declined' }).eq('id', id)), [run]);
+
+  return { requests, loaded, error, approve, decline };
+}
+
+export interface AddedDepartment { id: string; name: string; who: string; time: string }
+
+/** Departments members typed in themselves (not on the official list). The super admin can remove them. */
+export function useAddedDepartments() {
+  const { me } = useMe();
+  const [departments, setDepartments] = useState<AddedDepartment[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data } = await createClient().from('departments')
+      .select('id, name, created_at, adder:profiles!departments_added_by_fkey(first_name, last_name)')
+      .not('added_by', 'is', null).order('created_at', { ascending: false });
+    const now = new Date();
+    setDepartments((data ?? []).map((r: Record<string, any>) => ({ id: r.id, name: r.name, who: fullName(r.adder), time: timeAgo(r.created_at, now) })));
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const remove = useCallback(async (id: string) => {
+    const { error: err } = await createClient().from('departments').delete().eq('id', id);
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  return { departments, loaded, remove };
+}
