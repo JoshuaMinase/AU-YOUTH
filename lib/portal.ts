@@ -417,3 +417,56 @@ export function useDepartments() {
   }, []);
   return departments;
 }
+
+export type TicketStatus = 'open' | 'in_progress' | 'closed';
+export interface Ticket {
+  id: string; area: string; urgency: string; description: string; status: TicketStatus;
+  who: string; mine: boolean; time: string;
+}
+
+/**
+ * Support tickets (Supabase `support_tickets`). Members get their own; admins get everyone's and can change the status.
+ * Actions return an error message or null.
+ */
+export function useTickets() {
+  const { me } = useMe();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('support_tickets')
+      .select('id, user_id, area, urgency, description, status, created_at, reporter:profiles!support_tickets_user_id_fkey(first_name, last_name)')
+      .order('created_at', { ascending: false }).limit(100);
+    if (err) { setError(err.message); setLoaded(true); return; }
+    const now = new Date();
+    setError(null);
+    setTickets((data ?? []).map((r: Record<string, any>) => ({
+      id: r.id, area: r.area, urgency: r.urgency, description: r.description, status: r.status,
+      who: fullName(r.reporter), mine: r.user_id === me.id, time: timeAgo(r.created_at, now),
+    })));
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [load]);
+
+  const run = useCallback(async (op: PromiseLike<{ error: { message: string } | null }>) => {
+    const { error: err } = await op;
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  const file = useCallback((area: string, urgency: string, description: string) =>
+    run(createClient().from('support_tickets').insert({ user_id: me.id, area, urgency, description })), [me.id, run]);
+  const setStatus = useCallback((id: string, status: TicketStatus) =>
+    run(createClient().from('support_tickets').update({ status }).eq('id', id)), [run]);
+
+  return { tickets, loaded, error, file, setStatus };
+}

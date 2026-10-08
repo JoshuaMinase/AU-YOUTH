@@ -5,11 +5,32 @@ import { Hero, I } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useIso } from '@/lib/hooks';
-import { createClient } from '@/lib/supabase/client';
+import { useTickets, type Ticket, type TicketStatus } from '@/lib/portal';
 import { getLenis } from '@/components/SmoothScroll';
 import s from '@/styles/Portal.module.css';
 
 type Panel = 'contact' | 'report' | 'handbook' | 'faq';
+
+const STATUS_LABEL: Record<TicketStatus, string> = { open: 'Open', in_progress: 'In progress', closed: 'Closed' };
+const STATUS_TAG: Record<TicketStatus, string> = { open: s.tGold, in_progress: s.tBlue, closed: s.tMuted };
+
+/** one ticket row; admins get a status picker, members see the status */
+function TicketRow({ t, admin, onStatus }: { t: Ticket; admin: boolean; onStatus: (st: TicketStatus) => void }) {
+  return (
+    <div className={s.listRow} style={{ alignItems: 'flex-start' }}>
+      <div className={s.rowMain}>
+        <p className={s.rowTitle}>{t.area} · {t.urgency} urgency</p>
+        <p className={s.rowSub} style={{ whiteSpace: 'pre-wrap' }}>{t.description}</p>
+        <p className={s.rowSub}>{admin ? `${t.who} · ` : ''}{t.time}</p>
+      </div>
+      {admin ? (
+        <select className={s.select} value={t.status} aria-label={`Status of ${t.area} report`} onChange={(e) => onStatus(e.target.value as TicketStatus)}>
+          {(Object.keys(STATUS_LABEL) as TicketStatus[]).map((st) => <option key={st} value={st}>{STATUS_LABEL[st]}</option>)}
+        </select>
+      ) : <span className={`${s.tag} ${STATUS_TAG[t.status]}`}>{STATUS_LABEL[t.status]}</span>}
+    </div>
+  );
+}
 
 const CARDS: { id: Panel; title: string; sub: string; bg: string; icon: JSX.Element }[] = [
   { id: 'contact', title: 'Contact a department', sub: 'Email an AU department or office directly.', bg: '#C9AB5C', icon: I.mail },
@@ -43,6 +64,12 @@ const FAQ = [
 
 export default function GetHelpPage() {
   const { me } = useMe();
+  const { tickets, loaded: ticketsLoaded, error: ticketsError, file, setStatus } = useTickets();
+  const isAdmin = me.access !== 'user';
+  const [ticketFilter, setTicketFilter] = useState<'active' | 'all'>('active');
+  const [statusErr, setStatusErr] = useState<string | null>(null);
+  const mine = tickets.filter((t) => t.mine);
+  const queue = tickets.filter((t) => ticketFilter === 'all' || t.status !== 'closed');
   const [panel, setPanel] = useState<Panel | null>(null);
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,11 +92,9 @@ export default function GetHelpPage() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     setBusy(true); setErr(null);
-    const { error } = await createClient().from('support_tickets').insert({
-      user_id: me.id, area: f.get('area'), urgency: f.get('urgency'), description: String(f.get('description') ?? '').trim(),
-    });
+    const error = await file(String(f.get('area')), String(f.get('urgency')), String(f.get('description') ?? '').trim());
     setBusy(false);
-    if (error) setErr(`Could not send your report: ${error.message}`);
+    if (error) setErr(`Could not send your report: ${error}`);
     else setSent(true);
   };
 
@@ -136,6 +161,12 @@ export default function GetHelpPage() {
                 </div>
               </form>
             )}
+            {mine.length > 0 && (
+              <div style={{ marginTop: 24 }}>
+                <p className={s.agendaLabel}>Your reports</p>
+                <div className={s.list}>{mine.map((tk) => <TicketRow key={tk.id} t={tk} admin={false} onStatus={() => {}} />)}</div>
+              </div>
+            )}
           </section>
         )}
 
@@ -170,6 +201,26 @@ export default function GetHelpPage() {
           </section>
         )}
       </div>
+
+      {isAdmin && (
+        <section className={`${s.card} ${s.panel}`} data-reveal>
+          <div className={s.cardHead}>
+            <div><p className={s.cardEyebrow}>Admin</p><h2 className={s.cardTitle}>Support tickets</h2></div>
+            <div className={s.pills} role="group" aria-label="Which tickets">
+              <button type="button" className={s.pill} aria-pressed={ticketFilter === 'active'} onClick={() => setTicketFilter('active')}>Open</button>
+              <button type="button" className={s.pill} aria-pressed={ticketFilter === 'all'} onClick={() => setTicketFilter('all')}>All</button>
+            </div>
+          </div>
+          {statusErr && <p className={s.agendaEmpty} role="alert">{statusErr}</p>}
+          <div className={s.list}>
+            {queue.map((tk) => (
+              <TicketRow key={tk.id} t={tk} admin onStatus={async (st) => setStatusErr((await setStatus(tk.id, st)) && 'Could not change the status. Try again.')} />
+            ))}
+          </div>
+          {ticketsError && <p className={s.agendaEmpty} role="alert">Could not load tickets: {ticketsError}</p>}
+          {ticketsLoaded && !ticketsError && !queue.length && <p className={s.agendaEmpty}>{ticketFilter === 'active' ? 'No open tickets.' : 'No tickets yet.'}</p>}
+        </section>
+      )}
 
       <section className={s.welfare} data-reveal>
         <span className={s.helpIcon} style={{ background: 'rgba(255,255,255,.15)' }}>{I.phone}</span>
