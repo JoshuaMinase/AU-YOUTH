@@ -3,18 +3,14 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { I, MiniCalendar, useToast } from '@/components/portal/ui';
-import { MONTHS, MONTHS_SHORT, NEWS, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
+import { MONTHS, MONTHS_SHORT, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
-import { useChats, useEvents, useFeed, useNews } from '@/lib/portal';
-import { usePersisted } from '@/lib/store';
+import { useChats, useEvents, useFeed, useNews, useNotifications } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
-const NOTIFS = [
-  { id: 'n1', icon: 'AU', bg: '#ECECE8', fg: '#1E2A22', title: 'New announcement posted', body: 'AU Youth Network shared an update about Intern Onboarding Week.', time: '2 hours ago', href: `/dashboard/news/${NEWS[0].slug}` },
-  { id: 'n2', icon: '📅', bg: '#F3EEE4', fg: '#8a6a3c', title: 'Event reminder', body: 'Youth Innovation Exchange starts today at 14:00 — Online.', time: '5 hours ago', href: '/dashboard/calendar' },
-  { id: 'n3', icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A', title: 'Profile tip', body: 'Complete your profile to increase your visibility to project coordinators.', time: '1 day ago', href: '/dashboard/profile' },
-];
+/* shown under real notifications until the profile is complete (from profileScore, not stored) */
+const PROFILE_TIP = { icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A', title: 'Profile tip', body: 'Complete your profile to increase your visibility to project coordinators.', href: '/dashboard/profile' };
 
 const greet = (d: Date) => { const h = d.getHours(); return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 
@@ -40,8 +36,7 @@ export default function DashboardHome() {
   const { me, profile } = useMe();
   const completion = profileScore(profile);
 
-  const [readNotifs, setReadNotifs] = usePersisted<string[]>('auy-notifs-read', []);
-  const newCount = NOTIFS.filter((n) => !readNotifs.includes(n.id)).length;
+  const { notifs, unread: newCount, markRead: readNotif, markAllRead, loaded: notifsLoaded } = useNotifications();
 
   const dayEvents = useMemo(() => events.filter((e) => e.date === selKey), [events, selKey]);
   const upcoming = useMemo(() => (today ? events.filter((e) => e.date >= ymd(today)).slice(0, 3) : []), [events, today]);
@@ -169,7 +164,7 @@ export default function DashboardHome() {
           {posts.map((p) => {
             const { comments } = p;
             return (
-              <article key={p.id} className={`${s.card} ${s.post}`} data-reveal>
+              <article key={p.id} id={p.id} className={`${s.card} ${s.post}`} data-reveal>
                 <div className={s.postHead}>
                   <span className={s.av} style={softAvatar(p.bg)}>{p.initials}</span>
                   <div>
@@ -272,19 +267,30 @@ export default function DashboardHome() {
                 <h3 className={s.cardTitle}>Notifications</h3>
               </div>
               {newCount > 0
-                ? <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => setReadNotifs(NOTIFS.map((n) => n.id))}>Mark all read</button>
+                ? <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={markAllRead}>Mark all read</button>
                 : <span className={s.cardMeta}>All caught up</span>}
             </div>
-            {NOTIFS.map((n) => (
-              <Link key={n.id} href={n.href} className={s.notif} onClick={() => setReadNotifs((r) => (r.includes(n.id) ? r : [...r, n.id]))}>
+            {notifs.map((n) => (
+              <Link key={n.id} href={n.href} className={s.notif} onClick={() => { if (!n.read) readNotif(n.id); }}>
                 <span className={s.notifIcon} style={{ background: n.bg, color: n.fg }}>{n.icon}</span>
                 <span>
-                  <span className={s.notifTitle}>{n.title}{!readNotifs.includes(n.id) && <i aria-label="unread" />}</span>
+                  <span className={s.notifTitle}>{n.title}{!n.read && <i aria-label="unread" />}</span>
                   <span className={s.notifText} style={{ display: 'block' }}>{n.body}</span>
                   <span className={s.notifTime} style={{ display: 'block' }}>{n.time}</span>
                 </span>
               </Link>
             ))}
+            {completion < 100 && (
+              <Link href={PROFILE_TIP.href} className={s.notif}>
+                <span className={s.notifIcon} style={{ background: PROFILE_TIP.bg, color: PROFILE_TIP.fg }}>{PROFILE_TIP.icon}</span>
+                <span>
+                  <span className={s.notifTitle}>{PROFILE_TIP.title}</span>
+                  <span className={s.notifText} style={{ display: 'block' }}>{PROFILE_TIP.body}</span>
+                  <span className={s.notifTime} style={{ display: 'block' }}>{completion}% complete</span>
+                </span>
+              </Link>
+            )}
+            {notifsLoaded && !notifs.length && completion >= 100 && <p className={s.agendaEmpty}>No notifications yet.</p>}
           </div>
 
           <div className={s.card} data-reveal>

@@ -299,3 +299,66 @@ export function useFeed() {
 
   return { posts, total: rows.length, loaded, error, publish, remove, toggleLike, comment, hide, unhideAll };
 }
+
+export interface Notif { id: string; icon: string; bg: string; fg: string; title: string; body: string; time: string; href: string; read: boolean }
+
+/** icon tile per notification kind (soft tints, like the rest of the dashboard) */
+const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
+  news: { icon: 'AU', bg: '#ECECE8', fg: '#1E2A22' },
+  connection_request: { icon: '+', bg: '#F3EEE4', fg: '#8a6a3c' },
+  connection_accepted: { icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A' },
+  post_comment: { icon: '💬', bg: '#F3EEE4', fg: '#8a6a3c' },
+};
+
+/** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */
+export function useNotifications() {
+  const { me } = useMe();
+  const [notifs, setNotifs] = useState<Notif[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('notifications')
+      .select('id, kind, title, body, href, read_at, created_at').order('created_at', { ascending: false }).limit(8);
+    if (err) { setError(err.message); setLoaded(true); return; }
+    const now = new Date();
+    setError(null);
+    setNotifs((data ?? []).map((r) => ({
+      id: r.id, ...(NOTIF_LOOK[r.kind] ?? NOTIF_LOOK.news), title: r.title, body: r.body,
+      href: r.href, time: timeAgo(r.created_at, now), read: !!r.read_at,
+    })));
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`notifs-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => { load(); })
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [me.id, load]);
+
+  const unread = notifs.filter((n) => !n.read).length;
+
+  const markRead = useCallback(async (id: string) => {
+    setNotifs((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    await createClient().from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id).is('read_at', null);
+  }, []);
+  const markAllRead = useCallback(async () => {
+    if (!me.id) return;
+    setNotifs((p) => p.map((n) => ({ ...n, read: true })));
+    await createClient().from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', me.id).is('read_at', null);
+  }, [me.id]);
+
+  return { notifs, unread, markRead, markAllRead, loaded, error };
+}

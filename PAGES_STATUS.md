@@ -13,14 +13,13 @@ Last updated: 2026-10-08
 - /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook and FAQ stay static on purpose)
 
 ## Partly done
-- /dashboard (home): greeting, avatar, profile-completion card, mini calendar, day agenda and Coming up are real (events table), latest announcement is real (news table), feed is real (posts, likes, comments, hidden posts, live updates); quick chat is real (chats); notifications are still mock
+- /dashboard (home): greeting, avatar, profile-completion card, mini calendar, day agenda and Coming up are real (events table), latest announcement is real (news table), feed is real (posts, likes, comments, hidden posts, live updates); quick chat is real (chats); notifications are real (notifications table, filled by database triggers)
 - /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates)
 
 ## Not done (still mock or static)
-- Dashboard home notifications
 - Public pages (/, /community, /opportunities, /why-join): static marketing pages, no backend needed
 
 ## SQL run in Supabase so far
 - 001 profiles, 002 profile fields, 003 languages, 004 connections, 005 realtime
 - 006 events
-- 007 hardening, 008 support tickets, 009 news (+ editors, 6 seeded articles), 010 posts, 011 chats, 012 notifications (tables ready, pages not wired yet except Get Help)
+- 007 hardening, 008 support tickets, 009 news (+ editors, 6 seeded articles), 010 posts, 011 chats, 012 notifications
