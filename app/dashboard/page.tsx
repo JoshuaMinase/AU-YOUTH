@@ -6,7 +6,7 @@ import { I, MiniCalendar, useToast } from '@/components/portal/ui';
 import { MONTHS, MONTHS_SHORT, NEWS, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
-import { useChats, useEvents } from '@/lib/portal';
+import { useChats, useEvents, useNews } from '@/lib/portal';
 import { usePersisted, toggleIn } from '@/lib/store';
 import s from '@/styles/Portal.module.css';
 
@@ -32,6 +32,9 @@ export default function DashboardHome() {
   const today = useToday();
   const { events, loaded: eventsLoaded } = useEvents(today);
   const { chats, unread, send, markRead } = useChats();
+  const { news, loaded: newsLoaded } = useNews();
+  /* latest announcement: the featured article, else the newest one */
+  const lead = news.find((n) => n.featured) ?? news[0];
   const [toast, toastNode] = useToast();
   const [selected, setSelected] = useState('');
   const selKey = selected || (today ? ymd(today) : '');
@@ -130,14 +133,14 @@ export default function DashboardHome() {
 
         {/* ── Centre ───────────────────────────── */}
         <section className={s.col}>
-          <Link href={`/dashboard/news/${NEWS[0].slug}`} className={s.announce} data-reveal style={{ textDecoration: 'none' }}>
+          <Link href={lead ? `/dashboard/news/${lead.slug}` : '/dashboard/news'} className={s.announce} data-reveal style={{ textDecoration: 'none' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/baskets.webp" alt="" aria-hidden="true" />
             <span className={s.announceEyebrow}>Latest announcement</span>
             <span className={s.announceRow}>
               <span>
-                <h2 className={s.announceTitle}>{NEWS[0].title}</h2>
-                <span className={s.announceBody} style={{ display: 'block' }}>{NEWS[0].source} · {NEWS[0].meta}</span>
+                <h2 className={s.announceTitle}>{lead?.title ?? (newsLoaded ? 'No announcements yet' : 'Loading…')}</h2>
+                <span className={s.announceBody} style={{ display: 'block' }}>{lead ? `${lead.source} · ${lead.meta}` : 'News & updates'}</span>
               </span>
               <span className={s.announceBtn}>Read more {I.right}</span>
             </span>
