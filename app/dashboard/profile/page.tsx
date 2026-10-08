@@ -78,6 +78,10 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           <div className={s.field}><label className={s.label} htmlFor="p-uni">University</label><input id="p-uni" className={s.input} value={f.university} onChange={set('university')} /></div>
           <div className={s.field}><label className={s.label} htmlFor="p-deg">Degree</label><input id="p-deg" className={s.input} value={f.degree} onChange={set('degree')} /></div>
         </div>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="p-year">Year of study</label>
+          <input id="p-year" className={s.input} value={f.year} onChange={set('year')} placeholder="e.g. 2023–2027 or 4th year" />
+        </div>
         <Tags id="p-skill" label="Skills" items={f.skills} draft={skill} setDraft={setSkill}
           onChange={(skills) => setF({ ...f, skills })} placeholder="Add a skill, then press Enter" />
         <Tags id="p-lang" label="Languages" items={f.languages} draft={lang} setDraft={setLang}
