@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Modal } from '@/components/portal/ui';
 import { NEWS_CATS, type NewsCat, type NewsItem } from '@/lib/data';
 import { NEWS_IMAGES } from '@/lib/news';
-import { saveNews } from '@/lib/portal';
+import { saveNews, uploadNewsImage } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 /** Admins: write a new article, or edit `item`. Calls onSaved with the article's slug. */
@@ -14,6 +14,7 @@ export function NewsEditor({ item, onClose, onSaved }: { item?: NewsItem; onClos
     img: item?.img ?? NEWS_IMAGES[0].src, excerpt: item?.excerpt ?? '', body: (item?.body ?? []).join('\n\n'), featured: !!item?.featured,
   });
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setF({ ...f, [k]: e.target.value });
@@ -50,10 +51,29 @@ export function NewsEditor({ item, onClose, onSaved }: { item?: NewsItem; onClos
           </div>
         </div>
         <div className={s.field}>
-          <label className={s.label} htmlFor="nw-img">Photo</label>
-          <select id="nw-img" className={s.input} value={f.img} onChange={set('img')}>
-            {NEWS_IMAGES.map((i) => <option key={i.src} value={i.src}>{i.label}</option>)}
-          </select>
+          <span className={s.label}>Photo</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={s.photoPrev} src={f.img} alt="Preview of the article photo" />
+          <div className={s.photoRow}>
+            <label className={`${s.btnLine} ${s.btnSm}`} style={{ cursor: uploading ? 'wait' : 'pointer' }}>
+              {uploading ? 'Uploading…' : 'Upload a photo'}
+              <input type="file" accept="image/*" hidden disabled={uploading} onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = '';
+                if (!file) return;
+                setUploading(true); setErr(null);
+                const res = await uploadNewsImage(file);
+                setUploading(false);
+                if (res.error) setErr(res.error);
+                else setF((prev) => ({ ...prev, img: res.url! }));
+              }} />
+            </label>
+            <select id="nw-img" className={s.input} style={{ flex: 1, minWidth: 150, width: 'auto' }} aria-label="Or pick a stock photo"
+              value={NEWS_IMAGES.some((i) => i.src === f.img) ? f.img : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') setF({ ...f, img: e.target.value }); }}>
+              {!NEWS_IMAGES.some((i) => i.src === f.img) && <option value="custom">Your uploaded photo</option>}
+              {NEWS_IMAGES.map((i) => <option key={i.src} value={i.src}>{i.label}</option>)}
+            </select>
+          </div>
         </div>
         <div className={s.field}>
           <label className={s.label} htmlFor="nw-excerpt">Summary</label>
@@ -72,7 +92,7 @@ export function NewsEditor({ item, onClose, onSaved }: { item?: NewsItem; onClos
         {err && <p className={s.agendaEmpty} role="alert">{err}</p>}
         <div className={s.formActions}>
           <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
-          <button type="submit" className={s.btnDark} disabled={!f.title.trim() || busy}>{busy ? 'Saving…' : item ? 'Save changes' : 'Publish'}</button>
+          <button type="submit" className={s.btnDark} disabled={!f.title.trim() || busy || uploading}>{busy ? 'Saving…' : item ? 'Save changes' : 'Publish'}</button>
         </div>
       </form>
     </Modal>

@@ -88,6 +88,21 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
+/* ── Confirm dialog (replaces window.confirm) ─────────────────────── */
+export function ConfirmDialog({ title, message, confirmLabel = 'Confirm', busy = false, onConfirm, onCancel }: {
+  title: string; message: string; confirmLabel?: string; busy?: boolean; onConfirm: () => void; onCancel: () => void;
+}) {
+  return (
+    <Modal title={title} onClose={onCancel}>
+      <p className={s.confirmText}>{message}</p>
+      <div className={s.formActions}>
+        <button type="button" className={s.btnLine} onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="button" className={s.btnDark} onClick={onConfirm} disabled={busy}>{busy ? 'Working…' : confirmLabel}</button>
+      </div>
+    </Modal>
+  );
+}
+
 /* ── Toast ────────────────────────────────────────────────────────── */
 export function useToast() {
   const [msg, setMsg] = useState('');

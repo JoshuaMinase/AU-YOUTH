@@ -3,7 +3,7 @@ import { MONTHS, type NewsCat, type NewsItem } from './data';
 /** Columns the news pages read from the Supabase `news` table. */
 export const NEWS_COLS = 'slug, cat, title, excerpt, body, source, img, featured, published_at';
 
-/** photos an admin can pick for an article (no uploads yet) */
+/** stock photos an admin can pick for an article (or upload their own: see uploadNewsImage in lib/portal.ts) */
 export const NEWS_IMAGES = [
   { src: '/assets/card-img-1.webp', label: 'Photo 1' },
   { src: '/assets/card-img-2.webp', label: 'Photo 2' },

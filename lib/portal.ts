@@ -201,10 +201,47 @@ export async function saveNews(input: NewsInput, slug?: string): Promise<{ slug?
   return error ? { error: error.message } : { slug: fresh };
 }
 
-/** Admins: delete an article; returns an error message or null. */
-export async function deleteNews(slug: string) {
-  const { error } = await createClient().from('news').delete().eq('slug', slug);
-  return error ? error.message : null;
+/** Admins: delete an article; returns an error message or null. Pass its photo `img` to remove an uploaded file too. */
+export async function deleteNews(slug: string, img?: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from('news').delete().eq('slug', slug);
+  if (error) return error.message;
+  // best effort: an uploaded photo (not a stock one) is removed from storage with its article
+  const marker = `/storage/v1/object/public/${NEWS_BUCKET}/`;
+  if (img && img.includes(marker)) await supabase.storage.from(NEWS_BUCKET).remove([decodeURIComponent(img.split(marker)[1])]);
+  return null;
+}
+
+const NEWS_BUCKET = 'news-images';
+
+/** Shrinks a photo to at most 1600px wide and re-encodes it as WebP (AGENTS §8), in the browser. */
+async function shrinkPhoto(file: File): Promise<Blob> {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / bmp.width);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('canvas');
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close();
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/webp', 0.8));
+  if (!blob) throw new Error('encode');
+  return blob;
+}
+
+/** Admins: upload a photo for an article; returns its public URL (stored in news.img) or an error message. */
+export async function uploadNewsImage(file: File): Promise<{ url?: string; error?: string }> {
+  if (!file.type.startsWith('image/')) return { error: 'Please choose an image file (JPG, PNG or WebP).' };
+  if (file.size > 15 * 1024 * 1024) return { error: 'That photo is over 15 MB. Please choose a smaller one.' };
+  let blob: Blob;
+  try { blob = await shrinkPhoto(file); }
+  catch { return { error: 'We could not read that photo. Please use a JPG, PNG or WebP image.' }; }
+  const supabase = createClient();
+  const path = `${crypto.randomUUID()}.${blob.type === 'image/png' ? 'png' : blob.type === 'image/jpeg' ? 'jpg' : 'webp'}`;
+  const { error } = await supabase.storage.from(NEWS_BUCKET).upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
+  if (error) return { error: error.message };
+  return { url: supabase.storage.from(NEWS_BUCKET).getPublicUrl(path).data.publicUrl };
 }
 
 /** Published articles (Supabase `news` table), newest first, with live updates. Shared by the news page and home. */
