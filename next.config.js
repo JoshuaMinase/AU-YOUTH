@@ -11,6 +11,7 @@ const nextConfig = {
   // Reduce build time by optimizing dependencies
   experimental: {
     optimizePackageImports: ['gsap', 'lenis'],
+    instrumentationHook: true,
   },
   // Speed up linting
   eslint: {
