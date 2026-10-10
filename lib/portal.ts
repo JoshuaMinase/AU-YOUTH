@@ -115,6 +115,8 @@ export function useChats() {
   const [chats, setChats] = useState<(Chat & { preview: string })[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /* messages being sent: shown at once with a spinner, dropped when the real message has loaded */
+  const [pending, setPending] = useState<Record<string, Msg[]>>({});
 
   const load = useCallback(async () => {
     if (!me.id) return;
@@ -184,24 +186,61 @@ export function useChats() {
     return null;
   }, [me.id, load]);
 
+  const addPending = useCallback((id: string, msgs: Msg[]) => setPending((p) => ({ ...p, [id]: [...(p[id] ?? []), ...msgs] })), []);
+  const dropPending = useCallback((id: string, ids: string[]) => {
+    setPending((p) => ({ ...p, [id]: (p[id] ?? []).filter((m) => !ids.includes(m.id!)) }));
+  }, []);
+
   const send = useCallback(async (id: string, text: string) => {
     if (!canWrite) return PROFILE_LOCKED_MSG;
+    const mine: Msg = { id: `pending-${crypto.randomUUID()}`, from: 'me', text, time: hhmm(new Date()), kind: 'text', pending: true };
+    addPending(id, [mine]);
     /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
     const msg = await postMessage({ conversationId: id, text });
     await load();
+    dropPending(id, [mine.id!]);
     return msg;
-  }, [load, canWrite]);
+  }, [load, canWrite, addPending, dropPending]);
 
-  /** a photo, document or voice message: uploads the file, then sends it through the same checked route. `caption` is optional text. */
-  const sendFile = useCallback(async (id: string, file: File | Blob, o: { caption?: string; voiceSeconds?: number } = {}) => {
-    if (!canWrite) return PROFILE_LOCKED_MSG;
-    const up = await uploadChatFile(id, file, o.voiceSeconds ? { voiceSeconds: o.voiceSeconds } : {});
-    if (!up.file || !up.kind) return up.error ?? 'Could not upload the file.';
-    const msg = await postMessage({ conversationId: id, text: (o.caption ?? '').trim(), kind: up.kind, attachment: up.file });
-    if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
-    await load();
-    return msg;
-  }, [load, canWrite]);
+  /**
+   * Photos, documents and voice messages. Every item shows in the chat at once with a spinner, then they upload one after
+   * another through the same checked route. Stops at the first failure: `done` is how many were sent, `error` says why the next one was not.
+   * `caption` is optional text.
+   */
+  const sendFiles = useCallback(async (id: string, items: { file: File | Blob; caption?: string; voiceSeconds?: number }[]) => {
+    if (!canWrite) return { error: PROFILE_LOCKED_MSG as string | null, done: 0 };
+    const queued: Msg[] = items.map((it) => {
+      const name = it.voiceSeconds ? 'Voice message' : cleanName((it.file as File).name ?? 'file');
+      const type = it.voiceSeconds ? baseType(it.file.type) : chatMime(name) ?? '';
+      const kind: ChatKind = it.voiceSeconds ? 'voice' : type.startsWith('image/') ? 'image' : 'file';
+      return {
+        id: `pending-${crypto.randomUUID()}`, from: 'me', text: (it.caption ?? '').trim(), time: hhmm(new Date()), pending: true, kind,
+        localUrl: kind === 'image' ? URL.createObjectURL(it.file) : undefined,
+        file: { path: '', name, type, size: it.file.size, seconds: it.voiceSeconds },
+      };
+    });
+    addPending(id, queued);
+    const finish = (list: Msg[]) => { list.forEach((m) => { if (m.localUrl) URL.revokeObjectURL(m.localUrl); }); dropPending(id, list.map((m) => m.id!)); };
+
+    let done = 0;
+    let error: string | null = null;
+    for (const it of items) {
+      const up = await uploadChatFile(id, it.file, it.voiceSeconds ? { voiceSeconds: it.voiceSeconds } : {});
+      let msg: string | null = null;
+      if (!up.file || !up.kind) msg = up.error ?? 'Could not upload the file.';
+      else {
+        if (up.kind === 'image') void getChatFileUrl(up.file.path); // warm the link so the sent photo shows without a flash
+        msg = await postMessage({ conversationId: id, text: (it.caption ?? '').trim(), kind: up.kind, attachment: up.file });
+        if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
+      }
+      if (msg) { error = msg; break; }
+      await load();
+      finish([queued[done]]);
+      done++;
+    }
+    if (error) finish(queued.slice(done));
+    return { error, done };
+  }, [load, canWrite, addPending, dropPending]);
 
   /** forwards one message (text, photo, file or voice) to other conversations; returns an error message or null */
   const forward = useCallback(async (messageId: string, targets: string[]) => {
@@ -237,7 +276,10 @@ export function useChats() {
     return err ? err.message : null;
   }, [load]);
 
-  return { chats, unread, markRead, send, sendFile, forward, start, addMember, removeMember, loaded, error };
+  /* what the pages show: the loaded chats plus the messages still being sent */
+  const shown = useMemo(() => chats.map((c) => (pending[c.id]?.length ? { ...c, messages: [...c.messages, ...pending[c.id]] } : c)), [chats, pending]);
+
+  return { chats: shown, unread, markRead, send, sendFiles, forward, start, addMember, removeMember, loaded, error };
 }
 
 export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean }
@@ -337,6 +379,11 @@ export async function uploadChatFile(conv: string, file: File | Blob, o: { voice
 }
 
 const chatUrls = new Map<string, { url: string; at: number }>();
+/** the cached link to a chat file, if there is one (so a photo can show on the first render) */
+export function peekChatFileUrl(path: string, download?: string): string | undefined {
+  const hit = chatUrls.get(`${path}|${download ?? ''}`);
+  return hit && Date.now() - hit.at < 50 * 60 * 1000 ? hit.url : undefined;
+}
 /** A temporary link (valid 1 hour) to a file in the private chat bucket. `download` makes the browser save it under that name. */
 export async function getChatFileUrl(path: string, download?: string): Promise<{ url?: string; error?: string }> {
   const key = `${path}|${download ?? ''}`;

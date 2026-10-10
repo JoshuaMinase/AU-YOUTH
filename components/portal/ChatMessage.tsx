@@ -3,12 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { I } from './ui';
 import { fmtDuration, fmtSize } from '@/lib/chatFiles';
 import type { Msg } from '@/lib/data';
-import { getChatFileUrl } from '@/lib/portal';
+import { getChatFileUrl, peekChatFileUrl } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 /** a photo in a chat bubble; the link to the private file is fetched when the bubble appears */
 function ChatImage({ path, alt, onOpen }: { path: string; alt: string; onOpen: (url: string, alt: string) => void }) {
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(() => peekChatFileUrl(path) ?? '');
   const [failed, setFailed] = useState(false);
   useEffect(() => {
     let live = true;
@@ -91,6 +91,31 @@ function VoicePlayer({ path, seconds }: { path: string; seconds: number }) {
   );
 }
 
+/** a message that is still being sent: the same bubble with a spinner instead of the file controls */
+function PendingBody({ m }: { m: Msg }) {
+  const f = m.file;
+  if (!f) return null;
+  if (m.kind === 'image') {
+    return (
+      <span className={s.msgImgPend}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {m.localUrl && <img className={s.msgImg} src={m.localUrl} alt="" aria-hidden="true" />}
+        <span className={s.msgSpinBox}><span className={s.spinDisc}><span className={s.spin} /></span></span>
+      </span>
+    );
+  }
+  if (m.kind === 'voice') {
+    return <div className={s.voice}><span className={s.voiceBtn} aria-hidden="true">{I.mic}</span><span className={s.voiceTime}>Voice message · {fmtDuration(f.seconds ?? 0)}</span></div>;
+  }
+  return (
+    <span className={s.msgFile}>
+      <span className={s.msgFileIcon}>{I.file}</span>
+      <span className={s.msgFileInfo}><b>{f.name}</b><span>{fmtSize(f.size)}</span></span>
+      <span className={s.msgFileGo}><span className={s.spin} aria-hidden="true" /></span>
+    </span>
+  );
+}
+
 /** one chat bubble: text, photo, file or voice message, with a Forward button */
 export default function ChatMessage({ m, onForward, onOpenImage }: {
   m: Msg; onForward: (m: Msg) => void; onOpenImage: (url: string, alt: string) => void;
@@ -98,16 +123,19 @@ export default function ChatMessage({ m, onForward, onOpenImage }: {
   const mine = m.from === 'me';
   return (
     <div className={`${s.msgRow} ${mine ? s.msgRowMe : ''}`}>
-      <div className={`${s.msg} ${mine ? s.msgMe : s.msgThem}`} data-kind={m.kind && m.kind !== 'text' ? m.kind : undefined}>
+      <div className={`${s.msg} ${mine ? s.msgMe : s.msgThem}`} data-kind={m.kind && m.kind !== 'text' ? m.kind : undefined} data-pending={m.pending ? '' : undefined}>
         {m.forwarded && <span className={s.msgFwd}>{I.forward} Forwarded</span>}
         {m.who && <b style={{ display: 'block', fontSize: 12 }}>{m.who}</b>}
-        {m.file && m.kind === 'image' && <ChatImage path={m.file.path} alt={m.text ? `Photo: ${m.text}` : 'Photo sent in the chat'} onOpen={onOpenImage} />}
-        {m.file && m.kind === 'file' && <ChatFileCard path={m.file.path} name={m.file.name} size={m.file.size} />}
-        {m.file && m.kind === 'voice' && <VoicePlayer path={m.file.path} seconds={m.file.seconds ?? 0} />}
+        {m.pending && m.file && <PendingBody m={m} />}
+        {!m.pending && m.file && m.kind === 'image' && <ChatImage path={m.file.path} alt={m.text ? `Photo: ${m.text}` : 'Photo sent in the chat'} onOpen={onOpenImage} />}
+        {!m.pending && m.file && m.kind === 'file' && <ChatFileCard path={m.file.path} name={m.file.name} size={m.file.size} />}
+        {!m.pending && m.file && m.kind === 'voice' && <VoicePlayer path={m.file.path} seconds={m.file.seconds ?? 0} />}
         {m.text && <span className={s.msgText}>{m.text}</span>}
-        <small>{m.time}</small>
+        {m.pending
+          ? <small className={s.msgWait}><span className={s.spin} aria-hidden="true" /> Sending…</small>
+          : <small>{m.time}</small>}
       </div>
-      {m.id && <button type="button" className={s.msgAct} onClick={() => onForward(m)} aria-label="Forward this message">{I.forward}</button>}
+      {m.id && !m.pending && <button type="button" className={s.msgAct} onClick={() => onForward(m)} aria-label="Forward this message">{I.forward}</button>}
     </div>
   );
 }

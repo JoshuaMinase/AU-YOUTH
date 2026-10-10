@@ -34,7 +34,7 @@ function StagedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
 }
 
 export default function ChatsPage() {
-  const { chats, unread, markRead, send, sendFile, forward, addMember, removeMember, loaded, error } = useChats();
+  const { chats, unread, markRead, send, sendFiles, forward, addMember, removeMember, loaded, error } = useChats();
   const { me } = useMe();
   const [showMembers, setShowMembers] = useState(false);
   const [activeId, setActiveId] = useState('');
@@ -44,7 +44,6 @@ export default function ChatsPage() {
   const [sendErr, setSendErr] = useState<string | null>(null);
   const [staged, setStaged] = useState<File[]>([]);          // photos / files waiting to be sent
   const [recording, setRecording] = useState(false);
-  const [busy, setBusy] = useState(false);                   // uploading a file or voice message
   const [fwd, setFwd] = useState<Msg | null>(null);          // message being forwarded
   const [photo, setPhoto] = useState<{ url: string; alt: string } | null>(null);
   const [toast, toastNode] = useToast();
@@ -80,21 +79,18 @@ export default function ChatsPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const text = input.trim();
-    if (!chat || busy) return;
+    if (!chat) return;
 
-    /* files first: each one is its own message, the typed text is the caption of the first */
+    /* files first: each one is its own message (shown at once with a spinner), the typed text is the caption of the first */
     if (staged.length) {
       const files = staged;
-      setBusy(true); setSendErr(null); setStaged([]); setInput('');
-      for (let i = 0; i < files.length; i++) {
-        const err = await sendFile(chat.id, files[i], { caption: i === 0 ? text : '' });
-        if (err) {
-          setStaged(files.slice(i)); if (i === 0) setInput(text);   // keep what was not sent so it can be retried
-          setSendErr(`Not sent: ${err}`);
-          break;
-        }
+      setSendErr(null); setStaged([]); setInput('');
+      const r = await sendFiles(chat.id, files.map((f, i) => ({ file: f, caption: i === 0 ? text : '' })));
+      if (r.error) {
+        setStaged((p) => [...files.slice(r.done), ...p]);   // keep what was not sent so it can be retried
+        if (r.done === 0) setInput((cur) => cur || text);
+        setSendErr(`Not sent: ${r.error}`);
       }
-      setBusy(false);
       return;
     }
 
@@ -122,10 +118,9 @@ export default function ChatsPage() {
 
   const sendVoice = async (blob: Blob, seconds: number) => {
     if (!chat) return;
-    setRecording(false); setBusy(true); setSendErr(null);
-    const err = await sendFile(chat.id, blob, { voiceSeconds: seconds });
-    setBusy(false);
-    if (err) setSendErr(`Not sent: ${err}`);
+    setRecording(false); setSendErr(null);
+    const r = await sendFiles(chat.id, [{ file: blob, voiceSeconds: seconds }]);
+    if (r.error) setSendErr(`Not sent: ${r.error}`);
   };
 
   return (
@@ -212,13 +207,13 @@ export default function ChatsPage() {
               <VoiceRecorder onDone={sendVoice} onCancel={() => setRecording(false)} onError={(m) => { setRecording(false); setSendErr(m); }} />
             ) : (<>
               <input ref={picker} type="file" hidden multiple accept={CHAT_ACCEPT} onChange={pick} />
-              <button type="button" className={s.chatTool} onClick={() => picker.current?.click()} disabled={busy || staged.length >= CHAT_MAX_STAGED} aria-label="Attach a photo or file">{I.attach}</button>
+              <button type="button" className={s.chatTool} onClick={() => picker.current?.click()} disabled={staged.length >= CHAT_MAX_STAGED} aria-label="Attach a photo or file">{I.attach}</button>
               <input className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
                 placeholder={staged.length ? 'Add a caption…' : `Message ${chat.name.split(' ')[0]}…`} aria-label={staged.length ? 'Caption' : 'Write a message'} maxLength={1000} />
               {input.trim() || staged.length ? (
-                <button type="submit" className={s.btnDark} disabled={busy}>{I.send} {busy ? 'Sending…' : 'Send'}</button>
+                <button type="submit" className={s.btnDark}>{I.send} Send</button>
               ) : (
-                <button type="button" className={s.btnDark} onClick={() => { setSendErr(null); setRecording(true); }} disabled={busy} aria-label="Record a voice message">{I.mic}</button>
+                <button type="button" className={s.btnDark} onClick={() => { setSendErr(null); setRecording(true); }} aria-label="Record a voice message">{I.mic}</button>
               )}
             </>)}
           </form>

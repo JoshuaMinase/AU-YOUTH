@@ -439,6 +439,17 @@
 .photoFull { display: block; max-width: 100%; max-height: calc(100vh - 170px); margin: 0 auto; border-radius: 14px; }
 @media (hover: none) { .msgAct { opacity: .55; } }
 
+/* sending: bubbles show at once with a spinner */
+.spin { display: inline-block; flex: none; width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; vertical-align: middle; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.msg[data-pending] { opacity: .85; }
+.msg .msgWait { display: flex; align-items: center; gap: 6px; }
+.msgImgPend { position: relative; display: block; max-width: min(280px, 100%); border-radius: 12px; overflow: hidden; }
+.msgImgPend .msgImg { opacity: .55; }
+.msgSpinBox { position: absolute; inset: 0; display: grid; place-items: center; }
+.spinDisc { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: rgba(30,42,34,.6); color: #fff; }
+.spinDisc .spin { width: 22px; height: 22px; border-width: 3px; }
+
 /* ── Help ─────────────────────────────────────────────────────────── */
 .helpGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
 .helpCard { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 22px; border-radius: 22px; background: #fff; border: 1px solid var(--line); text-align: left; cursor: pointer; font-family: inherit; color: inherit; transition: box-shadow .4s var(--ease), transform .4s var(--ease), border-color .3s; }
@@ -539,4 +550,5 @@
 @media (prefers-reduced-motion: reduce) {
   .featured, .newsCard, .person, .helpCard, .comingItem, .featuredImg img, .newsImg img, .msg, .modal, .scrim, .panel, .menu, .progressFill, .toast { transition: none; animation: none; }
   .recDot, .msgAct { transition: none; animation: none; }
+  .spin { animation: none; border-right-color: currentColor; opacity: .6; }   /* no spinning: the "Sending…" text still says what is happening */
 }
