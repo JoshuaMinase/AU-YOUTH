@@ -108,6 +108,7 @@ export async function POST(request: Request) {
       .select('kind, body, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds')
       .eq('id', id).maybeSingle();
     if (!src) return Response.json({ error: 'You cannot forward that message.' }, { status: 404 });
+    if (src.kind === 'ticket') return Response.json({ error: 'A ticket cannot be forwarded.' }, { status: 400 });
 
     if (src.body?.trim()) {
       const result = await moderate(src.body);

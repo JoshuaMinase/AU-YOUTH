@@ -8,6 +8,7 @@ import ChatMessage from '@/components/portal/ChatMessage';
 import ForwardDialog from '@/components/portal/ForwardDialog';
 import GroupMembers from '@/components/portal/GroupMembers';
 import VoiceRecorder from '@/components/portal/VoiceRecorder';
+import { TicketBar } from '@/components/portal/Tickets';
 import { CHAT_ACCEPT, CHAT_MAX_STAGED, chatMime, checkChatFile, cleanName } from '@/lib/chatFiles';
 import { useMe } from '@/lib/me';
 import { useChats } from '@/lib/portal';
@@ -34,7 +35,7 @@ function StagedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
 }
 
 export default function ChatsPage() {
-  const { chats, unread, markRead, send, sendFiles, forward, addMember, removeMember, loaded, error } = useChats();
+  const { chats, unread, markRead, send, sendFiles, forward, addMember, removeMember, takeTicket, resolveTicket, loaded, error } = useChats();
   const { me } = useMe();
   const [showMembers, setShowMembers] = useState(false);
   const [activeId, setActiveId] = useState('');
@@ -75,6 +76,14 @@ export default function ChatsPage() {
     const el = msgs.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [chat?.messages.length, activeId]);
+
+  /* "I'll take this" on a ticket card: the database opens the temporary chat, and we jump into it */
+  const take = async (ticketId: string) => {
+    const r = await takeTicket(ticketId);
+    if (r.error) return r.error;
+    if (r.id) { setActiveId(r.id); setView('chat'); toast('Ticket taken. A chat with the reporter is open.'); }
+    return null;
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,7 +185,7 @@ export default function ChatsPage() {
             <span className={s.av} style={{ ...softAvatar(chat.color), width: 38, height: 38 }}>{chat.initials}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p className={s.chatName}>{chat.name}</p>
-              <span className={s.chatStatus}>{chat.group ? `Group chat · ${chat.members?.length ?? 0} members` : 'Direct message'}</span>
+              <span className={s.chatStatus}>{chat.ticket ? 'Ticket chat · temporary' : chat.group ? `Group chat · ${chat.members?.length ?? 0} members` : 'Direct message'}</span>
             </div>
             {chat.group && (
               <button type="button" className={`${s.btnLine} ${s.btnSm}`} aria-expanded={showMembers} onClick={() => setShowMembers((v) => !v)}>
@@ -189,11 +198,13 @@ export default function ChatsPage() {
               onAdd={(id) => addMember(chat.id, id)} onRemove={(id) => removeMember(chat.id, id)} />
           )}
 
+          {chat.ticket && <TicketBar t={chat.ticket} expiresAt={chat.expiresAt} onResolve={(done) => resolveTicket(chat.ticket!.id, done)} />}
+
           <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite">
             {chat.messages.map((m, i) => (
-              <ChatMessage key={m.id ?? i} m={m} onForward={setFwd} onOpenImage={(url, alt) => setPhoto({ url, alt })} />
+              <ChatMessage key={m.id ?? i} m={m} onForward={setFwd} onOpenImage={(url, alt) => setPhoto({ url, alt })} onTakeTicket={take} />
             ))}
-            {!chat.messages.length && <p className={s.agendaEmpty}>No messages yet. Say hello!</p>}
+            {!chat.messages.length && <p className={s.agendaEmpty}>{chat.ticket ? 'No messages yet. Say hello and sort out the problem here.' : 'No messages yet. Say hello!'}</p>}
           </div>
 
           {sendErr && <p className={s.agendaEmpty} role="alert" style={{ padding: '0 16px' }}>{sendErr}</p>}
@@ -209,7 +220,7 @@ export default function ChatsPage() {
               <input ref={picker} type="file" hidden multiple accept={CHAT_ACCEPT} onChange={pick} />
               <button type="button" className={s.chatTool} onClick={() => picker.current?.click()} disabled={staged.length >= CHAT_MAX_STAGED} aria-label="Attach a photo or file">{I.attach}</button>
               <input className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder={staged.length ? 'Add a caption…' : `Message ${chat.name.split(' ')[0]}…`} aria-label={staged.length ? 'Caption' : 'Write a message'} maxLength={1000} />
+                placeholder={staged.length ? 'Add a caption…' : `Message ${(chat.ticket ? (chat.ticket.iAmReporter ? chat.ticket.assignee : chat.ticket.reporter) : chat.name).split(' ')[0]}…`} aria-label={staged.length ? 'Caption' : 'Write a message'} maxLength={1000} />
               {input.trim() || staged.length ? (
                 <button type="submit" className={s.btnDark}>{I.send} Send</button>
               ) : (

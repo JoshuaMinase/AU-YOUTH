@@ -5,7 +5,7 @@ import { ConfirmDialog, Hero, I, Modal, useToast } from '@/components/portal/ui'
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useIso } from '@/lib/hooks';
-import { useFaqs, useTickets, type Faq } from '@/lib/portal';
+import { useDepartmentOptions, useFaqs, useTickets, type Faq } from '@/lib/portal';
 import { TicketRow } from '@/components/portal/Tickets';
 import { getLenis } from '@/components/SmoothScroll';
 import s from '@/styles/Portal.module.css';
@@ -13,7 +13,7 @@ import s from '@/styles/Portal.module.css';
 type Panel = 'report' | 'handbook' | 'faq';
 
 const CARDS: { id: Panel; title: string; sub: string; bg: string; icon: JSX.Element }[] = [
-  { id: 'report', title: 'Report an issue', sub: 'Tell us about a technical problem or platform concern.', bg: '#8F2D56', icon: I.alert },
+  { id: 'report', title: 'Report an issue', sub: 'Something broken at work? Send it to the department that can fix it.', bg: '#8F2D56', icon: I.alert },
   { id: 'handbook', title: 'Handbook', sub: 'The guide, policies and code of conduct.', bg: '#117302', icon: I.book },
   { id: 'faq', title: 'FAQs', sub: 'Frequently asked questions from the community.', bg: '#0072C6', icon: I.help },
 ];
@@ -60,6 +60,7 @@ function FaqForm({ faq, onSave, onClose }: { faq?: Faq; onSave: (q: string, a: s
 
 export default function GetHelpPage() {
   const { tickets, file } = useTickets();
+  const departments = useDepartmentOptions();
   const { me } = useMe();
   const isAdmin = me.access !== 'user';
   const { faqs, loaded: faqsLoaded, error: faqsError, add: addFaq, update: updateFaq, remove: removeFaq } = useFaqs();
@@ -70,7 +71,7 @@ export default function GetHelpPage() {
   const handbook = `${role || 'AU Youth'} handbook`;
   const mine = tickets.filter((t) => t.mine);
   const [panel, setPanel] = useState<Panel | null>(null);
-  const [sent, setSent] = useState(false);
+  const [sent, setSent] = useState<string | null>(null);   // where the ticket was sent, for the thank-you message
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [openFaq, setOpenFaq] = useState<string | null>(null);
@@ -84,22 +85,23 @@ export default function GetHelpPage() {
     else panelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [panel]);
 
-  const toggle = (p: Panel) => { setPanel((cur) => (cur === p ? null : p)); setSent(false); setErr(null); };
+  const toggle = (p: Panel) => { setPanel((cur) => (cur === p ? null : p)); setSent(null); setErr(null); };
 
-  /* file a support ticket (Supabase `support_tickets`, own rows only) */
+  /* file a ticket: it goes to the chosen department's group chat, or to the admins when none is chosen (docs/sql/029_ticket_workflow.sql) */
   const report = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
+    const deptId = String(f.get('dept') ?? '');
     setBusy(true); setErr(null);
-    const error = await file(String(f.get('area')), String(f.get('urgency')), String(f.get('description') ?? '').trim());
+    const error = await file(String(f.get('title') ?? '').trim(), String(f.get('urgency')), String(f.get('description') ?? '').trim(), deptId || null);
     setBusy(false);
-    if (error) setErr(`Could not send your report: ${error}`);
-    else setSent(true);
+    if (error) setErr(`Could not send your ticket: ${error}`);
+    else setSent(departments.find((d) => d.id === deptId)?.name ?? '');
   };
 
   return (
     <>
-      <Hero plain eyebrow="Support" title="Get *Help*" desc="Report a problem and find AU Youth resources." />
+      <Hero plain eyebrow="Support" title="Get *Help*" desc="Report a problem to the right department and find AU Youth resources." />
 
       <div className={s.helpGrid}>
         {CARDS.map((c) => c.id === 'handbook' ? { ...c, title: handbook, sub: `The ${role || 'AU Youth'} guide, policies and code of conduct.` } : c).map((c) => (
@@ -116,15 +118,20 @@ export default function GetHelpPage() {
         {panel === 'report' && (
           <section className={`${s.card} ${s.panel}`}>
             <div className={s.cardHead}><div><p className={s.cardEyebrow}>Support ticket</p><h2 className={s.cardTitle}>Report an issue</h2></div></div>
-            {sent ? (
-              <div className={s.success} role="status">{I.check} Thanks — your report was received. The platform team will reply within two working days.</div>
+            {sent !== null ? (
+              <div className={s.success} role="status">
+                {I.check} {sent
+                  ? `Thanks. Your ticket was sent to ${sent}. When someone there takes it, a chat opens with you and you will get a notification.`
+                  : 'Thanks. Your ticket is with the admins, who will pick the department that can fix it. You will get a notification.'}
+              </div>
             ) : (
               <form className={s.form} onSubmit={report}>
                 <div className={s.formRow}>
                   <div className={s.field}>
-                    <label className={s.label} htmlFor="r-area">Area</label>
-                    <select id="r-area" name="area" className={s.input} defaultValue="Dashboard">
-                      {['Dashboard', 'Chats', 'Calendar', 'People', 'News', 'Account & login', 'Other'].map((o) => <option key={o}>{o}</option>)}
+                    <label className={s.label} htmlFor="r-dept">Who should fix it?</label>
+                    <select id="r-dept" name="dept" className={s.input} defaultValue="">
+                      <option value="">Let the admins decide</option>
+                      {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                     </select>
                   </div>
                   <div className={s.field}>
@@ -135,19 +142,23 @@ export default function GetHelpPage() {
                   </div>
                 </div>
                 <div className={s.field}>
+                  <label className={s.label} htmlFor="r-title">Subject</label>
+                  <input id="r-title" name="title" className={s.input} required minLength={3} maxLength={80} placeholder="e.g. Printer on the 3rd floor is offline" />
+                </div>
+                <div className={s.field}>
                   <label className={s.label} htmlFor="r-desc">What happened?</label>
-                  <textarea id="r-desc" name="description" className={s.textarea} required minLength={10} maxLength={2000} placeholder="Describe the problem and the steps to reproduce it…" />
+                  <textarea id="r-desc" name="description" className={s.textarea} required minLength={10} maxLength={2000} placeholder="Describe the problem and what you have already tried…" />
                 </div>
                 {err && <p className={s.agendaEmpty} role="alert">{err}</p>}
                 <div className={s.formActions}>
                   <button type="button" className={s.btnLine} onClick={() => setPanel(null)}>Cancel</button>
-                  <button type="submit" className={s.btnDark} disabled={busy}>{I.send} {busy ? 'Sending…' : 'Send report'}</button>
+                  <button type="submit" className={s.btnDark} disabled={busy}>{I.send} {busy ? 'Sending…' : 'Send ticket'}</button>
                 </div>
               </form>
             )}
             {mine.length > 0 && (
               <div style={{ marginTop: 24 }}>
-                <p className={s.agendaLabel}>Your reports</p>
+                <p className={s.agendaLabel}>Your tickets</p>
                 <div className={s.list}>{mine.map((tk) => <TicketRow key={tk.id} t={tk} admin={false} />)}</div>
               </div>
             )}

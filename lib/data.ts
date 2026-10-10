@@ -161,11 +161,23 @@ export const NEWS_CATS: ('All' | NewsCat)[] = ['All', 'Initiatives', 'Opportunit
 
 /* ── Chats ────────────────────────────────────────────────────────── */
 /** `who` names the sender in group chats */
+/** a support ticket as the chats show it: the card in a department chat and the bar above a ticket chat */
+export interface TicketInfo {
+  id: string; code: string; title: string; description: string; urgency: string;
+  status: 'open' | 'in_progress' | 'closed';
+  reporter: string; reporterDept: string; assignee: string;
+  iAmReporter: boolean; iAmAssignee: boolean;
+  reporterResolved: boolean; assigneeResolved: boolean;
+}
+/** T-0012 */
+export const ticketCode = (no: number) => `T-${String(no).padStart(4, '0')}`;
+
 export interface Msg { id?: string; from: 'me' | 'them'; text: string; time: string; who?: string;
-  /** photo, file or voice message (text is then the optional caption) */ kind?: ChatKind; file?: ChatFile; forwarded?: boolean;
+  /** photo, file or voice message (text is then the optional caption); 'ticket' = a ticket card (see `ticket`) */ kind?: ChatKind; file?: ChatFile; forwarded?: boolean; ticket?: TicketInfo;
   /** still being sent (shown at once with a spinner); localUrl previews a photo that is uploading */ pending?: boolean; localUrl?: string }
 export interface Chat { id: string; initials: string; name: string; color: string; time: string; unread: number; messages: Msg[]; group?: boolean;
-  /** department chats only */ dept?: string; members?: { id: string; name: string }[] }
+  /** department chats only */ dept?: string; members?: { id: string; name: string }[];
+  /** temporary ticket chats only: the ticket, and when the chat disappears (set once the ticket is closed) */ ticket?: TicketInfo; expiresAt?: string | null }
 
 /** readable text colour on a coloured avatar */
 export const onColor = (hex: string) => {

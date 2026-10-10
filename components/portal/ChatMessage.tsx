@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { I } from './ui';
 import { fmtDuration, fmtSize } from '@/lib/chatFiles';
-import type { Msg } from '@/lib/data';
+import type { Msg, TicketInfo } from '@/lib/data';
 import { getChatFileUrl, peekChatFileUrl } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
@@ -116,11 +116,51 @@ function PendingBody({ m }: { m: Msg }) {
   );
 }
 
-/** one chat bubble: text, photo, file or voice message, with a Forward button */
-export default function ChatMessage({ m, onForward, onOpenImage }: {
+/**
+ * A support ticket sent to this department's chat. Anyone here except the reporter can take it; the card then shows who did.
+ * `onTake` returns an error message or null (the chats page opens the new temporary chat itself).
+ */
+function TicketCard({ t, time, onTake }: { t: TicketInfo; time: string; onTake?: (ticketId: string) => Promise<string | null> }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const take = async () => {
+    if (!onTake) return;
+    setBusy(true); setErr(null);
+    const msg = await onTake(t.id);
+    setBusy(false);
+    if (msg) setErr(msg);
+  };
+  return (
+    <div className={s.msgRow}>
+      <article className={s.ticketCard} aria-label={`Ticket ${t.code}: ${t.title}`}>
+        <div className={s.ticketCardHead}>
+          <span className={s.ticketId}>{t.code}</span>
+          <span className={`${s.tag} ${t.urgency === 'High' ? s.tPlum : t.urgency === 'Low' ? s.tMuted : s.tGold}`}>{t.urgency} urgency</span>
+        </div>
+        <p className={s.ticketCardTitle}>{t.title}</p>
+        <p className={s.ticketDesc}>{t.description}</p>
+        <p className={s.ticketMeta}>From {t.iAmReporter ? 'you' : t.reporter}{t.reporterDept ? ` · ${t.reporterDept}` : ''} · {time}</p>
+        <div className={s.ticketFoot}>
+          {t.status === 'open' && !t.iAmReporter && (
+            <button type="button" className={`${s.btnDark} ${s.btnSm}`} onClick={take} disabled={busy}>{busy ? 'Taking…' : "I'll take this"}</button>
+          )}
+          {t.status === 'open' && t.iAmReporter && <span className={`${s.tag} ${s.tGold}`}>Waiting for a volunteer</span>}
+          {t.status === 'in_progress' && <span className={`${s.tag} ${s.tBlue}`}>{t.iAmAssignee ? 'You are helping' : `Taken by ${t.assignee || 'a member'}`}</span>}
+          {t.status === 'closed' && <span className={`${s.tag} ${s.tMuted}`}>Resolved{t.assignee ? ` by ${t.iAmAssignee ? 'you' : t.assignee}` : ''}</span>}
+        </div>
+        {err && <p className={s.agendaEmpty} role="alert" style={{ margin: '8px 0 0' }}>{err}</p>}
+      </article>
+    </div>
+  );
+}
+
+/** one chat bubble: text, photo, file or voice message, with a Forward button (a ticket card is a card instead) */
+export default function ChatMessage({ m, onForward, onOpenImage, onTakeTicket }: {
   m: Msg; onForward: (m: Msg) => void; onOpenImage: (url: string, alt: string) => void;
+  onTakeTicket?: (ticketId: string) => Promise<string | null>;
 }) {
   const mine = m.from === 'me';
+  if (m.kind === 'ticket' && m.ticket) return <TicketCard t={m.ticket} time={m.time} onTake={onTakeTicket} />;
   return (
     <div className={`${s.msgRow} ${mine ? s.msgRowMe : ''}`}>
       <div className={`${s.msg} ${mine ? s.msgMe : s.msgThem}`} data-kind={m.kind && m.kind !== 'text' ? m.kind : undefined} data-pending={m.pending ? '' : undefined}>

@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem } from './data';
+import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, ticketCode, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem, type TicketInfo } from './data';
 import { AUDIO_TYPES, CHAT_BUCKET, CHAT_MAX_BYTES, audioExt, baseType, checkChatFile, chatMime, cleanName, extOf, previewOf, type ChatFile, type ChatKind } from './chatFiles';
 import { useMe } from './me';
 import { NEWS_COLS, timeAgo, toNews } from './news';
@@ -110,9 +110,26 @@ async function postMessage(body: Record<string, unknown>): Promise<string | null
   } catch { return 'Could not reach the server. Check your connection.'; }
 }
 
-const CHAT_COLS = `id, is_group, title, last_message_at, dept:departments(name),
+/** the ticket columns every ticket query asks for (docs/sql/029_ticket_workflow.sql) */
+const TICKET_COLS = `id, ticket_no, title, area, description, urgency, status, user_id, assignee_id, dept_id,
+  reporter_resolved_at, assignee_resolved_at, closed_at,
+  reporter:profiles!support_tickets_user_id_fkey(first_name, last_name, dept),
+  assignee:profiles!support_tickets_assignee_id_fkey(first_name, last_name)`;
+
+function toTicketInfo(r: Record<string, any>, myId: string): TicketInfo {
+  return {
+    id: r.id, code: ticketCode(r.ticket_no), title: r.title ?? r.area ?? 'Issue', description: r.description, urgency: r.urgency, status: r.status,
+    reporter: fullName(r.reporter), reporterDept: (r.reporter?.dept ?? '').trim(), assignee: r.assignee ? fullName(r.assignee) : '',
+    iAmReporter: r.user_id === myId, iAmAssignee: r.assignee_id === myId,
+    reporterResolved: !!r.reporter_resolved_at, assigneeResolved: !!r.assignee_resolved_at,
+  };
+}
+
+const CHAT_COLS = `id, is_group, title, last_message_at, expires_at, dept:departments(name),
+  ticket:support_tickets!conversations_ticket_id_fkey(${TICKET_COLS}),
   conversation_members(user_id, last_read_at, profile:profiles!conversation_members_user_id_fkey(first_name, last_name)),
-  messages(id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded)`;
+  messages(id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded,
+    ticket:support_tickets!messages_ticket_id_fkey(${TICKET_COLS}))`;
 
 /** the file a message row carries, if any */
 const fileOf = (m: Record<string, any>): ChatFile | undefined => m.attachment_path
@@ -130,6 +147,9 @@ export function useChats() {
   const [error, setError] = useState<string | null>(null);
   /* messages being sent: shown at once with a spinner, dropped when the real message has loaded */
   const [pending, setPending] = useState<Record<string, Msg[]>>({});
+  /* a ticket chat works even with an unfinished profile (the person who reported a problem must be able to answer) */
+  const ticketChats = useRef<Set<string>>(new Set());
+  const may = useCallback((id: string) => canWrite || ticketChats.current.has(id), [canWrite]);
 
   const load = useCallback(async () => {
     if (!me.id) return;
@@ -140,29 +160,35 @@ export function useChats() {
     if (err) { setError(err.message); setLoaded(true); return; }
     const now = new Date();
     setError(null);
-    setChats((data ?? []).map((r: Record<string, any>): Chat & { preview: string } => {
+    const mapped = (data ?? [])
+      .filter((r: Record<string, any>) => !r.expires_at || new Date(r.expires_at) > now)   // an expired ticket chat is gone (the database hides it too)
+      .map((r: Record<string, any>): Chat & { preview: string } => {
       const members: { user_id: string; last_read_at: string; profile: { first_name: string | null; last_name: string | null } | null }[] = r.conversation_members ?? [];
       const mine = members.find((m) => m.user_id === me.id);
       const other = members.find((m) => m.user_id !== me.id);
-      const name = r.is_group ? r.title ?? 'Group' : fullName(other?.profile ?? null);
+      const ticket = r.ticket ? toTicketInfo(r.ticket, me.id) : undefined;
+      const name = ticket ? `${ticket.code} · ${ticket.title}` : r.is_group ? r.title ?? 'Group' : fullName(other?.profile ?? null);
       const names = Object.fromEntries(members.map((m) => [m.user_id, fullName(m.profile)]));
       const rows: Record<string, any>[] = [...(r.messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
       const messages: Msg[] = rows.map((m) => ({
         id: m.id, from: m.sender_id === me.id ? 'me' : 'them', text: m.body, time: hhmm(new Date(m.created_at)),
         who: r.is_group && m.sender_id !== me.id ? names[m.sender_id] ?? 'Member' : undefined,
         kind: (m.kind ?? 'text') as ChatKind, file: fileOf(m), forwarded: !!m.forwarded,
+        ticket: m.ticket ? toTicketInfo(m.ticket, me.id) : undefined,
       }));
       const last = rows[rows.length - 1];
       return {
-        id: r.id, name, group: !!r.is_group,
-        initials: r.is_group ? 'AU' : initialsOf(name), color: r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
+        id: r.id, name, group: !!r.is_group, ticket, expiresAt: r.expires_at ?? null,
+        initials: ticket ? 'TK' : r.is_group ? 'AU' : initialsOf(name), color: ticket ? '#8F2D56' : r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
         unread: rows.filter((m) => m.sender_id !== me.id && (!mine || m.created_at > mine.last_read_at)).length,
         time: chatTime(last?.created_at ?? r.last_message_at, now), messages,
         dept: r.dept?.name ?? undefined,
         members: members.map((m) => ({ id: m.user_id, name: names[m.user_id] ?? 'Member' })),
         preview: last ? previewOf({ kind: last.kind, body: last.body, file: fileOf(last) }) : 'No messages yet',
       };
-    }));
+    });
+    ticketChats.current = new Set(mapped.filter((c) => c.ticket).map((c) => c.id));
+    setChats(mapped);
     setLoaded(true);
   }, [me.id]);
 
@@ -176,6 +202,7 @@ export function useChats() {
       .channel(`chats-${me.id}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { load(); })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => { load(); })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets' }, () => { load(); })   // a ticket was taken or closed
       .subscribe();
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
@@ -205,7 +232,7 @@ export function useChats() {
   }, []);
 
   const send = useCallback(async (id: string, text: string) => {
-    if (!canWrite) return PROFILE_LOCKED_MSG;
+    if (!may(id)) return PROFILE_LOCKED_MSG;
     const mine: Msg = { id: `pending-${crypto.randomUUID()}`, from: 'me', text, time: hhmm(new Date()), kind: 'text', pending: true };
     addPending(id, [mine]);
     /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
@@ -213,7 +240,7 @@ export function useChats() {
     await load();
     dropPending(id, [mine.id!]);
     return msg;
-  }, [load, canWrite, addPending, dropPending]);
+  }, [load, may, addPending, dropPending]);
 
   /**
    * Photos, documents and voice messages. Every item shows in the chat at once with a spinner, then they upload one after
@@ -221,7 +248,7 @@ export function useChats() {
    * `caption` is optional text.
    */
   const sendFiles = useCallback(async (id: string, items: { file: File | Blob; caption?: string; voiceSeconds?: number }[]) => {
-    if (!canWrite) return { error: PROFILE_LOCKED_MSG as string | null, done: 0 };
+    if (!may(id)) return { error: PROFILE_LOCKED_MSG as string | null, done: 0 };
     const queued: Msg[] = items.map((it) => {
       const name = it.voiceSeconds ? 'Voice message' : cleanName((it.file as File).name ?? 'file');
       const type = it.voiceSeconds ? baseType(it.file.type) : chatMime(name) ?? '';
@@ -253,7 +280,7 @@ export function useChats() {
     }
     if (error) finish(queued.slice(done));
     return { error, done };
-  }, [load, canWrite, addPending, dropPending]);
+  }, [load, may, addPending, dropPending]);
 
   /** forwards one message (text, photo, file or voice) to other conversations; returns an error message or null */
   const forward = useCallback(async (messageId: string, targets: string[]) => {
@@ -289,10 +316,24 @@ export function useChats() {
     return err ? err.message : null;
   }, [load]);
 
+  /** someone in the department chat takes a ticket; opens the temporary chat and returns its id (or an error message) */
+  const takeTicket = useCallback(async (ticketId: string): Promise<{ id?: string; error?: string }> => {
+    const { data, error: err } = await createClient().rpc('claim_ticket', { t: ticketId });
+    await load();
+    return err ? { error: err.message } : { id: data as string };
+  }, [load]);
+
+  /** the reporter or the volunteer marks the ticket resolved (done = false takes the mark back); returns an error message or null */
+  const resolveTicket = useCallback(async (ticketId: string, done: boolean) => {
+    const { error: err } = await createClient().rpc('resolve_ticket', { t: ticketId, done });
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
   /* what the pages show: the loaded chats plus the messages still being sent */
   const shown = useMemo(() => chats.map((c) => (pending[c.id]?.length ? { ...c, messages: [...c.messages, ...pending[c.id]] } : c)), [chats, pending]);
 
-  return { chats: shown, unread, markRead, send, sendFiles, forward, start, addMember, removeMember, loaded, error };
+  return { chats: shown, unread, markRead, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
 }
 
 export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean }
@@ -576,6 +617,7 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   delete_request: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
   flagged_message: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
   new_department: { icon: '+', bg: '#ECECE8', fg: '#1E2A22' },
+  ticket: { icon: '#', bg: '#F3EEE4', fg: '#8a6a3c' },
 };
 
 /** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */
@@ -646,12 +688,19 @@ export function useDepartments() {
 
 export type TicketStatus = 'open' | 'in_progress' | 'closed';
 export interface Ticket {
-  id: string; area: string; urgency: string; description: string; status: TicketStatus;
-  who: string; mine: boolean; time: string;
+  id: string; code: string; title: string; description: string; urgency: string; status: TicketStatus;
+  who: string; whoDept: string; mine: boolean; time: string;
+  /** the department asked to fix it; null = the admins still have to pick one */
+  dept: string | null;
+  /** the person who took it ('' until someone does) */
+  assignee: string;
+  /** the live ticket chat you are in (null before it opens and once it has expired) */
+  chatId: string | null;
 }
 
 /**
- * Support tickets (Supabase `support_tickets`). Members get their own; admins get everyone's and can change the status.
+ * Support tickets (Supabase `support_tickets`, docs/sql/029_ticket_workflow.sql). You get your own, the ones sent to your
+ * department chat and the ones you took; admins get everyone's. Filing and routing go through database functions.
  * Actions return an error message or null.
  */
 export function useTickets() {
@@ -663,25 +712,38 @@ export function useTickets() {
   const load = useCallback(async () => {
     if (!me.id) return;
     const { data, error: err } = await createClient().from('support_tickets')
-      .select('id, user_id, area, urgency, description, status, created_at, reporter:profiles!support_tickets_user_id_fkey(first_name, last_name)')
+      .select(`${TICKET_COLS}, created_at, dept:departments(name), chat:conversations!conversations_ticket_id_fkey(id)`)
       .order('created_at', { ascending: false }).limit(100);
     if (err) { setError(err.message); setLoaded(true); return; }
     const now = new Date();
     setError(null);
-    setTickets((data ?? []).map((r: Record<string, any>) => ({
-      id: r.id, area: r.area, urgency: r.urgency, description: r.description, status: r.status,
-      who: fullName(r.reporter), mine: r.user_id === me.id, time: timeAgo(r.created_at, now),
-    })));
+    setTickets((data ?? []).map((r: Record<string, any>) => {
+      const info = toTicketInfo(r, me.id);
+      const chat = Array.isArray(r.chat) ? r.chat[0] : r.chat;   // hidden by the database for people outside the chat and once it has expired
+      return {
+        id: r.id, code: info.code, title: info.title, description: info.description, urgency: info.urgency, status: r.status,
+        who: info.reporter, whoDept: info.reporterDept, mine: r.user_id === me.id, time: timeAgo(r.created_at, now),
+        dept: r.dept?.name ?? null, assignee: info.assignee, chatId: chat?.id ?? null,
+      };
+    }));
     setLoaded(true);
   }, [me.id]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase.channel(`tickets-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'support_tickets' }, () => { load(); })
+      .subscribe();
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [load]);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [me.id, load]);
 
   const run = useCallback(async (op: PromiseLike<{ error: { message: string } | null }>) => {
     const { error: err } = await op;
@@ -689,12 +751,62 @@ export function useTickets() {
     return err ? err.message : null;
   }, [load]);
 
-  const file = useCallback((area: string, urgency: string, description: string) =>
-    run(createClient().from('support_tickets').insert({ user_id: me.id, area, urgency, description })), [me.id, run]);
-  const setStatus = useCallback((id: string, status: TicketStatus) =>
-    run(createClient().from('support_tickets').update({ status }).eq('id', id)), [run]);
+  /** deptId = the department that should fix it, or null to let the admins decide */
+  const file = useCallback((title: string, urgency: string, description: string, deptId: string | null) =>
+    run(createClient().rpc('create_ticket', { p_title: title, p_description: description, p_urgency: urgency, p_dept: deptId })), [run]);
+  /** admins: pick the department for a ticket nobody routed; its card then appears in that department's chat */
+  const route = useCallback((id: string, deptId: string) =>
+    run(createClient().rpc('route_ticket', { t: id, p_dept: deptId })), [run]);
 
-  return { tickets, loaded, error, file, setStatus };
+  return { tickets, loaded, error, file, route };
+}
+
+export interface DepartmentOption { id: string; name: string }
+
+/** Department pick-list with ids (for choosing which department fixes a ticket). */
+export function useDepartmentOptions() {
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  useEffect(() => {
+    let alive = true;
+    createClient().from('departments').select('id, name').order('name').then(({ data }) => {
+      if (alive) setDepartments((data ?? []) as DepartmentOption[]);
+    });
+    return () => { alive = false; };
+  }, []);
+  return departments;
+}
+
+export interface ArchivedTicket {
+  id: string; code: string; title: string; status: TicketStatus; dept: string; reporter: string; assignee: string;
+  created: string; closedAt: string | null; expiresAt: string | null; messages: number;
+}
+export interface ArchivedMessage { id: string; senderId: string; who: string; body: string; kind: string; file: string; at: string }
+
+/** Admins: find a ticket chat and read it (read-only; every opening is logged in `ticket_chat_access`). Nothing loads until it is called. */
+export function useTicketArchive() {
+  const search = useCallback(async (q: string, offset = 0, limit = 20): Promise<{ rows: ArchivedTicket[]; error?: string }> => {
+    const { data, error: err } = await createClient().rpc('search_ticket_chats', { q, lim: limit, off: offset });
+    if (err) return { rows: [], error: err.message };
+    return {
+      rows: (data ?? []).map((r: Record<string, any>) => ({
+        id: r.t_id, code: ticketCode(Number(r.t_no)), title: r.t_title, status: r.t_status as TicketStatus, dept: r.t_dept ?? 'No department',
+        reporter: r.t_reporter ?? 'Member', assignee: r.t_assignee ?? '', created: r.t_created, closedAt: r.t_closed ?? null,
+        expiresAt: r.t_expires ?? null, messages: Number(r.t_messages),
+      })),
+    };
+  }, []);
+
+  const read = useCallback(async (ticketId: string): Promise<{ messages: ArchivedMessage[]; error?: string }> => {
+    const { data, error: err } = await createClient().rpc('read_ticket_chat', { t: ticketId });
+    if (err) return { messages: [], error: err.message };
+    return {
+      messages: (data ?? []).map((r: Record<string, any>) => ({
+        id: r.m_id, senderId: r.m_sender_id, who: r.m_sender ?? 'Member', body: r.m_body ?? '', kind: r.m_kind ?? 'text', file: r.m_file ?? '', at: r.m_at,
+      })),
+    };
+  }, []);
+
+  return { search, read };
 }
 
 export interface PendingDelete {

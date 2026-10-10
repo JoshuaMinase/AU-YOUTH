@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { Hero, I, useToast } from '@/components/portal/ui';
 import GroupMembers from '@/components/portal/GroupMembers';
 import { TicketRow } from '@/components/portal/Tickets';
+import TicketArchive from '@/components/portal/TicketArchive';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
-import { useAddedDepartments, useDeleteRequests, useDepartments, useDeptChatAdmin, useFlaggedMessages, useTickets } from '@/lib/portal';
+import { useAddedDepartments, useDeleteRequests, useDepartmentOptions, useDepartments, useDeptChatAdmin, useFlaggedMessages, useTickets } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const linkBtn = { border: 0, background: 'none', cursor: 'pointer' } as const;
@@ -18,7 +19,8 @@ export default function AdminPage() {
   const isSuper = me.access === 'super_admin';
   const { members, setAdmin, loaded: peopleLoaded } = usePeople();
   const { requests, loaded: requestsLoaded, approve, decline } = useDeleteRequests();
-  const { tickets, loaded: ticketsLoaded, setStatus } = useTickets();
+  const { tickets, loaded: ticketsLoaded, route: routeTicket } = useTickets();
+  const deptOptions = useDepartmentOptions();
   const { departments, loaded: deptsLoaded, remove: removeDept } = useAddedDepartments();
   const allDepts = useDepartments();
   const { flags, loaded: flagsLoaded, markReviewed } = useFlaggedMessages();
@@ -52,7 +54,10 @@ export default function AdminPage() {
     return t ? members.filter((m) => `${m.name} ${m.dept}`.toLowerCase().includes(t)).slice(0, 8) : [];
   }, [members, q]);
   const flagList = flags.filter((f) => flagFilter === 'all' || !f.reviewed);
-  const queue = tickets.filter((t) => ticketFilter === 'all' || t.status !== 'closed');
+  /* tickets nobody routed come first, then the newest */
+  const toRoute = tickets.filter((t) => !t.dept && t.status === 'open').length;
+  const queue = tickets.filter((t) => ticketFilter === 'all' || t.status !== 'closed')
+    .sort((a, b) => Number(!a.dept && a.status === 'open') === Number(!b.dept && b.status === 'open') ? 0 : !a.dept && a.status === 'open' ? -1 : 1);
 
   const toggleChat = async (id: string) => {
     if (openChat === id) { setOpenChat(null); return; }
@@ -238,13 +243,18 @@ export default function AdminPage() {
             <button type="button" className={s.pill} aria-pressed={ticketFilter === 'all'} onClick={() => setTicketFilter('all')}>All</button>
           </div>
         </div>
+        {toRoute > 0 && <p className={s.agendaEmpty} style={{ marginTop: 0 }} role="status">{toRoute} {toRoute === 1 ? 'ticket needs' : 'tickets need'} a department. Pick one and it appears in that department&rsquo;s chat.</p>}
         <div className={s.list}>
           {queue.map((tk) => (
-            <TicketRow key={tk.id} t={tk} admin onStatus={(st) => act(tk.id, () => setStatus(tk.id, st), 'Status updated')} />
+            <TicketRow key={tk.id} t={tk} admin depts={deptOptions}
+              onRoute={(deptId) => act(tk.id, () => routeTicket(tk.id, deptId), 'Ticket sent to the department')} />
           ))}
         </div>
         {ticketsLoaded && !queue.length && <p className={s.agendaEmpty}>{ticketFilter === 'active' ? 'No open tickets.' : 'No tickets yet.'}</p>}
       </section>
+
+      {/* ── Ticket chats (closed until an admin looks one up) ── */}
+      <TicketArchive />
 
       {/* ── Departments members added ── */}
       <section className={`${s.card} ${s.panel}`}>

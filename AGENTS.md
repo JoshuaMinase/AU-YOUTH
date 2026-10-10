@@ -73,7 +73,9 @@ components/
                           CtaBand, Faq, OpportunityBoard, CircleGrid, icons
   portal/ui.tsx           Dashboard building blocks: icon set `I`, Hero, Modal, useToast, MiniCalendar
   portal/tags.ts          News tag → colour class (plain module, safe for server components)
-  portal/ChatMessage.tsx  One chat bubble: text, photo, file or voice message, plus its Forward button
+  portal/ChatMessage.tsx  One chat bubble: text, photo, file or voice message, plus its Forward button; a ticket card in department chats
+  portal/Tickets.tsx      TicketRow (Get Help list + admin queue) and TicketBar (resolve bar above a temporary ticket chat)
+  portal/TicketArchive.tsx  Admin-only, collapsed lookup to read a ticket chat read-only (logged)
   portal/VoiceRecorder.tsx  Records a voice message inside the chat message box
   portal/ForwardDialog.tsx  Pick one or more chats to forward a message to
 
@@ -305,6 +307,7 @@ Dashboard rules:
 ## 12. Known gaps / backlog (not bugs — just not built yet)
 
 - Roles (docs/sql/013_roles.sql): one super admin (ZemenA@africanunion.org) → admins (super admin sets them from the Admin panel, one per department, enforced by docs/sql/025; the Admins list there shows every department with its admin for all admins) → users. Only admins post on the feed; users comment. Admins delete only their own posts and can request deletion of another's; the author or the super admin approves or declines. Sign-up only for @africanunion.org / @africa-union.org. Admins write news on /dashboard/news (Edit/Delete on the article) Admin panel at /dashboard/admin (Admin tab, admins only): admins list (super admin adds/removes), deletion requests, support tickets, departments added by members.
+- Support tickets (docs/sql/029): a member files a ticket from Get Help and picks the department, or leaves it to the admins (who route it in the Admin panel). The ticket is a card in that department's group chat; a member takes it, which opens a temporary chat with the reporter. Both mark it resolved to close it; the chat expires 24 h later (the database stops showing it, `private.is_member` checks `expires_at`). Admins read ticket chats read-only from the Admin panel, each opening logged. Tickets are created and changed only through the SQL functions (`create_ticket`, `route_ticket`, `claim_ticket`, `resolve_ticket`), never by direct insert or update.
 - Unused legacy files that can be deleted once the person approves: `styles/Dashboard.module.css`
   and the original JPG/PNG photos listed in §8.
 - Ideas the person may want later: text-only headers on Chats and Profile too, a rotating

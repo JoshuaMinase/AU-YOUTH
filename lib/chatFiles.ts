@@ -7,7 +7,8 @@ export const CHAT_GIF_MAX_BYTES = 4 * 1024 * 1024;   // photos are checked by th
 export const CHAT_MAX_SECONDS = 300;                 // longest voice message (5 minutes)
 export const CHAT_MAX_STAGED = 5;                    // files that can be queued in one go
 
-export type ChatKind = 'text' | 'image' | 'file' | 'voice';
+/** 'ticket' is a support-ticket card posted in a department chat (docs/sql/029_ticket_workflow.sql); it carries no file */
+export type ChatKind = 'text' | 'image' | 'file' | 'voice' | 'ticket';
 
 /** the file a message carries (messages.attachment_* columns) */
 export interface ChatFile { path: string; name: string; type: string; size: number; seconds?: number }
