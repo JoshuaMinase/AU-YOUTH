@@ -14,6 +14,7 @@ Read this file first and follow it in every session. Add new rules at the bottom
 - Every delivery includes the whole flow in PowerShell, from unzip, through copying the files, to `git add`, `git commit` and `git push` to GitHub.
 - Projects that are already live on Render are **not run locally**. Push to GitHub and test on Render. Do not tell Zemen to run `npm run dev` or `npm run build` locally.
 - Never commit `.env.local` or any secret key.
+- **Always paste in the chat message itself** (inside code blocks), not only as an attached file: the full PowerShell script and the full contents of every SQL file that must be run by hand. Still attach them as files too.
 
 ## Project-specific (au_youth, Drizzle/Neon version)
 - Local folder: `C:\Users\HP\projects\au-youth-platform`.
