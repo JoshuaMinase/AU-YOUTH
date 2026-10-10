@@ -8,7 +8,7 @@ import { TicketRow } from '@/components/portal/Tickets';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
-import { useAddedDepartments, useDeleteRequests, useDeptChatAdmin, useFlaggedMessages, useTickets } from '@/lib/portal';
+import { useAddedDepartments, useDeleteRequests, useDepartments, useDeptChatAdmin, useFlaggedMessages, useTickets } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const linkBtn = { border: 0, background: 'none', cursor: 'pointer' } as const;
@@ -20,6 +20,7 @@ export default function AdminPage() {
   const { requests, loaded: requestsLoaded, approve, decline } = useDeleteRequests();
   const { tickets, loaded: ticketsLoaded, setStatus } = useTickets();
   const { departments, loaded: deptsLoaded, remove: removeDept } = useAddedDepartments();
+  const allDepts = useDepartments();
   const { flags, loaded: flagsLoaded, markReviewed } = useFlaggedMessages();
   const { chats: deptChats, loaded: deptChatsLoaded, membersOf, addMember, removeMember } = useDeptChatAdmin();
   const [openChat, setOpenChat] = useState<string | null>(null);
@@ -31,6 +32,20 @@ export default function AdminPage() {
   const [ticketFilter, setTicketFilter] = useState<'active' | 'all'>('active');
 
   const admins = members.filter((m) => m.access !== 'user');
+  /* one admin per department: every department with its admin (or none yet), plus the super admin and any admin whose department isn't on the list */
+  const key = (d: string) => d.trim().toLowerCase();
+  const deptAdmins = useMemo(() => {
+    const all = [{ id: me.id, name: `${me.name} (you)`, initials: me.initials, color: '#C9AB5C', dept: me.dept, access: me.access }, ...admins]
+      .filter((m) => m.access === 'admin');
+    const byDept = new Map(all.map((m) => [key(m.dept), m]));
+    const rows = allDepts.map((d) => ({ dept: d, admin: byDept.get(key(d)) ?? null }));
+    const listed = new Set(allDepts.map(key));
+    const other = all.filter((m) => !listed.has(key(m.dept)));
+    return { rows, other, filled: rows.filter((r) => r.admin).length };
+  }, [admins, allDepts, me]);
+  const superAdmin = me.access === 'super_admin'
+    ? { name: `${me.name} (you)`, initials: me.initials, color: '#C9AB5C' }
+    : admins.find((m) => m.access === 'super_admin') ?? null;
   /* super admin: search everyone to make or remove admins */
   const found = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -76,23 +91,38 @@ export default function AdminPage() {
       {/* ── Admins ── */}
       <section className={`${s.card} ${s.panel}`}>
         <div className={s.cardHead}><div><p className={s.cardEyebrow}>Team</p><h2 className={s.cardTitle}>Admins</h2></div></div>
+        <p className={s.agendaEmpty}>Each department has one admin. {deptAdmins.filled} of {deptAdmins.rows.length} departments have one.</p>
         <div className={s.list}>
-          <div className={s.listRow}>
-            <span className={s.av} style={softAvatar('#C9AB5C')}>{me.initials}</span>
-            <div className={s.rowMain}><p className={s.rowTitle}>{me.name} (you)</p><p className={s.rowSub}>{isSuper ? 'Super admin' : 'Admin'}</p></div>
-          </div>
-          {admins.map((m) => (
+          {superAdmin && (
+            <div className={s.listRow}>
+              <span className={s.av} style={softAvatar(superAdmin.color)}>{superAdmin.initials}</span>
+              <div className={s.rowMain}><p className={s.rowTitle}>{superAdmin.name}</p><p className={s.rowSub}>Super admin</p></div>
+            </div>
+          )}
+          {deptAdmins.rows.map(({ dept, admin }) => (
+            <div key={dept} className={s.listRow}>
+              {admin ? <span className={s.av} style={softAvatar(admin.color)}>{admin.initials}</span> : <span className={s.av} style={softAvatar('#9AA09B')}>–</span>}
+              <div className={s.rowMain}>
+                <p className={s.rowTitle}>{admin ? admin.name : 'No admin yet'}</p>
+                <p className={s.rowSub}>{dept}</p>
+              </div>
+              {isSuper && admin && admin.id !== me.id && (
+                <button type="button" className={`${s.btnLine} ${s.btnSm}`} disabled={busy === admin.id}
+                  onClick={() => act(admin.id, () => setAdmin(admin.id, false), `${admin.name} is no longer an admin`)}>Remove</button>
+              )}
+            </div>
+          ))}
+          {deptAdmins.other.map((m) => (
             <div key={m.id} className={s.listRow}>
               <span className={s.av} style={softAvatar(m.color)}>{m.initials}</span>
-              <div className={s.rowMain}><p className={s.rowTitle}>{m.name}</p><p className={s.rowSub}>{m.access === 'super_admin' ? 'Super admin' : 'Admin'}{m.dept ? ` · ${m.dept}` : ''}</p></div>
-              {isSuper && m.access === 'admin' && (
+              <div className={s.rowMain}><p className={s.rowTitle}>{m.name}</p><p className={s.rowSub}>Admin · {m.dept || 'No department'}</p></div>
+              {isSuper && m.id !== me.id && (
                 <button type="button" className={`${s.btnLine} ${s.btnSm}`} disabled={busy === m.id}
                   onClick={() => act(m.id, () => setAdmin(m.id, false), `${m.name} is no longer an admin`)}>Remove</button>
               )}
             </div>
           ))}
         </div>
-        {peopleLoaded && !admins.length && <p className={s.agendaEmpty}>{isSuper ? 'No other admins yet.' : 'No other admins.'}</p>}
 
         {isSuper && (
           <div style={{ marginTop: 20 }}>
@@ -106,9 +136,11 @@ export default function AdminPage() {
                 {found.map((m) => (
                   <div key={m.id} className={s.listRow}>
                     <span className={s.av} style={softAvatar(m.color)}>{m.initials}</span>
-                    <div className={s.rowMain}><p className={s.rowTitle}>{m.name}</p><p className={s.rowSub}>{m.dept || '—'}</p></div>
+                    <div className={s.rowMain}><p className={s.rowTitle}>{m.name}</p><p className={s.rowSub}>{m.dept || 'No department'}</p></div>
                     {m.access === 'user' ? (
-                      <button type="button" className={`${s.btnDark} ${s.btnSm}`} disabled={busy === m.id}
+                      <button type="button" className={`${s.btnDark} ${s.btnSm}`}
+                        disabled={busy === m.id || !m.dept.trim() || deptAdmins.rows.some((r) => r.admin && key(r.dept) === key(m.dept)) || deptAdmins.other.some((o) => key(o.dept) === key(m.dept))}
+                        title={!m.dept.trim() ? 'This member has no department yet' : 'One admin per department'}
                         onClick={() => act(m.id, () => setAdmin(m.id, true), `${m.name} is now an admin`)}>Make admin</button>
                     ) : <span className={`${s.tag} ${s.tMuted}`}>{m.access === 'super_admin' ? 'Super admin' : 'Admin'}</span>}
                   </div>
