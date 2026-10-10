@@ -20,7 +20,7 @@ const NAV = [
 const ADMIN_NAV = { href: '/dashboard/admin', label: 'Admin', icon: I.shield };
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { me } = useMe();
+  const { me, ready, complete, missing } = useMe();
   const pathname = usePathname();
   const router = useRouter();
   const main = useRef<HTMLElement>(null);
@@ -76,6 +76,19 @@ function Shell({ children }: { children: React.ReactNode }) {
       </header>
 
       <main ref={main} className={s.main} key={pathname}>
+        {/* incomplete profile = view-only (also enforced in the database, docs/sql/022_profile_gate.sql) */}
+        {ready && !complete && pathname !== '/dashboard/profile' && (
+          <section className={`${s.card} ${s.completion}`} role="status">
+            <div>
+              <p className={s.cardEyebrow}>View only for now</p>
+              <h2 className={s.cardTitle} style={{ marginBottom: 6 }}>Complete your profile to unlock everything</h2>
+              <p className={s.cardMeta}>
+                You can read the news, but chatting, the calendar, connections and comments unlock once you add {missing.join(', ')}.
+              </p>
+            </div>
+            <Link href="/dashboard/profile" className={s.btnDark}>Complete profile</Link>
+          </section>
+        )}
         {children}
       </main>
 

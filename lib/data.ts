@@ -46,6 +46,21 @@ export type Access = 'super_admin' | 'admin' | 'user';
 export const profileScore = (p: Profile) =>
   Math.min(100, 50 + (p.bio.trim().length >= 20 ? 25 : 0) + (p.skills.length >= 5 ? 15 : 0) + (p.nationality.trim() && p.basedIn.trim() ? 10 : 0));
 
+/** What a member must fill in before they can post, chat, add events or connect (until then: view-only).
+ *  Keep in sync with private.profile_complete() in docs/sql/022_profile_gate.sql. Admins are exempt. */
+export const profileMissing = (p: Profile, extra: { role: string; dept: string }): string[] => {
+  const m: string[] = [];
+  if (p.bio.trim().length < 20) m.push('a short bio (20+ characters)');
+  if (!extra.role.trim()) m.push('your role');
+  if (!extra.dept.trim()) m.push('your department');
+  if (!p.nationality.trim()) m.push('your nationality');
+  if (!p.basedIn.trim()) m.push('where you are based');
+  if (!p.gender) m.push('your gender');
+  if (!p.skills.length) m.push('at least one skill');
+  return m;
+};
+export const PROFILE_LOCKED_MSG = 'Complete your profile first (Profile → Finish profile) to use this.';
+
 /* ── Dates ─────────────────────────────────────────────────────────── */
 export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 export const addDays = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);

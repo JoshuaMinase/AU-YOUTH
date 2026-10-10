@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Access } from '@/lib/data';
+import { PROFILE_LOCKED_MSG, type Access } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { createClient } from '@/lib/supabase/client';
 
@@ -29,7 +29,7 @@ interface Conn { id: string; requester_id: string; addressee_id: string; status:
 
 /** Real members (everyone except you) and your connections, with actions that write to Supabase. */
 export function usePeople() {
-  const { me } = useMe();
+  const { me, complete } = useMe();
   const [members, setMembers] = useState<Member[]>([]);
   const [conns, setConns] = useState<Conn[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -88,16 +88,17 @@ export function usePeople() {
     return err ? err.message : null;
   }, [load]);
 
-  const request = (id: string) =>
+  const request = (id: string) => !complete ? Promise.resolve(PROFILE_LOCKED_MSG) :
     run(createClient().from('connections').insert({ requester_id: me.id, addressee_id: id }));
   /** withdraw a sent request, decline an incoming one, or remove a connection */
   const remove = (id: string) =>
     rel[id]?.connId ? run(createClient().from('connections').delete().eq('id', rel[id].connId!)) : Promise.resolve(null);
-  const accept = (id: string) =>
+  const accept = (id: string) => !complete ? Promise.resolve(PROFILE_LOCKED_MSG) :
     rel[id]?.connId ? run(createClient().from('connections').update({ status: 'accepted' }).eq('id', rel[id].connId!)) : Promise.resolve(null);
 
   /** open (or create) a 1:1 chat with a connection (Supabase `start_dm`); returns the conversation id or an error */
   const message = async (id: string): Promise<{ chatId?: string; error?: string }> => {
+    if (!complete) return { error: PROFILE_LOCKED_MSG };
     const { data, error: err } = await createClient().rpc('start_dm', { other: id });
     return err ? { error: err.message } : { chatId: data as string };
   };

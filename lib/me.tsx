@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { Access, Profile } from '@/lib/data';
+import { profileMissing, type Access, type Profile } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
 
 export interface Me {
@@ -22,11 +22,15 @@ interface Ctx {
   me: Me;
   profile: Profile;
   ready: boolean;
+  /** false = view-only until the required profile fields are filled in (admins are never locked) */
+  complete: boolean;
+  /** what is still missing, in plain words */
+  missing: string[];
   /** returns an error message, or null on success */
   save: (p: Profile, extra: { role: string; dept: string }) => Promise<string | null>;
 }
 
-const MeContext = createContext<Ctx>({ me: EMPTY_ME, profile: EMPTY_PROFILE, ready: false, save: async () => 'Not ready' });
+const MeContext = createContext<Ctx>({ me: EMPTY_ME, profile: EMPTY_PROFILE, ready: false, complete: false, missing: [], save: async () => 'Not ready' });
 export const useMe = () => useContext(MeContext);
 
 function buildMe(id: string, email: string, row: Record<string, any> | null, access: Access): Me {
@@ -87,6 +91,9 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [me.id, me.first, me.last]);
 
-  const value = useMemo(() => ({ me, profile, ready, save }), [me, profile, ready, save]);
+  const missing = useMemo(() => profileMissing(profile, me), [profile, me]);
+  const complete = me.access !== 'user' || missing.length === 0;
+
+  const value = useMemo(() => ({ me, profile, ready, complete, missing, save }), [me, profile, ready, complete, missing, save]);
   return <MeContext.Provider value={value}>{children}</MeContext.Provider>;
 }
