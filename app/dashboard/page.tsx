@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { I, MiniCalendar, Modal, useToast } from '@/components/portal/ui';
-import { MONTHS, MONTHS_SHORT, WEEKDAYS, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
+import { MONTHS, MONTHS_SHORT, WEEKDAYS, eventOn, lastDay, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
 import { useChats, useEvents, useFeed, useNews, useNotifications } from '@/lib/portal';
@@ -41,8 +41,8 @@ export default function DashboardHome() {
 
   const { notifs, unread: newCount, markRead: readNotif, markAllRead, loaded: notifsLoaded } = useNotifications();
 
-  const dayEvents = useMemo(() => events.filter((e) => e.date === selKey), [events, selKey]);
-  const upcoming = useMemo(() => (today ? events.filter((e) => e.date >= ymd(today)).slice(0, 3) : []), [events, today]);
+  const dayEvents = useMemo(() => events.filter((e) => eventOn(e, selKey)), [events, selKey]);
+  const upcoming = useMemo(() => (today ? events.filter((e) => lastDay(e) >= ymd(today)).slice(0, 3) : []), [events, today]);
   /* quick chat: unread conversations first, then most recent */
   const recentChats = useMemo(() => [...chats].sort((a, b) => b.unread - a.unread).slice(0, 3), [chats]);
   const [qcId, setQcId] = useState('');

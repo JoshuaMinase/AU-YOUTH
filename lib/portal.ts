@@ -7,18 +7,23 @@ import { NEWS_COLS, timeAgo, toNews } from './news';
 import { colorFor } from './people';
 import { createClient } from './supabase/client';
 
-export type EventInput = Omit<CalEvent, 'id' | 'mine' | 'isPublic'> & { isPublic?: boolean };
+export type EventInput = Omit<CalEvent, 'id' | 'mine' | 'isPublic' | 'by'> & { isPublic?: boolean };
 
 function toEvent(r: Record<string, any>, myId: string): CalEvent {
   return {
     id: r.id, date: r.date, time: String(r.time ?? '').slice(0, 5),
     title: r.title, type: r.type as EventType, location: r.location ?? 'TBC',
     isPublic: !!r.is_public, mine: r.user_id === myId,
+    endDate: r.end_date ?? null, description: r.description ?? '', images: r.images ?? [],
+    by: r.user_id === myId ? 'You' : fullName(r.author),
   };
 }
 
 /** editing never changes who can see an event, so drop the flag before an update */
-const withoutVisibility = (e: EventInput) => ({ date: e.date, time: e.time, title: e.title, type: e.type, location: e.location });
+const withoutVisibility = (e: EventInput) => ({
+  date: e.date, time: e.time, title: e.title, type: e.type, location: e.location,
+  end_date: e.endDate && e.endDate > e.date ? e.endDate : null, description: e.description, images: e.images,
+});
 
 /** The signed-in member's own events plus every public event admins posted (Supabase `events` table, filtered by RLS), with add / update / remove. Actions return an error message or null. */
 export function useEvents(today: Date | null) {
@@ -29,7 +34,7 @@ export function useEvents(today: Date | null) {
 
   const load = useCallback(async () => {
     if (!me.id) return;
-    const { data, error: err } = await createClient().from('events').select('id, user_id, date, time, title, type, location, is_public');
+    const { data, error: err } = await createClient().from('events').select('id, user_id, date, time, title, type, location, is_public, end_date, description, images, author:profiles(first_name, last_name)');
     if (err) setError(err.message);
     else { setError(null); setRows((data ?? []).map((r) => toEvent(r, me.id))); }
     setLoaded(true);
@@ -68,8 +73,12 @@ export function useEvents(today: Date | null) {
   }, [me.id, canWrite, run]);
   const update = useCallback((id: string, e: EventInput) =>
     canWrite ? run(createClient().from('events').update(withoutVisibility(e)).eq('id', id)) : Promise.resolve(PROFILE_LOCKED_MSG), [canWrite, run]);
-  const remove = useCallback((id: string) =>
-    run(createClient().from('events').delete().eq('id', id)), [run]);
+  const remove = useCallback(async (id: string) => {
+    const imgs = rows.find((r) => r.id === id)?.images ?? [];
+    const msg = await run(createClient().from('events').delete().eq('id', id));
+    if (!msg) await removeEventImages(imgs);
+    return msg;
+  }, [run, rows]);
 
   return { events, add, update, remove, loaded, error };
 }
@@ -335,6 +344,29 @@ async function shrinkPhoto(file: File): Promise<Blob> {
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/webp', 0.8));
   if (!blob) throw new Error('encode');
   return blob;
+}
+
+const EVENT_BUCKET = 'event-images';
+
+/** Calendar: upload one event photo (shrunk like news photos); returns its public URL or an error message. */
+export async function uploadEventImage(file: File): Promise<{ url?: string; error?: string }> {
+  if (!file.type.startsWith('image/')) return { error: 'Please choose an image file (JPG, PNG or WebP).' };
+  if (file.size > 15 * 1024 * 1024) return { error: 'That photo is over 15 MB. Please choose a smaller one.' };
+  let blob: Blob;
+  try { blob = await shrinkPhoto(file); }
+  catch { return { error: 'We could not read that photo. Please use a JPG, PNG or WebP image.' }; }
+  const supabase = createClient();
+  const path = `${crypto.randomUUID()}.${blob.type === 'image/png' ? 'png' : blob.type === 'image/jpeg' ? 'jpg' : 'webp'}`;
+  const { error } = await supabase.storage.from(EVENT_BUCKET).upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
+  if (error) return { error: error.message };
+  return { url: supabase.storage.from(EVENT_BUCKET).getPublicUrl(path).data.publicUrl };
+}
+
+/** Best effort: delete event photos from storage (by their public URLs). Only the uploader's own files are removed by the database. */
+export async function removeEventImages(urls: string[]) {
+  const marker = `/storage/v1/object/public/${EVENT_BUCKET}/`;
+  const paths = urls.filter((u) => u.includes(marker)).map((u) => decodeURIComponent(u.split(marker)[1]));
+  if (paths.length) await createClient().storage.from(EVENT_BUCKET).remove(paths);
 }
 
 /** Admins: upload a photo for an article; returns its public URL (stored in news.img) or an error message. */

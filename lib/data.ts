@@ -109,13 +109,39 @@ export function monthCells(year: number, month: number): (Date | null)[] {
 /* ── Events ───────────────────────────────────────────────────────── */
 export type EventType = 'meeting' | 'event' | 'workshop' | 'session' | 'call' | 'forum';
 /** isPublic = visible to every member (admins only can create these); mine = you created it, so you can edit or delete it */
-export interface CalEvent { id: string; date: string; time: string; title: string; type: EventType; location: string; isPublic: boolean; mine: boolean }
+export interface CalEvent {
+  id: string; date: string; time: string; title: string; type: EventType; location: string; isPublic: boolean; mine: boolean;
+  /** last day of a multi-day event (null = single day) */
+  endDate: string | null; description: string; images: string[];
+  /** who created it (shown on public events) */
+  by: string;
+}
 
 export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: 'meeting', label: 'Meeting' }, { id: 'event', label: 'Event' },
   { id: 'workshop', label: 'Workshop' }, { id: 'session', label: 'Session' },
   { id: 'call', label: 'Call' }, { id: 'forum', label: 'Forum' },
 ];
+
+/** last day an event covers */
+export const lastDay = (e: Pick<CalEvent, 'date' | 'endDate'>) => e.endDate ?? e.date;
+/** does the event cover this day? (date keys compare as plain strings) */
+export const eventOn = (e: Pick<CalEvent, 'date' | 'endDate'>, key: string) => key >= e.date && key <= lastDay(e);
+/** every day key an event covers (capped, the database allows 90 days) */
+export function eventDays(e: Pick<CalEvent, 'date' | 'endDate'>): string[] {
+  const out: string[] = [];
+  const end = parseYmd(lastDay(e));
+  for (let d = parseYmd(e.date); d <= end && out.length < 92; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) out.push(ymd(d));
+  return out;
+}
+/** "3 Nov 2026", "3–6 Nov 2026" or "30 Oct – 2 Nov 2026" */
+export function dateRangeLabel(e: Pick<CalEvent, 'date' | 'endDate'>): string {
+  const a = parseYmd(e.date), b = parseYmd(lastDay(e));
+  const m = (d: Date) => MONTHS[d.getMonth()].slice(0, 3);
+  if (e.date === lastDay(e)) return `${a.getDate()} ${m(a)} ${a.getFullYear()}`;
+  if (a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()) return `${a.getDate()}–${b.getDate()} ${m(b)} ${b.getFullYear()}`;
+  return `${a.getDate()} ${m(a)}${a.getFullYear() === b.getFullYear() ? '' : ` ${a.getFullYear()}`} – ${b.getDate()} ${m(b)} ${b.getFullYear()}`;
+}
 
 export const sortEvents = (a: CalEvent, b: CalEvent) => (a.date + a.time).localeCompare(b.date + b.time);
 

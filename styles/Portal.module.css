@@ -341,6 +341,26 @@
 .dayItem { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border-radius: 14px; background: #f7f6f2; border-left: 4px solid var(--ev); }
 .dayItemTitle { font-size: 14px; font-weight: 700; color: var(--p-ink); }
 .dayItemMeta { margin-top: 3px; font-size: 12px; color: var(--ink-3); }
+.dayItemBtn { flex: 1; min-width: 0; display: block; text-align: left; border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; border-radius: 8px; }
+.dayItemBtn span { display: block; }
+.dayItemBtn:hover .dayItemTitle { text-decoration: underline; }
+/* event photos in the form and the details pop-up */
+.evThumbs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.evThumb { position: relative; width: 96px; height: 72px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--p-soft); }
+.evThumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.evThumbX { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; display: grid; place-items: center; border: 0; border-radius: 50%; background: rgba(255,255,255,.92); color: var(--p-ink); cursor: pointer; }
+.evThumbX .ic { width: 14px; height: 14px; }
+.evDetail { display: flex; flex-direction: column; gap: 14px; }
+.evGallery { display: grid; gap: 6px; grid-template-columns: 1fr 1fr; border-radius: 16px; overflow: hidden; }
+.evGallery img { width: 100%; height: 100%; object-fit: cover; display: block; aspect-ratio: 4 / 3; }
+.evGallery[data-count="1"] { grid-template-columns: 1fr; }
+.evGallery[data-count="1"] img { aspect-ratio: 16 / 9; }
+.evGallery[data-count="3"] img:first-child { grid-column: 1 / -1; aspect-ratio: 16 / 9; }
+.evTags { display: flex; gap: 8px; flex-wrap: wrap; }
+.evFacts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.evFacts li { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--p-ink); }
+.evFacts .ic { width: 18px; height: 18px; flex: none; margin-top: 1px; color: var(--p-accent); }
+.evDesc { margin: 0; font-size: 14px; line-height: 1.6; color: var(--ink-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .legend { display: flex; flex-wrap: wrap; gap: 10px 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
 

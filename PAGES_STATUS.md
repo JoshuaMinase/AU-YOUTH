@@ -33,3 +33,4 @@ Last updated: 2026-10-10
 - 024 public events (admins can publish events everyone sees; private stays the default) - NOT YET RUN
 - 025 one admin per department (set_admin refuses a second admin in the same department or a member with no department; the Admins list in the Admin panel is grouped by department) - NOT YET RUN
 - 026 rename the "AU Intern Community" chat to "AU Youth Community" - NOT YET RUN
+- 027 event details (optional last day for multi-day events, description, up to 3 photos in the public event-images bucket; click an event on the calendar to see everything) - NOT YET RUN. Run it BEFORE pushing the app update, because the calendar reads the new columns

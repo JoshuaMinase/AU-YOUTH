@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { MONTHS, monthCells, ymd, type CalEvent } from '../../lib/data';
+import { MONTHS, eventDays, monthCells, ymd, type CalEvent } from '../../lib/data';
 import s from '../../styles/Portal.module.css';
 
 /* ── Icons (stroke inherits currentColor via CSS) ─────────────────── */
@@ -133,7 +133,7 @@ export function MiniCalendar({ today, events, selected, onSelect }: {
   today: Date; events: CalEvent[]; selected: string; onSelect: (key: string) => void;
 }) {
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
-  const has = new Set(events.map((e) => e.date));
+  const has = new Set(events.flatMap(eventDays));
   const todayKey = ymd(today);
   const shift = (n: number) => setView(({ y, m }) => { const d = new Date(y, m + n, 1); return { y: d.getFullYear(), m: d.getMonth() }; });
 
