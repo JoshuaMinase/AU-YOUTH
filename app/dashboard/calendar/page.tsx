@@ -96,7 +96,7 @@ export default function CalendarPage() {
   return (
     <>
       <Hero plain eyebrow={v ? `${MONTHS[v.m]} ${v.y}` : 'Schedule'} title="Your *Calendar*" desc={isAdmin ? 'Public events are seen by every member. Private events are only for you.' : 'Your schedule and upcoming AU community events.'}>
-        <button type="button" className={s.btnDark} onClick={() => setAdding(isAdmin ? 'public' : 'private')} disabled={!today}>{I.plus} {isAdmin ? 'Add public event' : 'Add my event'}</button>
+        {isAdmin && <button type="button" className={s.btnDark} onClick={() => setAdding('public')} disabled={!today}>{I.plus} Add public event</button>}
       </Hero>
 
       <div className={s.calLayout}>
