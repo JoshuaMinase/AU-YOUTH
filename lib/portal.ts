@@ -163,10 +163,21 @@ export function useChats() {
   }, [me.id, load]);
 
   const send = useCallback(async (id: string, text: string) => {
-    const { error: err } = await createClient().from('messages').insert({ conversation_id: id, sender_id: me.id, body: text });
+    /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
+    let msg: string | null = null;
+    try {
+      const res = await fetch('/api/chat/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: id, text }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        msg = data?.error ?? 'Could not send. Try again.';
+      }
+    } catch { msg = 'Could not reach the server. Check your connection.'; }
     await load();
-    return err ? err.message : null;
-  }, [me.id, load]);
+    return msg;
+  }, [load]);
 
   /** open (or create) a 1:1 chat with a connection; returns the conversation id or an error */
   const start = useCallback(async (otherId: string): Promise<{ id?: string; error?: string }> => {
@@ -386,6 +397,7 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   connection_accepted: { icon: '✓', bg: '#E8EEE9', fg: '#2F4A3A' },
   post_comment: { icon: '💬', bg: '#F3EEE4', fg: '#8a6a3c' },
   delete_request: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
+  flagged_message: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
   new_department: { icon: '+', bg: '#ECECE8', fg: '#1E2A22' },
 };
 
@@ -592,4 +604,46 @@ export function useAddedDepartments() {
   }, [load]);
 
   return { departments, loaded, remove };
+}
+
+export interface FlaggedMessage { id: string; who: string; body: string; categories: string[]; time: string; reviewed: boolean }
+
+/** Messages the AI blocked in chats (Supabase `moderation_flags`, admins only), with live updates. */
+export function useFlaggedMessages() {
+  const { me } = useMe();
+  const [flags, setFlags] = useState<FlaggedMessage[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!me.id || me.access === 'user') return;
+    const { data } = await createClient().from('moderation_flags')
+      .select('id, body, categories, created_at, reviewed_at, sender:profiles!moderation_flags_sender_id_fkey(first_name, last_name)')
+      .order('created_at', { ascending: false }).limit(100);
+    const now = new Date();
+    setFlags((data ?? []).map((r: Record<string, any>) => ({
+      id: r.id, who: fullName(r.sender), body: r.body, categories: r.categories ?? [],
+      time: timeAgo(r.created_at, now), reviewed: !!r.reviewed_at,
+    })));
+    setLoaded(true);
+  }, [me.id, me.access]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!me.id || me.access === 'user') return;
+    const supabase = createClient();
+    const channel = supabase.channel(`flags-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'moderation_flags' }, () => { load(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [me.id, me.access, load]);
+
+  const markReviewed = useCallback(async (id: string) => {
+    const { error: err } = await createClient().from('moderation_flags')
+      .update({ reviewed_at: new Date().toISOString(), reviewed_by: me.id }).eq('id', id);
+    await load();
+    return err ? err.message : null;
+  }, [me.id, load]);
+
+  return { flags, loaded, markReviewed };
 }

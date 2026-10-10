@@ -7,7 +7,7 @@ import { TicketRow } from '@/components/portal/Tickets';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
-import { useAddedDepartments, useDeleteRequests, useTickets } from '@/lib/portal';
+import { useAddedDepartments, useDeleteRequests, useFlaggedMessages, useTickets } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const linkBtn = { border: 0, background: 'none', cursor: 'pointer' } as const;
@@ -19,6 +19,8 @@ export default function AdminPage() {
   const { requests, loaded: requestsLoaded, approve, decline } = useDeleteRequests();
   const { tickets, loaded: ticketsLoaded, setStatus } = useTickets();
   const { departments, loaded: deptsLoaded, remove: removeDept } = useAddedDepartments();
+  const { flags, loaded: flagsLoaded, markReviewed } = useFlaggedMessages();
+  const [flagFilter, setFlagFilter] = useState<'new' | 'all'>('new');
   const [toast, toastNode] = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const [q, setQ] = useState('');
@@ -30,6 +32,7 @@ export default function AdminPage() {
     const t = q.trim().toLowerCase();
     return t ? members.filter((m) => `${m.name} ${m.dept}`.toLowerCase().includes(t)).slice(0, 8) : [];
   }, [members, q]);
+  const flagList = flags.filter((f) => flagFilter === 'all' || !f.reviewed);
   const queue = tickets.filter((t) => ticketFilter === 'all' || t.status !== 'closed');
 
   const act = async (id: string, fn: () => Promise<string | null>, done: string) => {
@@ -51,7 +54,7 @@ export default function AdminPage() {
   return (
     <>
       <Hero plain eyebrow={isSuper ? 'Super admin' : 'Admin'} title="Admin *panel*"
-        desc={isSuper ? 'Manage admins, deletion requests, support tickets and departments.' : 'Deletion requests, support tickets and departments.'}>
+        desc={isSuper ? 'Manage admins, deletion requests, blocked chat messages, support tickets and departments.' : 'Deletion requests, blocked chat messages, support tickets and departments.'}>
         <Link href="/dashboard/news" className={s.btnDark}>{I.news} Write news</Link>
       </Hero>
 
@@ -125,6 +128,33 @@ export default function AdminPage() {
           ))}
         </div>
         {requestsLoaded && !requests.length && <p className={s.agendaEmpty}>No pending requests.</p>}
+      </section>
+
+      {/* ── Messages blocked by the AI ── */}
+      <section className={`${s.card} ${s.panel}`}>
+        <div className={s.cardHead}>
+          <div><p className={s.cardEyebrow}>Chats</p><h2 className={s.cardTitle}>Blocked messages</h2></div>
+          <div className={s.pills} role="group" aria-label="Which blocked messages">
+            <button type="button" className={s.pill} aria-pressed={flagFilter === 'new'} onClick={() => setFlagFilter('new')}>To review</button>
+            <button type="button" className={s.pill} aria-pressed={flagFilter === 'all'} onClick={() => setFlagFilter('all')}>All</button>
+          </div>
+        </div>
+        <div className={s.list}>
+          {flagList.map((f) => (
+            <div key={f.id} className={s.listRow} style={{ alignItems: 'flex-start' }}>
+              <div className={s.rowMain}>
+                <p className={s.rowTitle}>{f.who} tried to send:</p>
+                <p className={s.rowSub} style={{ whiteSpace: 'pre-wrap' }}>&ldquo;{f.body.length > 300 ? `${f.body.slice(0, 300)}…` : f.body}&rdquo;</p>
+                <p className={s.rowSub}>{f.categories.join(', ') || 'flagged'} · {f.time}</p>
+              </div>
+              {f.reviewed
+                ? <span className={`${s.tag} ${s.tMuted}`}>Reviewed</span>
+                : <button type="button" className={`${s.btnLine} ${s.btnSm}`} disabled={busy === f.id}
+                    onClick={() => act(f.id, () => markReviewed(f.id), 'Marked as reviewed')}>Mark reviewed</button>}
+            </div>
+          ))}
+        </div>
+        {flagsLoaded && !flagList.length && <p className={s.agendaEmpty}>{flagFilter === 'new' ? 'Nothing to review.' : 'No messages have been blocked yet.'}</p>}
       </section>
 
       {/* ── Support tickets ── */}
