@@ -138,7 +138,7 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
       }}>
         <div className={s.field}>
           <label className={s.label} htmlFor="p-bio">Bio</label>
-          <textarea id="p-bio" className={s.textarea} value={f.bio} onChange={set('bio')} maxLength={400} placeholder="A few lines about you, your work and interests (20+ characters)" />
+          <textarea id="p-bio" className={s.textarea} value={f.bio} onChange={set('bio')} maxLength={400} placeholder="Optional: a few lines about you, your work and interests" />
         </div>
         <div className={s.formRow}>
           <div className={s.field}><label className={s.label} htmlFor="p-role">Role</label><select id="p-role" className={s.input} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>

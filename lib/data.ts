@@ -50,7 +50,6 @@ export const profileScore = (p: Profile) =>
  *  Keep in sync with private.profile_complete() in docs/sql/022_profile_gate.sql. Admins and the super admin are not limited, only reminded. */
 export const profileMissing = (p: Profile, extra: { role: string; dept: string }): string[] => {
   const m: string[] = [];
-  if (p.bio.trim().length < 20) m.push('a short bio (20+ characters)');
   if (!extra.role.trim()) m.push('your role');
   if (!extra.dept.trim()) m.push('your department');
   if (!p.nationality.trim()) m.push('your nationality');

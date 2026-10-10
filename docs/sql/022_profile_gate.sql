@@ -2,7 +2,7 @@
 -- Needs 001-021. Incomplete profiles become view-only: members can read news, people and the feed,
 -- but cannot post, comment, like, add or edit events, send connection requests, accept them or send chat messages
 -- until the required profile fields are filled in. Admins and the super admin are never locked (the app only reminds them to finish their profile).
--- Keep the field list in sync with profileMissing() in lib/data.ts.
+-- The bio is optional. Keep the field list in sync with profileMissing() in lib/data.ts.
 
 create or replace function private.profile_complete(uid uuid)
 returns boolean
@@ -13,7 +13,6 @@ as $$
     or exists (
       select 1 from public.profiles p
       where p.id = uid
-        and length(btrim(coalesce(p.bio, ''))) >= 20
         and btrim(coalesce(p.role, '')) <> ''
         and btrim(coalesce(p.dept, '')) <> ''
         and btrim(coalesce(p.nationality, '')) <> ''
