@@ -47,7 +47,7 @@ export const profileScore = (p: Profile) =>
   Math.min(100, 50 + (p.bio.trim().length >= 20 ? 25 : 0) + (p.skills.length >= 5 ? 15 : 0) + (p.nationality.trim() && p.basedIn.trim() ? 10 : 0));
 
 /** What a member must fill in before they can post, chat, add events or connect (until then: view-only).
- *  Keep in sync with private.profile_complete() in docs/sql/022_profile_gate.sql. Admins are exempt. */
+ *  Keep in sync with private.profile_complete() in docs/sql/022_profile_gate.sql. Admins and the super admin are not limited, only reminded. */
 export const profileMissing = (p: Profile, extra: { role: string; dept: string }): string[] => {
   const m: string[] = [];
   if (p.bio.trim().length < 20) m.push('a short bio (20+ characters)');

@@ -17,7 +17,7 @@ function toEvent(r: Record<string, any>): CalEvent {
 
 /** The signed-in member's own events (Supabase `events` table), with add / update / remove. Actions return an error message or null. */
 export function useEvents(today: Date | null) {
-  const { me, complete } = useMe();
+  const { me, canWrite } = useMe();
   const [rows, setRows] = useState<CalEvent[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,11 +58,11 @@ export function useEvents(today: Date | null) {
 
   const add = useCallback((e: EventInput) => {
     if (!me.id) return Promise.resolve('You are not signed in.');
-    if (!complete) return Promise.resolve(PROFILE_LOCKED_MSG);
+    if (!canWrite) return Promise.resolve(PROFILE_LOCKED_MSG);
     return run(createClient().from('events').insert({ ...e, user_id: me.id }));
-  }, [me.id, complete, run]);
+  }, [me.id, canWrite, run]);
   const update = useCallback((id: string, e: EventInput) =>
-    complete ? run(createClient().from('events').update(e).eq('id', id)) : Promise.resolve(PROFILE_LOCKED_MSG), [complete, run]);
+    canWrite ? run(createClient().from('events').update(e).eq('id', id)) : Promise.resolve(PROFILE_LOCKED_MSG), [canWrite, run]);
   const remove = useCallback((id: string) =>
     run(createClient().from('events').delete().eq('id', id)), [run]);
 
@@ -93,7 +93,7 @@ const CHAT_COLS = `id, is_group, title, last_message_at, dept:departments(name),
  * Shared by the header badge, the chats page and home quick chat. send/markRead return an error message or null.
  */
 export function useChats() {
-  const { me, complete } = useMe();
+  const { me, canWrite } = useMe();
   const [chats, setChats] = useState<(Chat & { preview: string })[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -166,7 +166,7 @@ export function useChats() {
   }, [me.id, load]);
 
   const send = useCallback(async (id: string, text: string) => {
-    if (!complete) return PROFILE_LOCKED_MSG;
+    if (!canWrite) return PROFILE_LOCKED_MSG;
     /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
     let msg: string | null = null;
     try {
@@ -181,16 +181,16 @@ export function useChats() {
     } catch { msg = 'Could not reach the server. Check your connection.'; }
     await load();
     return msg;
-  }, [load, complete]);
+  }, [load, canWrite]);
 
   /** open (or create) a 1:1 chat with a connection; returns the conversation id or an error */
   const start = useCallback(async (otherId: string): Promise<{ id?: string; error?: string }> => {
-    if (!complete) return { error: PROFILE_LOCKED_MSG };
+    if (!canWrite) return { error: PROFILE_LOCKED_MSG };
     const { data, error: err } = await createClient().rpc('start_dm', { other: otherId });
     if (err) return { error: err.message };
     await load();
     return { id: data as string };
-  }, [load, complete]);
+  }, [load, canWrite]);
 
   /** department group chats: admins of that department add / remove members (enforced in the database) */
   const addMember = useCallback(async (conv: string, member: string) => {
@@ -324,7 +324,7 @@ const FEED_COLS = `id, author_id, as_org, pinned, body, image, created_at,
 
 /** Community feed (Supabase `posts`, `post_likes`, `post_comments`, `post_hides`) with live updates. Actions return an error message or null. */
 export function useFeed() {
-  const { me, complete } = useMe();
+  const { me, canWrite } = useMe();
   const [rows, setRows] = useState<FeedPost[]>([]);
   const [hidden, setHidden] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -386,14 +386,14 @@ export function useFeed() {
     return err ? err.message : null;
   }, [load]);
 
-  const publish = useCallback((body: string) => complete
-    ? run(createClient().from('posts').insert({ author_id: me.id, body })) : Promise.resolve(PROFILE_LOCKED_MSG), [me.id, complete, run]);
+  const publish = useCallback((body: string) => canWrite
+    ? run(createClient().from('posts').insert({ author_id: me.id, body })) : Promise.resolve(PROFILE_LOCKED_MSG), [me.id, canWrite, run]);
   const remove = useCallback((id: string) => run(createClient().from('posts').delete().eq('id', id)), [run]);
-  const toggleLike = useCallback((p: FeedPost) => !complete ? Promise.resolve(PROFILE_LOCKED_MSG) : run(p.liked
+  const toggleLike = useCallback((p: FeedPost) => !canWrite ? Promise.resolve(PROFILE_LOCKED_MSG) : run(p.liked
     ? createClient().from('post_likes').delete().eq('post_id', p.id).eq('user_id', me.id)
-    : createClient().from('post_likes').insert({ post_id: p.id, user_id: me.id })), [me.id, complete, run]);
-  const comment = useCallback((postId: string, body: string) => complete
-    ? run(createClient().from('post_comments').insert({ post_id: postId, author_id: me.id, body })) : Promise.resolve(PROFILE_LOCKED_MSG), [me.id, complete, run]);
+    : createClient().from('post_likes').insert({ post_id: p.id, user_id: me.id })), [me.id, canWrite, run]);
+  const comment = useCallback((postId: string, body: string) => canWrite
+    ? run(createClient().from('post_comments').insert({ post_id: postId, author_id: me.id, body })) : Promise.resolve(PROFILE_LOCKED_MSG), [me.id, canWrite, run]);
   const hide = useCallback((id: string) => run(createClient().from('post_hides').insert({ post_id: id, user_id: me.id })), [me.id, run]);
   const unhideAll = useCallback(() => run(createClient().from('post_hides').delete().eq('user_id', me.id)), [me.id, run]);
   /** admins: ask for someone else's post to be removed; the author or the super admin decides */

@@ -20,7 +20,7 @@ const NAV = [
 const ADMIN_NAV = { href: '/dashboard/admin', label: 'Admin', icon: I.shield };
 
 function Shell({ children }: { children: React.ReactNode }) {
-  const { me, ready, complete, missing } = useMe();
+  const { me, ready, complete, canWrite, missing } = useMe();
   const pathname = usePathname();
   const router = useRouter();
   const main = useRef<HTMLElement>(null);
@@ -80,10 +80,12 @@ function Shell({ children }: { children: React.ReactNode }) {
         {ready && !complete && pathname !== '/dashboard/profile' && (
           <section className={`${s.card} ${s.completion}`} role="status">
             <div>
-              <p className={s.cardEyebrow}>View only for now</p>
-              <h2 className={s.cardTitle} style={{ marginBottom: 6 }}>Complete your profile to unlock everything</h2>
+              <p className={s.cardEyebrow}>{canWrite ? 'Reminder' : 'View only for now'}</p>
+              <h2 className={s.cardTitle} style={{ marginBottom: 6 }}>{canWrite ? 'Please finish your profile' : 'Complete your profile to unlock everything'}</h2>
               <p className={s.cardMeta}>
-                You can read the news, but chatting, the calendar, connections and comments unlock once you add {missing.join(', ')}.
+                {canWrite
+                  ? `Members can see your profile. Still needed: ${missing.join(', ')}.`
+                  : `You can read the news, but chatting, the calendar, connections and comments unlock once you add ${missing.join(', ')}.`}
               </p>
             </div>
             <Link href="/dashboard/profile" className={s.btnDark}>Complete profile</Link>

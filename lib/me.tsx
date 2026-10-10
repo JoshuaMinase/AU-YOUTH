@@ -22,15 +22,17 @@ interface Ctx {
   me: Me;
   profile: Profile;
   ready: boolean;
-  /** false = view-only until the required profile fields are filled in (admins are never locked) */
+  /** true when all required profile fields are filled in */
   complete: boolean;
+  /** false = view-only. Only regular members are limited; admins and the super admin are just reminded to finish their profile */
+  canWrite: boolean;
   /** what is still missing, in plain words */
   missing: string[];
   /** returns an error message, or null on success */
   save: (p: Profile, extra: { role: string; dept: string }) => Promise<string | null>;
 }
 
-const MeContext = createContext<Ctx>({ me: EMPTY_ME, profile: EMPTY_PROFILE, ready: false, complete: false, missing: [], save: async () => 'Not ready' });
+const MeContext = createContext<Ctx>({ me: EMPTY_ME, profile: EMPTY_PROFILE, ready: false, complete: false, canWrite: false, missing: [], save: async () => 'Not ready' });
 export const useMe = () => useContext(MeContext);
 
 function buildMe(id: string, email: string, row: Record<string, any> | null, access: Access): Me {
@@ -92,8 +94,9 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
   }, [me.id, me.first, me.last]);
 
   const missing = useMemo(() => profileMissing(profile, me), [profile, me]);
-  const complete = me.access !== 'user' || missing.length === 0;
+  const complete = missing.length === 0;
+  const canWrite = complete || me.access !== 'user';
 
-  const value = useMemo(() => ({ me, profile, ready, complete, missing, save }), [me, profile, ready, complete, missing, save]);
+  const value = useMemo(() => ({ me, profile, ready, complete, canWrite, missing, save }), [me, profile, ready, complete, canWrite, missing, save]);
   return <MeContext.Provider value={value}>{children}</MeContext.Provider>;
 }

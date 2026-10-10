@@ -177,7 +177,7 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
 }
 
 export default function ProfilePage() {
-  const { me, profile, save, complete, missing } = useMe();
+  const { me, profile, save, complete, canWrite, missing } = useMe();
   const { connected: network } = usePeople();
   const [editing, setEditing] = useState(false);
   const [toast, toastNode] = useToast();
@@ -204,8 +204,8 @@ export default function ProfilePage() {
       {!complete && (
         <section className={`${s.card} ${s.completion}`} data-reveal role="status">
           <div>
-            <p className={s.cardEyebrow}>View only until complete</p>
-            <h2 className={s.cardTitle} style={{ marginBottom: 6 }}>Finish your profile to unlock chats, calendar and connections</h2>
+            <p className={s.cardEyebrow}>{canWrite ? 'Reminder' : 'View only until complete'}</p>
+            <h2 className={s.cardTitle} style={{ marginBottom: 6 }}>{canWrite ? 'Please finish your profile' : 'Finish your profile to unlock chats, calendar and connections'}</h2>
             <p className={s.cardMeta}>Still needed: {missing.join(', ')}.</p>
           </div>
           <button type="button" className={s.btnDark} onClick={() => setEditing(true)}>Finish profile</button>
