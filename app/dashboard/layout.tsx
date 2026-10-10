@@ -11,14 +11,16 @@ import { useReveal, useSwipeTabs } from '@/lib/hooks';
 import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
-const NAV = [
+type NavItem = { href: string; label: string; short?: string; icon: JSX.Element };
+const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Home', icon: I.home },
   { href: '/dashboard/news', label: 'News', icon: I.news },
+  { href: '/dashboard/opportunities', label: 'Opportunities', short: 'Opps', icon: I.book },
   { href: '/dashboard/people', label: 'People', icon: I.people },
   { href: '/dashboard/calendar', label: 'Calendar', icon: I.calendar },
   { href: '/dashboard/get-help', label: 'Get Help', icon: I.help },
 ];
-const ADMIN_NAV = { href: '/dashboard/admin', label: 'Admin', icon: I.shield };
+const ADMIN_NAV: NavItem = { href: '/dashboard/admin', label: 'Admin', icon: I.shield };
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { me, ready, complete, canWrite, missing } = useMe();
@@ -101,8 +103,8 @@ function Shell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className={s.tabbar} aria-label="Portal (mobile)">
-        {nav.map(({ href, label, icon }) => (
-          <Link key={href} href={href} aria-current={active(href) ? 'page' : undefined}>{icon}{label}</Link>
+        {nav.map(({ href, label, short, icon }) => (
+          <Link key={href} href={href} aria-label={label} aria-current={active(href) ? 'page' : undefined}>{icon}{short ?? label}</Link>
         ))}
       </nav>
     </div>

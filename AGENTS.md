@@ -18,7 +18,7 @@ A Next.js website for the African Union Youth Community (interns, volunteers, fe
 |---|---|---|
 | **Public site** | `/`, `/about`, `/opportunities`, `/community`, `/why-join`, 404 | Bold: deep AU green `#032210`, AU pattern, amber/yellow CTAs, big Chopin headings, GSAP scroll animation |
 | **Auth** | `/login`, `/sign-up` | Split screen, form left, photo right |
-| **Dashboard (portal)** | `/dashboard`, `/dashboard/admin` (admins only), `/dashboard/news`, `/dashboard/news/[slug]`, `/dashboard/people`, `/dashboard/calendar`, `/dashboard/chats`, `/dashboard/get-help`, `/dashboard/profile` | **Calm, neutral & minimal**: soft grey background, white cards, near-black green text, bronze used sparingly |
+| **Dashboard (portal)** | `/dashboard`, `/dashboard/admin` (admins only), `/dashboard/news`, `/dashboard/news/[slug]`, `/dashboard/opportunities`, `/dashboard/opportunities/[slug]`, `/dashboard/people`, `/dashboard/calendar`, `/dashboard/chats`, `/dashboard/get-help`, `/dashboard/profile` | **Calm, neutral & minimal**: soft grey background, white cards, near-black green text, bronze used sparingly |
 
 **Backend: Supabase** (auth + Postgres with RLS + realtime). Every dashboard page reads and writes real
 data through the hooks in `lib/portal.ts`, `lib/people.ts` and `lib/me.tsx`. Schema changes live in
@@ -60,7 +60,7 @@ app/
   dashboard/
     layout.tsx            Portal header (glass pill + logo + wordmark), mobile tab bar, page reveal
     page.tsx              Dashboard home
-    news/ news/[slug]/ people/ calendar/ chats/ get-help/ profile/
+    news/ news/[slug]/ opportunities/ opportunities/[slug]/ people/ calendar/ chats/ get-help/ profile/
 
 components/
   SmoothScroll.tsx        THE ONLY Lenis instance. Exposes getLenis().
@@ -78,6 +78,9 @@ components/
   portal/TicketArchive.tsx  Admin-only, collapsed lookup to read a ticket chat read-only (logged)
   portal/VoiceRecorder.tsx  Records a voice message inside the chat message box
   portal/ForwardDialog.tsx  Pick one or more chats to forward a message to
+  portal/NotifyMe.tsx     "Notify me" card (date + reminder toggle) on news articles and opportunities
+  portal/RegisterBar.tsx  Apply (link) or Register me / Registered on an opportunity
+  portal/OpportunityEditor.tsx, OpportunityAdmin.tsx  Admins: write / edit an opportunity; registered list board + CSV
 
 lib/
   data.ts                 ALL mock data + date helpers + profile model + avatar colour helpers

@@ -1,7 +1,7 @@
 import { MONTHS, type NewsCat, type NewsItem } from './data';
 
 /** Columns the news pages read from the Supabase `news` table. */
-export const NEWS_COLS = 'slug, cat, title, excerpt, body, source, img, featured, published_at';
+export const NEWS_COLS = 'id, slug, cat, title, excerpt, body, source, img, featured, published_at, event_at';
 
 /** stock photos an admin can pick for an article (or upload their own: see uploadNewsImage in lib/portal.ts) */
 export const NEWS_IMAGES = [
@@ -14,7 +14,7 @@ export const NEWS_IMAGES = [
 
 /** category → the singular label on the chip (keys of TAG_CLASS) */
 const CAT_TAG: Record<NewsCat, string> = {
-  Initiatives: 'Initiative', Opportunities: 'Opportunity', Events: 'Event',
+  Initiatives: 'Initiative', Events: 'Event',
   Partnerships: 'Partnership', Announcements: 'Announcement', Development: 'Development',
 };
 
@@ -38,5 +38,43 @@ export function toNews(r: Record<string, any>, now: Date): NewsItem {
     slug: r.slug, cat: r.cat as NewsCat, tag: CAT_TAG[r.cat as NewsCat] ?? r.cat,
     title: r.title, excerpt: r.excerpt ?? '', body: r.body ?? [], source: r.source ?? '',
     img: r.img, featured: !!r.featured, meta: timeAgo(r.published_at, now),
+    id: r.id, eventAt: r.event_at ?? null,
   };
 }
+
+/* ── Opportunities (Supabase `opportunities`, SQL 033) ─────────────── */
+export const OPP_COLS = 'id, slug, kind, title, excerpt, body, source, img, apply_url, event_at, published_at';
+export const OPP_KINDS = ['Internship', 'Fellowship', 'Volunteer', 'Event', 'Other'] as const;
+export type OppKind = (typeof OPP_KINDS)[number];
+export interface Opportunity {
+  id: string; slug: string; kind: OppKind; title: string; excerpt: string; body: string[]; source: string; img: string;
+  /** with a link, Apply opens it; without one, members register on the site */
+  applyUrl: string | null;
+  /** the date members are reminded about (event day or deadline), ISO */
+  eventAt: string | null;
+  meta: string;
+}
+
+export function toOpp(r: Record<string, any>, now: Date): Opportunity {
+  return {
+    id: r.id, slug: r.slug, kind: (OPP_KINDS as readonly string[]).includes(r.kind) ? r.kind : 'Other',
+    title: r.title, excerpt: r.excerpt ?? '', body: r.body ?? [], source: r.source ?? '', img: r.img,
+    applyUrl: r.apply_url ?? null, eventAt: r.event_at ?? null, meta: timeAgo(r.published_at, now),
+  };
+}
+
+/** "Fri 12 Nov 2026, 14:00" in the viewer's own time zone. Call it in the browser only (never while rendering on the server). */
+export function formatWhen(iso: string) {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.toLocaleDateString('en-GB', { weekday: 'short' })} ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}, ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/** ISO time ↔ the value of an <input type="datetime-local"> (local time, no zone) */
+export function toLocalInput(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+export const fromLocalInput = (v: string) => (v ? new Date(v).toISOString() : null);

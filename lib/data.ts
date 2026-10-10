@@ -146,13 +146,15 @@ export function dateRangeLabel(e: Pick<CalEvent, 'date' | 'endDate'>): string {
 export const sortEvents = (a: CalEvent, b: CalEvent) => (a.date + a.time).localeCompare(b.date + b.time);
 
 /* ── News ─────────────────────────────────────────────────────────── */
-export type NewsCat = 'Initiatives' | 'Opportunities' | 'Events' | 'Partnerships' | 'Announcements' | 'Development';
+export type NewsCat = 'Initiatives' | 'Events' | 'Partnerships' | 'Announcements' | 'Development';
 export interface NewsItem {
   slug: string; tag: string; cat: NewsCat; title: string; excerpt: string;
   body: string[]; meta: string; source: string; img: string; featured?: boolean;
+  /** set on articles read from Supabase: the id and the optional event date (ISO) the "Notify me" button reminds about */
+  id?: string; eventAt?: string | null;
 }
 
-export const NEWS_CATS: ('All' | NewsCat)[] = ['All', 'Initiatives', 'Opportunities', 'Events', 'Partnerships', 'Development', 'Announcements'];
+export const NEWS_CATS: ('All' | NewsCat)[] = ['All', 'Initiatives', 'Events', 'Partnerships', 'Development', 'Announcements'];
 
 /* articles live in the Supabase `news` table (seeded by docs/sql/009_news.sql) */
 

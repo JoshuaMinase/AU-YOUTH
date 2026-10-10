@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, ticketCode, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem, type TicketInfo } from './data';
 import { AUDIO_TYPES, CHAT_BUCKET, CHAT_MAX_BYTES, audioExt, baseType, checkChatFile, chatMime, cleanName, extOf, previewOf, type ChatFile, type ChatKind } from './chatFiles';
 import { useMe } from './me';
-import { NEWS_COLS, timeAgo, toNews } from './news';
+import { NEWS_COLS, OPP_COLS, timeAgo, toNews, toOpp, type OppKind, type Opportunity } from './news';
 import { colorFor } from './people';
 import { createClient } from './supabase/client';
 
@@ -339,7 +339,7 @@ export function useChats() {
   return { chats: shown, unread, markRead, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
 }
 
-export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean }
+export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean; eventAt: string | null }
 
 /** url-safe slug from the title, with a short random tail so two titles never clash */
 const slugify = (title: string) =>
@@ -352,12 +352,14 @@ export async function saveNews(input: NewsInput, slug?: string): Promise<{ slug?
     const { error } = await supabase.from('news').update({ featured: false }).eq('featured', true).neq('slug', slug ?? '');
     if (error) return { error: error.message };
   }
+  const { eventAt, ...rest } = input;
+  const row = { ...rest, event_at: eventAt };
   if (slug) {
-    const { error } = await supabase.from('news').update(input).eq('slug', slug);
+    const { error } = await supabase.from('news').update(row).eq('slug', slug);
     return error ? { error: error.message } : { slug };
   }
   const fresh = slugify(input.title);
-  const { error } = await supabase.from('news').insert({ ...input, slug: fresh });
+  const { error } = await supabase.from('news').insert({ ...row, slug: fresh });
   return error ? { error: error.message } : { slug: fresh };
 }
 
@@ -373,6 +375,32 @@ export async function deleteNews(slug: string, img?: string) {
 }
 
 const NEWS_BUCKET = 'news-images';
+
+export interface OpportunityInput { title: string; kind: OppKind; source: string; img: string; excerpt: string; body: string[]; applyUrl: string | null; eventAt: string | null }
+
+/** Admins: publish a new opportunity, or update the one with `slug`. */
+export async function saveOpportunity(input: OpportunityInput, slug?: string): Promise<{ slug?: string; error?: string }> {
+  const supabase = createClient();
+  const { applyUrl, eventAt, ...rest } = input;
+  const row = { ...rest, apply_url: applyUrl, event_at: eventAt };
+  if (slug) {
+    const { error } = await supabase.from('opportunities').update(row).eq('slug', slug);
+    return error ? { error: error.message } : { slug };
+  }
+  const fresh = slugify(input.title);
+  const { error } = await supabase.from('opportunities').insert({ ...row, slug: fresh });
+  return error ? { error: error.message } : { slug: fresh };
+}
+
+/** Admins: delete an opportunity (its registrations go with it); returns an error message or null. */
+export async function deleteOpportunity(slug: string, img?: string) {
+  const supabase = createClient();
+  const { error } = await supabase.from('opportunities').delete().eq('slug', slug);
+  if (error) return error.message;
+  const marker = `/storage/v1/object/public/${NEWS_BUCKET}/`;
+  if (img && img.includes(marker)) await supabase.storage.from(NEWS_BUCKET).remove([decodeURIComponent(img.split(marker)[1])]);
+  return null;
+}
 
 /** Shrinks a photo to at most 1600px wide and re-encodes it as WebP (AGENTS §8), in the browser. */
 async function shrinkPhoto(file: File): Promise<Blob> {
@@ -510,6 +538,134 @@ export function useNews() {
   return { news, loaded, error };
 }
 
+/** Every opportunity (Supabase `opportunities`, SQL 033) with live updates. */
+export function useOpportunities() {
+  const { me } = useMe();
+  const [items, setItems] = useState<Opportunity[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('opportunities').select(OPP_COLS).order('published_at', { ascending: false });
+    if (err) setError(err.message);
+    else { setError(null); const now = new Date(); setItems((data ?? []).map((r) => toOpp(r, now))); }
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!me.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`opps-${me.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'opportunities' }, () => { load(); })
+      .subscribe();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      supabase.removeChannel(channel);
+    };
+  }, [me.id, load]);
+
+  return { items, loaded, error };
+}
+
+/** "Notify me" on a news article or an opportunity (SQL 033): reminders 24 h and 45 min before its date. toggle() returns an error message or null. */
+export function useReminder(kind: 'news' | 'opportunity', id: string | undefined) {
+  const { me } = useMe();
+  const col = kind === 'news' ? 'news_id' : 'opportunity_id';
+  const [on, setOn] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!me.id || !id) return;
+    let alive = true;
+    createClient().from('event_reminders').select('id').eq(col, id).eq('user_id', me.id).maybeSingle().then(({ data }) => {
+      if (alive) { setOn(!!data); setLoaded(true); }
+    });
+    return () => { alive = false; };
+  }, [me.id, id, col]);
+
+  const toggle = useCallback(async (): Promise<string | null> => {
+    if (!id || !me.id) return null;
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = on
+      ? await supabase.from('event_reminders').delete().eq(col, id).eq('user_id', me.id)
+      : await supabase.from('event_reminders').insert({ [col]: id });
+    setBusy(false);
+    if (error) return error.message;
+    setOn(!on);
+    return null;
+  }, [id, me.id, col, on]);
+
+  return { on, loaded, busy, toggle };
+}
+
+/** Register / cancel on an opportunity that has no apply link (SQL 033). toggle() returns an error message or null. */
+export function useRegistration(opportunityId: string | undefined) {
+  const { me } = useMe();
+  const [registered, setRegistered] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!me.id || !opportunityId) return;
+    let alive = true;
+    createClient().from('opportunity_registrations').select('user_id').eq('opportunity_id', opportunityId).eq('user_id', me.id).maybeSingle().then(({ data }) => {
+      if (alive) { setRegistered(!!data); setLoaded(true); }
+    });
+    return () => { alive = false; };
+  }, [me.id, opportunityId]);
+
+  const toggle = useCallback(async (): Promise<string | null> => {
+    if (!opportunityId || !me.id) return null;
+    setBusy(true);
+    const supabase = createClient();
+    const { error } = registered
+      ? await supabase.from('opportunity_registrations').delete().eq('opportunity_id', opportunityId).eq('user_id', me.id)
+      : await supabase.from('opportunity_registrations').insert({ opportunity_id: opportunityId });
+    setBusy(false);
+    if (error) return error.message;
+    setRegistered(!registered);
+    return null;
+  }, [opportunityId, me.id, registered]);
+
+  return { registered, loaded, busy, toggle };
+}
+
+export interface Registrant { id: string; name: string; role: string; dept: string; at: string }
+
+/** Admins: everyone registered on an opportunity, newest first (RLS only lets admins read other people's rows). */
+export function useRegistrants(opportunityId: string, enabled: boolean) {
+  const [list, setList] = useState<Registrant[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!enabled) return;
+    const { data, error: err } = await createClient().from('opportunity_registrations')
+      .select('user_id, created_at, person:profiles(first_name, last_name, role, dept)')
+      .eq('opportunity_id', opportunityId).order('created_at', { ascending: false });
+    if (err) setError(err.message);
+    else {
+      setError(null);
+      setList((data ?? []).map((r: Record<string, any>) => ({
+        id: r.user_id, name: fullName(r.person), role: r.person?.role ?? '', dept: r.person?.dept ?? '', at: r.created_at,
+      })));
+    }
+    setLoaded(true);
+  }, [opportunityId, enabled]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { list, loaded, error, reload: load };
+}
+
 export interface FeedComment { id: string; who: string; text: string }
 /** a pending request to remove a post (visible to whoever asked, the post's author and the super admin) */
 export interface DeleteRequest { id: string; who: string; reason: string; mine: boolean }
@@ -622,6 +778,8 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   new_department: { icon: '+', bg: '#ECECE8', fg: '#1E2A22' },
   ticket: { icon: '#', bg: '#F3EEE4', fg: '#8a6a3c' },
   chat_message: { icon: '💬', bg: '#E8EEE9', fg: '#2F4A3A' },
+  opportunity: { icon: 'AU', bg: '#F3EEE4', fg: '#8a6a3c' },
+  reminder: { icon: '⏰', bg: '#E3EFFA', fg: '#0060a8' },
 };
 
 /** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */

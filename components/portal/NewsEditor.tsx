@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Modal } from '@/components/portal/ui';
 import { NEWS_CATS, type NewsCat, type NewsItem } from '@/lib/data';
-import { NEWS_IMAGES } from '@/lib/news';
+import { NEWS_IMAGES, fromLocalInput, toLocalInput } from '@/lib/news';
 import { saveNews, uploadNewsImage } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
@@ -12,6 +12,7 @@ export function NewsEditor({ item, onClose, onSaved }: { item?: NewsItem; onClos
   const [f, setF] = useState({
     title: item?.title ?? '', cat: (item?.cat ?? 'Announcements') as NewsCat, source: item?.source ?? 'AU Commission',
     img: item?.img ?? NEWS_IMAGES[0].src, excerpt: item?.excerpt ?? '', body: (item?.body ?? []).join('\n\n'), featured: !!item?.featured,
+    eventAt: toLocalInput(item?.eventAt),
   });
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -26,7 +27,7 @@ export function NewsEditor({ item, onClose, onSaved }: { item?: NewsItem; onClos
         setBusy(true); setErr(null);
         const res = await saveNews({
           title: f.title.trim(), cat: f.cat, source: f.source.trim() || 'AU Commission', img: f.img,
-          excerpt: f.excerpt.trim(), featured: f.featured,
+          excerpt: f.excerpt.trim(), featured: f.featured, eventAt: fromLocalInput(f.eventAt),
           // a blank line starts a new paragraph
           body: f.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
         }, item?.slug);
@@ -49,6 +50,11 @@ export function NewsEditor({ item, onClose, onSaved }: { item?: NewsItem; onClos
             <label className={s.label} htmlFor="nw-source">Source</label>
             <input id="nw-source" className={s.input} value={f.source} onChange={set('source')} maxLength={60} placeholder="e.g. HRST Department" />
           </div>
+        </div>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="nw-when">Event date (optional)</label>
+          <input id="nw-when" type="datetime-local" className={s.input} value={f.eventAt} onChange={set('eventAt')} />
+          <small style={{ fontSize: 12, color: 'var(--p-ink-2)' }}>If this is about an event, set when it starts. Readers can press Notify me and get a reminder 24 hours and 45 minutes before.</small>
         </div>
         <div className={s.field}>
           <span className={s.label}>Photo</span>
