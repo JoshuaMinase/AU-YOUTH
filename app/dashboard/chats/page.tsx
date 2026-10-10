@@ -4,11 +4,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Hero, I } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
+import GroupMembers from '@/components/portal/GroupMembers';
+import { useMe } from '@/lib/me';
 import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 export default function ChatsPage() {
-  const { chats, unread, markRead, send, loaded, error } = useChats();
+  const { chats, unread, markRead, send, addMember, removeMember, loaded, error } = useChats();
+  const { me } = useMe();
+  const [showMembers, setShowMembers] = useState(false);
   const [activeId, setActiveId] = useState('');
   const [view, setView] = useState<'list' | 'chat'>('list');
   const [input, setInput] = useState('');
@@ -16,6 +20,10 @@ export default function ChatsPage() {
   const [sendErr, setSendErr] = useState<string | null>(null);
   const msgs = useRef<HTMLDivElement>(null);
   const chat = chats.find((c) => c.id === activeId) ?? chats[0];
+  /* department chats: the super admin and admins of that department manage the members (the database enforces it too) */
+  const norm = (v?: string) => (v ?? '').trim().toLowerCase();
+  const canManage = !!chat?.dept && (me.access === 'super_admin' || (me.access === 'admin' && norm(me.dept) === norm(chat.dept)));
+  useEffect(() => { setShowMembers(false); }, [activeId]);
 
   /* /dashboard/chats?c=<id> (the People "Message" button) opens that conversation */
   useEffect(() => {
@@ -100,9 +108,18 @@ export default function ChatsPage() {
             <span className={s.av} style={{ ...softAvatar(chat.color), width: 38, height: 38 }}>{chat.initials}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <p className={s.chatName}>{chat.name}</p>
-              <span className={s.chatStatus}>{chat.group ? 'Group chat' : 'Direct message'}</span>
+              <span className={s.chatStatus}>{chat.group ? `Group chat · ${chat.members?.length ?? 0} members` : 'Direct message'}</span>
             </div>
+            {chat.group && (
+              <button type="button" className={`${s.btnLine} ${s.btnSm}`} aria-expanded={showMembers} onClick={() => setShowMembers((v) => !v)}>
+                {showMembers ? 'Hide members' : canManage ? 'Manage members' : 'Members'}
+              </button>
+            )}
           </div>
+          {chat.group && showMembers && (
+            <GroupMembers members={chat.members ?? []} meId={me.id} canManage={canManage}
+              onAdd={(id) => addMember(chat.id, id)} onRemove={(id) => removeMember(chat.id, id)} />
+          )}
 
           <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite">
             {chat.messages.map((m, i) => (

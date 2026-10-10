@@ -83,7 +83,7 @@ function chatTime(iso: string, now: Date) {
   return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 }
 
-const CHAT_COLS = `id, is_group, title, last_message_at,
+const CHAT_COLS = `id, is_group, title, last_message_at, dept:departments(name),
   conversation_members(user_id, last_read_at, profile:profiles!conversation_members_user_id_fkey(first_name, last_name)),
   messages(id, sender_id, body, created_at)`;
 
@@ -123,6 +123,8 @@ export function useChats() {
         initials: r.is_group ? 'AU' : initialsOf(name), color: r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
         unread: rows.filter((m) => m.sender_id !== me.id && (!mine || m.created_at > mine.last_read_at)).length,
         time: chatTime(last?.created_at ?? r.last_message_at, now), messages,
+        dept: r.dept?.name ?? undefined,
+        members: members.map((m) => ({ id: m.user_id, name: names[m.user_id] ?? 'Member' })),
         preview: last ? last.body : 'No messages yet',
       };
     }));
@@ -187,7 +189,19 @@ export function useChats() {
     return { id: data as string };
   }, [load]);
 
-  return { chats, unread, markRead, send, start, loaded, error };
+  /** department group chats: admins of that department add / remove members (enforced in the database) */
+  const addMember = useCallback(async (conv: string, member: string) => {
+    const { error: err } = await createClient().rpc('add_group_member', { conv, member });
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+  const removeMember = useCallback(async (conv: string, member: string) => {
+    const { error: err } = await createClient().rpc('remove_group_member', { conv, member });
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  return { chats, unread, markRead, send, start, addMember, removeMember, loaded, error };
 }
 
 export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean }

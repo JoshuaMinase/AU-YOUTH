@@ -89,7 +89,8 @@ export const NEWS_CATS: ('All' | NewsCat)[] = ['All', 'Initiatives', 'Opportunit
 /* ── Chats ────────────────────────────────────────────────────────── */
 /** `who` names the sender in group chats */
 export interface Msg { id?: string; from: 'me' | 'them'; text: string; time: string; who?: string }
-export interface Chat { id: string; initials: string; name: string; color: string; time: string; unread: number; messages: Msg[]; group?: boolean }
+export interface Chat { id: string; initials: string; name: string; color: string; time: string; unread: number; messages: Msg[]; group?: boolean;
+  /** department chats only */ dept?: string; members?: { id: string; name: string }[] }
 
 /** readable text colour on a coloured avatar */
 export const onColor = (hex: string) => {

@@ -10,6 +10,7 @@ Last updated: 2026-10-10
 - /dashboard/people (real members, connection requests, live updates)
 - /dashboard/chats (conversations + messages, unread counts, live updates; header badge and home quick chat use the same data)
 - /dashboard/chats AI screening: messages go through /api/chat/send, OpenAI moderation checks them, flagged ones are blocked, logged (moderation_flags) and every admin is notified; admins review them in /dashboard/admin (needs OPENAI_API_KEY on Render and SQL 016)
+- /dashboard/chats department group chats: one per department, members join automatically from their profile department, admins of that department (and the super admin) add / remove members (SQL 017)
 - /dashboard/news (news table, live updates)
 - /dashboard/news/[slug] (article + more stories, read on the server)
 - /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook and FAQ stay static on purpose)
@@ -25,4 +26,4 @@ Last updated: 2026-10-10
 - 006 events
 - 007 hardening, 008 support tickets, 009 news (+ editors, 6 seeded articles), 010 posts, 011 chats, 012 notifications
 - 013 roles (super admin, admins, AU email domains only; replaces editors), 014 departments (pick-list; new typed names are added and the super admin is notified)
-- 015 news images, 016 chat moderation (blocked-message log + admin notification)
+- 015 news images, 016 chat moderation (blocked-message log + admin notification), 017 department chats
