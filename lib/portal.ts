@@ -594,14 +594,16 @@ export function useReminder(kind: 'news' | 'opportunity', id: string | undefined
     if (!id || !me.id) return null;
     setBusy(true);
     const supabase = createClient();
+    // explicit keys (not { [col]: id }) so TypeScript can check the column name
+    const payload = kind === 'news' ? { news_id: id } : { opportunity_id: id };
     const { error } = on
       ? await supabase.from('event_reminders').delete().eq(col, id).eq('user_id', me.id)
-      : await supabase.from('event_reminders').insert({ [col]: id });
+      : await supabase.from('event_reminders').insert(payload);
     setBusy(false);
     if (error) return error.message;
     setOn(!on);
     return null;
-  }, [id, me.id, col, on]);
+  }, [id, me.id, col, kind, on]);
 
   return { on, loaded, busy, toggle };
 }
