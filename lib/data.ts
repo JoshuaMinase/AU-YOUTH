@@ -108,7 +108,8 @@ export function monthCells(year: number, month: number): (Date | null)[] {
 
 /* ── Events ───────────────────────────────────────────────────────── */
 export type EventType = 'meeting' | 'event' | 'workshop' | 'session' | 'call' | 'forum';
-export interface CalEvent { id: string; date: string; time: string; title: string; type: EventType; location: string }
+/** isPublic = visible to every member (admins only can create these); mine = you created it, so you can edit or delete it */
+export interface CalEvent { id: string; date: string; time: string; title: string; type: EventType; location: string; isPublic: boolean; mine: boolean }
 
 export const EVENT_TYPES: { id: EventType; label: string }[] = [
   { id: 'meeting', label: 'Meeting' }, { id: 'event', label: 'Event' },

@@ -7,16 +7,20 @@ import { NEWS_COLS, timeAgo, toNews } from './news';
 import { colorFor } from './people';
 import { createClient } from './supabase/client';
 
-export type EventInput = Omit<CalEvent, 'id'>;
+export type EventInput = Omit<CalEvent, 'id' | 'mine' | 'isPublic'> & { isPublic?: boolean };
 
-function toEvent(r: Record<string, any>): CalEvent {
+function toEvent(r: Record<string, any>, myId: string): CalEvent {
   return {
     id: r.id, date: r.date, time: String(r.time ?? '').slice(0, 5),
     title: r.title, type: r.type as EventType, location: r.location ?? 'TBC',
+    isPublic: !!r.is_public, mine: r.user_id === myId,
   };
 }
 
-/** The signed-in member's own events (Supabase `events` table), with add / update / remove. Actions return an error message or null. */
+/** editing never changes who can see an event, so drop the flag before an update */
+const withoutVisibility = (e: EventInput) => ({ date: e.date, time: e.time, title: e.title, type: e.type, location: e.location });
+
+/** The signed-in member's own events plus every public event admins posted (Supabase `events` table, filtered by RLS), with add / update / remove. Actions return an error message or null. */
 export function useEvents(today: Date | null) {
   const { me, canWrite } = useMe();
   const [rows, setRows] = useState<CalEvent[]>([]);
@@ -25,9 +29,9 @@ export function useEvents(today: Date | null) {
 
   const load = useCallback(async () => {
     if (!me.id) return;
-    const { data, error: err } = await createClient().from('events').select('id, date, time, title, type, location').eq('user_id', me.id);
+    const { data, error: err } = await createClient().from('events').select('id, user_id, date, time, title, type, location, is_public');
     if (err) setError(err.message);
-    else { setError(null); setRows((data ?? []).map(toEvent)); }
+    else { setError(null); setRows((data ?? []).map((r) => toEvent(r, me.id))); }
     setLoaded(true);
   }, [me.id]);
 
@@ -60,10 +64,10 @@ export function useEvents(today: Date | null) {
   const add = useCallback((e: EventInput) => {
     if (!me.id) return Promise.resolve('You are not signed in.');
     if (!canWrite) return Promise.resolve(PROFILE_LOCKED_MSG);
-    return run(createClient().from('events').insert({ ...e, user_id: me.id }));
+    return run(createClient().from('events').insert({ ...withoutVisibility(e), is_public: !!e.isPublic, user_id: me.id }));
   }, [me.id, canWrite, run]);
   const update = useCallback((id: string, e: EventInput) =>
-    canWrite ? run(createClient().from('events').update(e).eq('id', id)) : Promise.resolve(PROFILE_LOCKED_MSG), [canWrite, run]);
+    canWrite ? run(createClient().from('events').update(withoutVisibility(e)).eq('id', id)) : Promise.resolve(PROFILE_LOCKED_MSG), [canWrite, run]);
   const remove = useCallback((id: string) =>
     run(createClient().from('events').delete().eq('id', id)), [run]);
 

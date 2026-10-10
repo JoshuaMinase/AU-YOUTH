@@ -4,12 +4,13 @@ import { useMemo, useState } from 'react';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
 import { EVENT_TYPES, MONTHS, MONTHS_SHORT, WEEKDAYS, monthCells, parseYmd, ymd, type CalEvent, type EventType } from '@/lib/data';
 import { useToday } from '@/lib/hooks';
+import { useMe } from '@/lib/me';
 import { useEvents, type EventInput } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const HEADS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
-function EventForm({ date, event, onSave, onClose }: { date: string; event?: CalEvent; onSave: (e: EventInput) => Promise<string | null>; onClose: () => void }) {
+function EventForm({ date, event, isPublic, onSave, onClose }: { date: string; event?: CalEvent; isPublic: boolean; onSave: (e: EventInput) => Promise<string | null>; onClose: () => void }) {
   const [f, setF] = useState({
     title: event?.title ?? '', date: event?.date ?? date, time: event?.time ?? '10:00',
     type: (event?.type ?? 'meeting') as EventType, location: event && event.location !== 'TBC' ? event.location : '',
@@ -18,13 +19,16 @@ function EventForm({ date, event, onSave, onClose }: { date: string; event?: Cal
   const [err, setErr] = useState<string | null>(null);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
   return (
-    <Modal title={event ? 'Edit event' : 'Add event'} onClose={onClose}>
+    <Modal title={event ? (isPublic ? 'Edit public event' : 'Edit my event') : isPublic ? 'Add public event' : 'Add event to my calendar'} onClose={onClose}>
       <form className={s.form} onSubmit={async (e) => {
         e.preventDefault();
         setBusy(true); setErr(null);
-        const msg = await onSave({ ...f, title: f.title.trim(), location: f.location.trim() || 'TBC' });
+        const msg = await onSave({ ...f, title: f.title.trim(), location: f.location.trim() || 'TBC', isPublic });
         if (msg) { setErr(msg); setBusy(false); }
       }}>
+        <p className={s.agendaEmpty} role="note">
+          {isPublic ? <><strong>Public:</strong> every member will see this event on their calendar.</> : <><strong>Private:</strong> only you will see this event.</>}
+        </p>
         <div className={s.field}>
           <label className={s.label} htmlFor="ev-title">Title</label>
           <input id="ev-title" className={s.input} value={f.title} onChange={set('title')} required maxLength={80} placeholder="e.g. Policy circle meetup" />
@@ -54,7 +58,7 @@ function EventForm({ date, event, onSave, onClose }: { date: string; event?: Cal
         {err && <p className={s.agendaEmpty} role="alert">{err}</p>}
         <div className={s.formActions}>
           <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
-          <button type="submit" className={s.btnDark} disabled={!f.title.trim() || busy}>{busy ? 'Saving…' : event ? 'Save changes' : 'Add event'}</button>
+          <button type="submit" className={s.btnDark} disabled={!f.title.trim() || busy}>{busy ? 'Saving…' : event ? 'Save changes' : isPublic ? 'Publish event' : 'Add event'}</button>
         </div>
       </form>
     </Modal>
@@ -63,11 +67,13 @@ function EventForm({ date, event, onSave, onClose }: { date: string; event?: Cal
 
 export default function CalendarPage() {
   const today = useToday();
+  const { me } = useMe();
+  const isAdmin = me.access !== 'user';
   const { events, add, update, remove, loaded, error } = useEvents(today);
   const [toast, toastNode] = useToast();
   const [view, setView] = useState<{ y: number; m: number } | null>(null);
   const [selected, setSelected] = useState('');
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<'public' | 'private' | null>(null);
   const [editing, setEditing] = useState<CalEvent | null>(null);
   const showEvent = (e: EventInput) => { setSelected(e.date); const d = parseYmd(e.date); setView({ y: d.getFullYear(), m: d.getMonth() }); };
 
@@ -89,8 +95,8 @@ export default function CalendarPage() {
 
   return (
     <>
-      <Hero plain eyebrow={v ? `${MONTHS[v.m]} ${v.y}` : 'Schedule'} title="Your *Calendar*" desc="Your schedule and upcoming AU community events.">
-        <button type="button" className={s.btnDark} onClick={() => setAdding(true)} disabled={!today}>{I.plus} Add event</button>
+      <Hero plain eyebrow={v ? `${MONTHS[v.m]} ${v.y}` : 'Schedule'} title="Your *Calendar*" desc={isAdmin ? 'Public events are seen by every member. Private events are only for you.' : 'Your schedule and upcoming AU community events.'}>
+        <button type="button" className={s.btnDark} onClick={() => setAdding(isAdmin ? 'public' : 'private')} disabled={!today}>{I.plus} {isAdmin ? 'Add public event' : 'Add my event'}</button>
       </Hero>
 
       <div className={s.calLayout}>
@@ -142,17 +148,21 @@ export default function CalendarPage() {
                 <div key={ev.id} className={`${s.dayItem} ${s[`ev_${ev.type}`]}`}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p className={s.dayItemTitle}>{ev.title}</p>
-                    <p className={s.dayItemMeta}>{ev.time} · {ev.location}</p>
+                    <p className={s.dayItemMeta}>{ev.time} · {ev.location}{(ev.isPublic || isAdmin) && ` · ${ev.isPublic ? 'Public' : 'Private'}`}</p>
                   </div>
-                  <button type="button" className={s.iconBtn} aria-label={`Edit ${ev.title}`} onClick={() => setEditing(ev)}>{I.edit}</button>
-                  <button type="button" className={s.iconBtn} aria-label={`Delete ${ev.title}`}
-                    onClick={async () => { const msg = await remove(ev.id); toast(msg ?? 'Event deleted'); }}>{I.close}</button>
+                  {ev.mine && (
+                    <>
+                      <button type="button" className={s.iconBtn} aria-label={`Edit ${ev.title}`} onClick={() => setEditing(ev)}>{I.edit}</button>
+                      <button type="button" className={s.iconBtn} aria-label={`Delete ${ev.title}`}
+                        onClick={async () => { const msg = await remove(ev.id); toast(msg ?? 'Event deleted'); }}>{I.close}</button>
+                    </>
+                  )}
                 </div>
               ))}
               {!loaded && !error && <p className={s.agendaEmpty}>Loading…</p>}
               {error && <p className={s.agendaEmpty} role="alert">Could not load events: {error}</p>}
               {loaded && !error && !dayEvents.length && <p className={s.agendaEmpty}>Nothing scheduled.</p>}
-              <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={() => setAdding(true)} disabled={!today}>{I.plus} Add to this day</button>
+              <button type="button" className={`${s.btnLine} ${s.btnSm}`} onClick={() => setAdding('private')} disabled={!today}>{I.plus} {isAdmin ? 'Add private event (only me)' : 'Add to my day'}</button>
             </div>
           </section>
 
@@ -184,11 +194,11 @@ export default function CalendarPage() {
       </div>
 
       {adding && (
-        <EventForm date={selKey} onClose={() => setAdding(false)}
-          onSave={async (e) => { const msg = await add(e); if (msg) return msg; setAdding(false); showEvent(e); toast('Event added'); return null; }} />
+        <EventForm date={selKey} isPublic={adding === 'public'} onClose={() => setAdding(null)}
+          onSave={async (e) => { const msg = await add(e); if (msg) return msg; setAdding(null); showEvent(e); toast('Event added'); return null; }} />
       )}
       {editing && (
-        <EventForm date={selKey} event={editing} onClose={() => setEditing(null)}
+        <EventForm date={selKey} event={editing} isPublic={editing.isPublic} onClose={() => setEditing(null)}
           onSave={async (e) => { const msg = await update(editing.id, e); if (msg) return msg; setEditing(null); showEvent(e); toast('Event updated'); return null; }} />
       )}
       {toastNode}
