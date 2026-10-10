@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { isAllowedEmail } from '@/lib/data';
+import { GENDERS, isAllowedEmail } from '@/lib/data';
 import { DOMAIN_MSG, authErrorMessage } from '@/lib/authErrors';
 import { createClient } from '@/lib/supabase/client';
 import s from '@/styles/Auth.module.css';
@@ -32,6 +32,7 @@ export default function SignUpPage() {
         data: {
           first_name: String(form.get('firstName')).trim(),
           last_name: String(form.get('lastName')).trim(),
+          gender: String(form.get('gender') ?? ''),
         },
       },
     });
@@ -98,6 +99,14 @@ export default function SignUpPage() {
                 required
               />
             </div>
+          </div>
+
+          <div className={s.field}>
+            <label className={s.label} htmlFor="signup-gender">Gender</label>
+            <select id="signup-gender" name="gender" className={s.input} defaultValue="" required>
+              <option value="" disabled>Select</option>
+              {GENDERS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+            </select>
           </div>
 
           <div className={s.field}>

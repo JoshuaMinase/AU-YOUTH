@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { MONTHS, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
+import { GENDERS, MONTHS, genderLabel, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
 import { useDepartments } from '@/lib/portal';
 import { usePeople } from '@/lib/people';
 import { useMe } from '@/lib/me';
@@ -12,8 +12,6 @@ import { usePersisted } from '@/lib/store';
 import s from '@/styles/Portal.module.css';
 
 type Editable = Profile & { role: string; dept: string };
-
-const STUDYING = 'Currently studying';
 
 const SKILL_OPTIONS = [
   'Communications', 'Policy Analysis', 'Research', 'Public Speaking', 'Data Analysis', 'Project Management',
@@ -119,8 +117,6 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
   const [skill, setSkill] = useState('');
   const [lang, setLang] = useState('');
   const [saving, setSaving] = useState(false);
-  const studying = f.year === STUDYING;
-  const [prevYear, setPrevYear] = useState('');
   const set = (k: keyof Editable) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
   // anything typed but not yet added with "Add" is included on save
   // only an exact suggestion, or text that matches nothing in the list, is kept; partial typing like "ha" is dropped
@@ -160,23 +156,12 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           <div className={s.field}><label className={s.label} htmlFor="p-nat">Nationality</label><input id="p-nat" className={s.input} value={f.nationality} onChange={set('nationality')} /></div>
           <div className={s.field}><label className={s.label} htmlFor="p-city">Based in</label><input id="p-city" className={s.input} value={f.basedIn} onChange={set('basedIn')} /></div>
         </div>
-        <div className={s.formRow}>
-          <div className={s.field}><label className={s.label} htmlFor="p-uni">University</label><input id="p-uni" className={s.input} value={f.university} onChange={set('university')} /></div>
-          <div className={s.field}><label className={s.label} htmlFor="p-deg">Degree</label><input id="p-deg" className={s.input} value={f.degree} onChange={set('degree')} /></div>
-        </div>
         <div className={s.field}>
-          <label className={s.label} htmlFor="p-year">Year of study</label>
-          <input id="p-year" className={s.input} value={f.year} onChange={set('year')} disabled={studying}
-            style={studying ? { opacity: 0.55, background: '#ECEBE6', cursor: 'not-allowed' } : undefined}
-            placeholder="e.g. 2023 – Present, or 3rd year" />
-          <label htmlFor="p-studying" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 14, cursor: 'pointer' }}>
-            <input id="p-studying" type="checkbox" checked={studying}
-              onChange={(e) => {
-                if (e.target.checked) { setPrevYear(f.year); setF({ ...f, year: STUDYING }); }
-                else setF({ ...f, year: prevYear });
-              }} />
-            I am currently studying
-          </label>
+          <label className={s.label} htmlFor="p-gender">Gender</label>
+          <select id="p-gender" className={s.input} value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}>
+            <option value="">Select</option>
+            {GENDERS.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
+          </select>
         </div>
         <Tags id="p-skill" label="Skills" items={f.skills} options={SKILL_OPTIONS} draft={skill} setDraft={setSkill}
           onChange={(skills) => setF({ ...f, skills })} placeholder="Tap to choose, or type your own" />
@@ -200,9 +185,8 @@ export default function ProfilePage() {
 
   const details: [string, string][] = [
     ['Department', me.dept], ['Role', me.role], ['Nationality', profile.nationality],
-    ['Based in', profile.basedIn], ['Start date', fmtDate(profile.start)], ['End date', fmtDate(profile.end)],
+    ['Gender', genderLabel(profile.gender)], ['Based in', profile.basedIn], ['Start date', fmtDate(profile.start)], ['End date', fmtDate(profile.end)],
   ];
-  const education: [string, string][] = [['University', profile.university], ['Degree', profile.degree], ['Year', profile.year]];
 
   return (
     <>
@@ -246,11 +230,7 @@ export default function ProfilePage() {
           </div>
         </section>
         <section className={s.card} data-reveal>
-          <div className={s.cardHead}><h2 className={s.cardTitle}>Education</h2></div>
-          <div className={s.infoGrid}>
-            {education.map(([l, v]) => <div key={l}><p className={s.infoLabel}>{l}</p><p className={s.infoValue}>{v || '—'}</p></div>)}
-          </div>
-          <h3 className={s.cardTitle} style={{ fontSize: 16, margin: '22px 0 12px' }}>Skills</h3>
+          <div className={s.cardHead}><h2 className={s.cardTitle}>Skills</h2></div>
           <div className={s.skills}>{profile.skills.length ? profile.skills.map((sk) => <span key={sk} className={s.skill}>{sk}</span>) : <span className={s.cardMeta}>None added yet</span>}</div>
           <h3 className={s.cardTitle} style={{ fontSize: 16, margin: '22px 0 12px' }}>Languages</h3>
           <div className={s.skills}>{profile.languages.length ? profile.languages.map((l) => <span key={l} className={s.skill}>{l}</span>) : <span className={s.cardMeta}>None added yet</span>}</div>

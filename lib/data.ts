@@ -18,17 +18,25 @@ export const ME = {
 /* ── Editable profile ─────────────────────────────────────────────── */
 export interface Profile {
   bio: string; nationality: string; basedIn: string; start: string; end: string;
-  university: string; degree: string; year: string; skills: string[]; languages: string[];
+  gender: string; skills: string[]; languages: string[];
 }
+
+/** values stored in profiles.gender (docs/sql/019_gender.sql allows exactly these, or empty) */
+export const GENDERS = [
+  { value: 'female', label: 'Female' },
+  { value: 'male', label: 'Male' },
+  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
+] as const;
+export const genderLabel = (v: string) => GENDERS.find((g) => g.value === v)?.label ?? '';
 
 export const PROFILE_DEFAULT: Profile = {
   bio: '', nationality: 'Ethiopian', basedIn: 'Addis Ababa, Ethiopia', start: 'July 2026', end: 'December 2026',
-  university: 'Addis Ababa University', degree: 'MSc International Relations', year: '2025–2026',
+  gender: '',
   skills: ['Policy Analysis', 'Research', 'Public Speaking', 'Data Analysis', 'Project Management', 'French', 'English', 'Amharic'],
   languages: [],
 };
 
-/** completeness: base 50% + bio (25) + 5+ skills (15) + education (10) */
+/** completeness: base 50% + bio (25) + 5+ skills (15) + nationality and based-in filled (10) */
 /** sign-up is limited to these email domains (enforced in Supabase by docs/sql/013_roles.sql) */
 export const ALLOWED_DOMAINS = ['africanunion.org', 'africa-union.org'];
 export const isAllowedEmail = (email: string) => ALLOWED_DOMAINS.includes(email.trim().toLowerCase().split('@')[1] ?? '');
@@ -36,7 +44,7 @@ export const isAllowedEmail = (email: string) => ALLOWED_DOMAINS.includes(email.
 export type Access = 'super_admin' | 'admin' | 'user';
 
 export const profileScore = (p: Profile) =>
-  Math.min(100, 50 + (p.bio.trim().length >= 20 ? 25 : 0) + (p.skills.length >= 5 ? 15 : 0) + (p.university && p.degree ? 10 : 0));
+  Math.min(100, 50 + (p.bio.trim().length >= 20 ? 25 : 0) + (p.skills.length >= 5 ? 15 : 0) + (p.nationality.trim() && p.basedIn.trim() ? 10 : 0));
 
 /* ── Dates ─────────────────────────────────────────────────────────── */
 export const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());

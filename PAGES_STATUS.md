@@ -26,4 +26,4 @@ Last updated: 2026-10-10
 - 006 events
 - 007 hardening, 008 support tickets, 009 news (+ editors, 6 seeded articles), 010 posts, 011 chats, 012 notifications
 - 013 roles (super admin, admins, AU email domains only; replaces editors), 014 departments (pick-list; new typed names are added and the super admin is notified)
-- 015 news images, 016 chat moderation (blocked-message log + admin notification), 017 department chats, 018 backfill (chats for departments members already typed)
+- 015 news images, 016 chat moderation (blocked-message log + admin notification), 017 department chats, 018 backfill (chats for departments members already typed), 019 gender (sign-up + profile; university / degree / year of study removed from the app, columns kept)
