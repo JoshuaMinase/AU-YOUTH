@@ -250,6 +250,21 @@
 .coming { display: flex; flex-direction: column; gap: 10px; }
 .comingItem { display: flex; gap: 12px; align-items: center; padding: 10px; border-radius: 14px; background: #f7f6f2; text-decoration: none; color: inherit; transition: background .2s, transform .3s var(--ease); }
 .comingItem:hover { background: #efede6; transform: translateX(3px); }
+.upGroup { display: flex; flex-direction: column; gap: 8px; }
+.upGroup + .upGroup { margin-top: 8px; }
+.upGroupTitle { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); }
+.upGroupTitle span { padding: 1px 7px; border-radius: 999px; background: var(--p-soft); letter-spacing: 0; font-size: 11px; }
+.upItem { display: grid; grid-template-columns: 50px 1fr; column-gap: 12px; align-items: center; width: 100%; padding: 10px; border: 0; border-left: 4px solid var(--ev); border-radius: 14px; background: #f7f6f2; text-align: left; cursor: pointer; font-family: inherit; color: inherit; transition: background .2s, transform .3s var(--ease); }
+.upItem:hover, .upItem:focus-visible { background: #efede6; }
+.upItem .dateTile { border-color: color-mix(in srgb, var(--ev) 35%, white); }
+.upItem .dateMonth { color: var(--ev); }
+.upPreview { grid-column: 2; display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .3s var(--ease), opacity .25s; }
+.upPreviewInner { display: flex; flex-direction: column; gap: 3px; min-height: 0; overflow: hidden; }
+.upPreviewMeta { margin-top: 8px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ev); }
+.upPreviewText { font-size: 12.5px; line-height: 1.5; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.upPreviewHint { font-size: 11px; color: var(--ink-3); }
+.upItem:focus-visible .upPreview { grid-template-rows: 1fr; opacity: 1; }
+@media (hover: hover) { .upItem:hover .upPreview { grid-template-rows: 1fr; opacity: 1; } }
 .dateTile { display: flex; flex-direction: column; align-items: center; justify-content: center; flex: none; width: 50px; height: 54px; border-radius: 12px; background: #fff; color: var(--p-ink); border: 1px solid var(--line); }
 .dateMonth { font-size: 10px; font-weight: 700; letter-spacing: .1em; color: var(--p-accent); }
 .dateDay { font-size: 20px; font-weight: 700; line-height: 1; }
@@ -568,7 +583,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .featured, .newsCard, .person, .helpCard, .comingItem, .featuredImg img, .newsImg img, .msg, .modal, .scrim, .panel, .menu, .progressFill, .toast { transition: none; animation: none; }
+  .featured, .newsCard, .person, .helpCard, .comingItem, .upItem, .upPreview, .featuredImg img, .newsImg img, .msg, .modal, .scrim, .panel, .menu, .progressFill, .toast { transition: none; animation: none; }
   .recDot, .msgAct { transition: none; animation: none; }
   .spin { animation: none; border-right-color: currentColor; opacity: .6; }   /* no spinning: the "Sending…" text still says what is happening */
 }

@@ -186,7 +186,26 @@ export default function CalendarPage() {
   const goToday = () => { setView(null); setSelected(''); };
   const selDate = selKey ? parseYmd(selKey) : null;
   const dayEvents = byDay[selKey] ?? [];
-  const upcoming = events.filter((e) => lastDay(e) >= todayKey).slice(0, 5);
+  const upcoming = events.filter((e) => lastDay(e) >= todayKey);
+  /* upcoming events in groups by when they start (an event already under way counts as today) */
+  const groups = useMemo(() => {
+    if (!today) return [];
+    const weekEnd = ymd(new Date(today.getFullYear(), today.getMonth(), today.getDate() + (6 - ((today.getDay() + 6) % 7)))); // Sunday
+    const monthEnd = ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0));
+    const yearEnd = `${today.getFullYear()}-12-31`;
+    const g = [
+      { label: 'This week', items: [] as CalEvent[], until: weekEnd },
+      { label: 'This month', items: [] as CalEvent[], until: monthEnd },
+      { label: 'Later this year', items: [] as CalEvent[], until: yearEnd },
+      { label: 'Next year and beyond', items: [] as CalEvent[], until: '9999-12-31' },
+    ];
+    const key = ymd(today);
+    events.filter((e) => lastDay(e) >= key).forEach((e) => {
+      const start = e.date < key ? key : e.date;
+      g.find((x) => start <= x.until)!.items.push(e);
+    });
+    return g.filter((x) => x.items.length);
+  }, [events, today]);
   const viewing = events.find((e) => e.id === viewId) ?? null;
 
   return (
@@ -270,19 +289,34 @@ export default function CalendarPage() {
             </div>
             <div className={s.coming}>
               {loaded && !error && !upcoming.length && <p className={s.agendaEmpty}>No upcoming events.</p>}
-              {upcoming.map((ev) => {
-                const d = parseYmd(ev.date);
-                return (
-                  <button key={ev.id} type="button" className={s.comingItem} style={{ border: 0, width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}
-                    onClick={() => { setSelected(ev.date); setView({ y: d.getFullYear(), m: d.getMonth() }); setViewId(ev.id); }}>
-                    <span className={s.dateTile}><span className={s.dateMonth}>{MONTHS_SHORT[d.getMonth()]}</span><span className={s.dateDay}>{d.getDate()}</span></span>
-                    <span>
-                      <span className={s.comingTitle} style={{ display: 'block' }}>{ev.title}</span>
-                      <span className={s.comingMeta}>{dateRangeLabel(ev)} · {ev.time} · {ev.location}</span>
-                    </span>
-                  </button>
-                );
-              })}
+              {groups.map((g) => (
+                <div key={g.label} className={s.upGroup}>
+                  <p className={s.upGroupTitle}>{g.label} <span>{g.items.length}</span></p>
+                  {g.items.map((ev) => {
+                    const d = parseYmd(ev.date);
+                    const days = ev.endDate ? eventDays(ev).length : 1;
+                    const typeLabel = EVENT_TYPES.find((t) => t.id === ev.type)?.label ?? ev.type;
+                    return (
+                      <button key={ev.id} type="button" className={`${s.upItem} ${s[`ev_${ev.type}`]}`}
+                        onClick={() => { setSelected(ev.date); setView({ y: d.getFullYear(), m: d.getMonth() }); setViewId(ev.id); }}>
+                        <span className={s.dateTile}><span className={s.dateMonth}>{MONTHS_SHORT[d.getMonth()]}</span><span className={s.dateDay}>{d.getDate()}</span></span>
+                        <span>
+                          <span className={s.comingTitle} style={{ display: 'block' }}>{ev.title}</span>
+                          <span className={s.comingMeta}>{dateRangeLabel(ev)} · {ev.time} · {ev.location}</span>
+                        </span>
+                        {/* a short preview on hover or keyboard focus; the full details open on click */}
+                        <span className={s.upPreview} aria-hidden="true">
+                          <span className={s.upPreviewInner}>
+                            <span className={s.upPreviewMeta}>{typeLabel}{days > 1 ? ` · ${days} days` : ''}{ev.isPublic ? ' · Public' : ' · Private'}{ev.images.length ? ` · ${ev.images.length} photo${ev.images.length === 1 ? '' : 's'}` : ''}</span>
+                            <span className={s.upPreviewText}>{ev.description || 'No description added.'}</span>
+                            <span className={s.upPreviewHint}>Click for all details</span>
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
           </section>
         </aside>
