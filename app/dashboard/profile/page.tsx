@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
 import { GENDERS, MONTHS, genderLabel, parseYmd, profileScore, type Profile, softAvatar } from '@/lib/data';
-import { useDepartments } from '@/lib/portal';
+import { useDepartments, useRoles } from '@/lib/portal';
 import { usePeople } from '@/lib/people';
 import { useMe } from '@/lib/me';
 import { copyText } from '@/lib/hooks';
@@ -113,6 +113,7 @@ function Tags({ id, label, items, options, draft, setDraft, onChange, placeholde
 
 function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: Editable) => void; onClose: () => void }) {
   const departments = useDepartments();
+  const roles = useRoles();
   const [f, setF] = useState(value);
   const [skill, setSkill] = useState('');
   const [lang, setLang] = useState('');
@@ -141,10 +142,9 @@ function EditProfile({ value, onSave, onClose }: { value: Editable; onSave: (p: 
           <textarea id="p-bio" className={s.textarea} value={f.bio} onChange={set('bio')} maxLength={400} placeholder="Optional: a few lines about you, your work and interests" />
         </div>
         <div className={s.formRow}>
-          <div className={s.field}><label className={s.label} htmlFor="p-role">Role</label><select id="p-role" className={s.input} value={f.role} onChange={(e) => setF({ ...f, role: e.target.value })}>
-              <option value="">Select role</option>
-              {['Intern', 'Fellow', 'Volunteer', ...(f.role && !['Intern', 'Fellow', 'Volunteer'].includes(f.role) ? [f.role] : [])].map((r) => <option key={r} value={r}>{r}</option>)}
-            </select></div>
+          <div className={s.field}><label className={s.label} htmlFor="p-role">Role</label><input id="p-role" className={s.input} value={f.role} onChange={set('role')} placeholder="Pick from the list or type your own" list="p-role-list" autoComplete="off" maxLength={40} />
+            <datalist id="p-role-list">{roles.map((r) => <option key={r} value={r} />)}</datalist>
+            <small style={{ display: 'block', marginTop: 6, fontSize: 12, color: 'var(--p-ink-2)' }}>Not on the list? Type your role and it will be added for everyone.</small></div>
           <div className={s.field}><label className={s.label} htmlFor="p-dept">Department</label><input id="p-dept" className={s.input} value={f.dept} onChange={set('dept')} placeholder="Pick from the list or type your own" list="p-dept-list" autoComplete="off" />
             <datalist id="p-dept-list">{departments.map((d) => <option key={d} value={d} />)}</datalist></div>
         </div>

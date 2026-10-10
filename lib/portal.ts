@@ -683,6 +683,20 @@ export function useNotifications() {
   return { notifs, unread, markRead, markAllRead, loaded, error };
 }
 
+/** Role pick-list (Supabase `member_roles`, SQL 032). A role typed on the profile that isn't listed is added by the database. */
+export const BASE_ROLES = ['Intern', 'Fellow', 'Volunteer'];
+export function useRoles() {
+  const [roles, setRoles] = useState<string[]>(BASE_ROLES);   // shown until the list loads (or if SQL 032 is not run yet)
+  useEffect(() => {
+    let alive = true;
+    createClient().from('member_roles').select('name').order('created_at').then(({ data }) => {
+      if (alive && data?.length) setRoles(data.map((r) => r.name));
+    });
+    return () => { alive = false; };
+  }, []);
+  return roles;
+}
+
 /** Department pick-list (Supabase `departments`). A name typed on the profile that isn't listed is added by the database. */
 export function useDepartments() {
   const [departments, setDepartments] = useState<string[]>([]);

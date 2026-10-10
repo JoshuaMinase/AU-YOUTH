@@ -79,17 +79,18 @@ export function MeProvider({ children }: { children: React.ReactNode }) {
 
   const save = useCallback<Ctx['save']>(async (p, extra) => {
     if (!me.id) return 'You are not signed in.';
-    const { error } = await createClient().from('profiles').upsert({
+    const { data, error } = await createClient().from('profiles').upsert({
       id: me.id,
       first_name: me.first, last_name: me.last,
       role: extra.role.trim(), dept: extra.dept.trim(),
       bio: p.bio, nationality: p.nationality, based_in: p.basedIn,
       start_date: p.start, end_date: p.end,
       gender: p.gender, skills: p.skills, languages: p.languages,
-    });
+    }).select('role').maybeSingle();
     if (error) return error.message;
     setProfile(p);
-    setMe((m) => ({ ...m, role: extra.role.trim(), dept: extra.dept.trim() }));
+    // the database may tidy the role (spaces, or the listed spelling of a role typed in another case)
+    setMe((m) => ({ ...m, role: (data?.role ?? extra.role).trim(), dept: extra.dept.trim() }));
     return null;
   }, [me.id, me.first, me.last]);
 

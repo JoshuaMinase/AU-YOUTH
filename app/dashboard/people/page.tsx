@@ -9,7 +9,9 @@ import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
 import s from '@/styles/Portal.module.css';
 
-const ROLES = ['All', 'Intern', 'Fellow', 'Volunteer'];
+const BASE_ROLES = ['Intern', 'Fellow', 'Volunteer'];
+/** the three usual roles read as plurals ("Interns"); a role members added themselves shows as typed */
+const rolePill = (r: string) => (BASE_ROLES.includes(r) ? `${r}s` : r);
 const ROLE_TAG: Record<string, string> = { Intern: s.tGreen, Fellow: s.tGold, Volunteer: s.tBlue };
 
 export default function PeoplePage() {
@@ -23,6 +25,7 @@ export default function PeoplePage() {
   const [toast, toastNode] = useToast();
   const grid = useRef<HTMLDivElement>(null);
 
+  const roles = useMemo(() => ['All', ...BASE_ROLES, ...Array.from(new Set(members.map((m) => m.role).filter((r) => r && !BASE_ROLES.includes(r)))).sort()], [members]);
   const departments = useMemo(() => Array.from(new Set(members.map((m) => m.dept).filter(Boolean))).sort(), [members]);
 
   const list = useMemo(() => {
@@ -88,8 +91,8 @@ export default function PeoplePage() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, department or place…" aria-label="Search people" />
         </label>
         <div className={s.pills}>
-          {ROLES.map((r) => (
-            <button key={r} type="button" className={s.pill} aria-pressed={role === r} onClick={() => setRole(r)}>{r === 'All' ? 'All' : `${r}s`}</button>
+          {roles.map((r) => (
+            <button key={r} type="button" className={s.pill} aria-pressed={role === r} onClick={() => setRole(r)}>{r === 'All' ? 'All' : rolePill(r)}</button>
           ))}
           <select className={s.select} value={dept} onChange={(e) => setDept(e.target.value)} aria-label="Department">
             <option value="All">All departments</option>
