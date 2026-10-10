@@ -3,11 +3,12 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, useToast } from '@/components/portal/ui';
+import GroupMembers from '@/components/portal/GroupMembers';
 import { TicketRow } from '@/components/portal/Tickets';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
-import { useAddedDepartments, useDeleteRequests, useFlaggedMessages, useTickets } from '@/lib/portal';
+import { useAddedDepartments, useDeleteRequests, useDeptChatAdmin, useFlaggedMessages, useTickets } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const linkBtn = { border: 0, background: 'none', cursor: 'pointer' } as const;
@@ -20,6 +21,9 @@ export default function AdminPage() {
   const { tickets, loaded: ticketsLoaded, setStatus } = useTickets();
   const { departments, loaded: deptsLoaded, remove: removeDept } = useAddedDepartments();
   const { flags, loaded: flagsLoaded, markReviewed } = useFlaggedMessages();
+  const { chats: deptChats, loaded: deptChatsLoaded, membersOf, addMember, removeMember } = useDeptChatAdmin();
+  const [openChat, setOpenChat] = useState<string | null>(null);
+  const [chatMembers, setChatMembers] = useState<{ id: string; name: string }[]>([]);
   const [flagFilter, setFlagFilter] = useState<'new' | 'all'>('new');
   const [toast, toastNode] = useToast();
   const [busy, setBusy] = useState<string | null>(null);
@@ -34,6 +38,17 @@ export default function AdminPage() {
   }, [members, q]);
   const flagList = flags.filter((f) => flagFilter === 'all' || !f.reviewed);
   const queue = tickets.filter((t) => ticketFilter === 'all' || t.status !== 'closed');
+
+  const toggleChat = async (id: string) => {
+    if (openChat === id) { setOpenChat(null); return; }
+    setOpenChat(id); setChatMembers([]);
+    setChatMembers(await membersOf(id));
+  };
+  const changeChat = async (fn: () => Promise<string | null>) => {
+    const err = await fn();
+    if (openChat) setChatMembers(await membersOf(openChat));
+    return err;
+  };
 
   const act = async (id: string, fn: () => Promise<string | null>, done: string) => {
     setBusy(id);
@@ -104,6 +119,31 @@ export default function AdminPage() {
           </div>
         )}
       </section>
+
+      {/* ── All department chats (super admin) ── */}
+      {isSuper && (
+        <section className={`${s.card} ${s.panel}`}>
+          <div className={s.cardHead}><div><p className={s.cardEyebrow}>Chats</p><h2 className={s.cardTitle}>Department chats</h2></div></div>
+          <p className={s.agendaEmpty} style={{ marginTop: 0 }}>See who is in each department&rsquo;s group chat and add or remove people. You can&rsquo;t read the messages unless you are a member.</p>
+          <div className={s.list}>
+            {deptChats.map((c) => (
+              <div key={c.id}>
+                <div className={s.listRow}>
+                  <div className={s.rowMain}><p className={s.rowTitle}>{c.dept}</p><p className={s.rowSub}>{c.count} {c.count === 1 ? 'member' : 'members'}</p></div>
+                  <button type="button" className={`${s.btnLine} ${s.btnSm}`} aria-expanded={openChat === c.id} onClick={() => toggleChat(c.id)}>
+                    {openChat === c.id ? 'Hide' : 'Manage members'}
+                  </button>
+                </div>
+                {openChat === c.id && (
+                  <GroupMembers members={chatMembers} meId={me.id} canManage
+                    onAdd={(id) => changeChat(() => addMember(c.id, id))} onRemove={(id) => changeChat(() => removeMember(c.id, id))} />
+                )}
+              </div>
+            ))}
+          </div>
+          {deptChatsLoaded && !deptChats.length && <p className={s.agendaEmpty}>No department chats yet.</p>}
+        </section>
+      )}
 
       {/* ── Deletion requests ── */}
       <section className={`${s.card} ${s.panel}`}>

@@ -661,3 +661,40 @@ export function useFlaggedMessages() {
 
   return { flags, loaded, markReviewed };
 }
+
+export interface DeptChatRow { id: string; dept: string; count: number }
+
+/** Super admin overview of every department chat (members only, never messages). Actions return an error message or null. */
+export function useDeptChatAdmin() {
+  const { me } = useMe();
+  const [chats, setChats] = useState<DeptChatRow[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const load = useCallback(async () => {
+    if (me.access !== 'super_admin') return;
+    const { data } = await createClient().rpc('list_dept_chats');
+    setChats((data ?? []).map((r: Record<string, any>) => ({ id: r.conv_id, dept: r.dept_name, count: Number(r.member_count) })));
+    setLoaded(true);
+  }, [me.access]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const membersOf = useCallback(async (conv: string): Promise<{ id: string; name: string }[]> => {
+    const { data } = await createClient().rpc('list_group_members', { conv });
+    return (data ?? []).map((r: Record<string, any>) => ({ id: r.user_id, name: fullName(r) }));
+  }, []);
+
+  const addMember = useCallback(async (conv: string, member: string) => {
+    const { error: err } = await createClient().rpc('add_group_member', { conv, member });
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  const removeMember = useCallback(async (conv: string, member: string) => {
+    const { error: err } = await createClient().rpc('remove_group_member', { conv, member });
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  return { chats, loaded, membersOf, addMember, removeMember };
+}
