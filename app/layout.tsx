@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: { default: 'AU Youth Community — Home', template: '%s — AU Youth Community' },
-  description: 'A digital home for African Union interns, volunteers and fellows.',
+  description: 'A digital home for the African Union youth community: connect, learn and contribute.',
   icons: { icon: '/assets/logo.svg' },
 };
 

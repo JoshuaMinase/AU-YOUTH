@@ -145,7 +145,7 @@ export default function DashboardHome() {
                 <span className={s.mask}><span data-w className={s.word}>{today ? greet(new Date()) : 'Hello'},</span></span>{' '}
                 <span className={s.mask}><span data-w className={s.word}><em>{me.first || 'there'}.</em></span></span>
               </h1>
-              <p className={s.greetSub}>Here is what is happening across your AU intern community.</p>
+              <p className={s.greetSub}>Here is what is happening across the AU Youth community.</p>
             </div>
             <Link href="/dashboard/calendar" className={s.btnLine}>{I.calendar} Open calendar</Link>
           </section>

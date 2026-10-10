@@ -13,7 +13,7 @@ type Panel = 'report' | 'handbook' | 'faq';
 
 const CARDS: { id: Panel; title: string; sub: string; bg: string; icon: JSX.Element }[] = [
   { id: 'report', title: 'Report an issue', sub: 'Tell us about a technical problem or platform concern.', bg: '#8F2D56', icon: I.alert },
-  { id: 'handbook', title: 'Intern handbook', sub: 'The AU intern guide, policies and code of conduct.', bg: '#117302', icon: I.book },
+  { id: 'handbook', title: 'AU Youth handbook', sub: 'The AU Youth guide, policies and code of conduct.', bg: '#117302', icon: I.book },
   { id: 'faq', title: 'FAQs', sub: 'Frequently asked questions from the community.', bg: '#0072C6', icon: I.help },
 ];
 
@@ -27,7 +27,7 @@ const HANDBOOK = [
 
 const FAQ = [
   { q: 'How do I get my access badge?', a: 'Bring your offer letter and passport to the Security Office on your first day, 08:30–10:00.' },
-  { q: 'Who is my cohort lead?', a: 'Your cohort lead is listed on your profile under Department. You can also message the AU Intern Community chat.' },
+  { q: 'Who is my cohort lead?', a: 'Your cohort lead is listed on your profile under Department. You can also message the AU Youth Community chat.' },
   { q: 'Can I change departments?', a: 'Requests are reviewed case by case. Speak to your supervisor first, then email HRST.' },
   { q: 'How do I get a placement certificate?', a: 'Certificates are issued after your final report is approved — usually within two weeks of your end date.' },
 ];
@@ -65,7 +65,7 @@ export default function GetHelpPage() {
 
   return (
     <>
-      <Hero plain eyebrow="Support" title="Get *Help*" desc="Report a problem and find intern resources." />
+      <Hero plain eyebrow="Support" title="Get *Help*" desc="Report a problem and find AU Youth resources." />
 
       <div className={s.helpGrid}>
         {CARDS.map((c) => (
@@ -122,7 +122,7 @@ export default function GetHelpPage() {
 
         {panel === 'handbook' && (
           <section className={`${s.card} ${s.panel}`}>
-            <div className={s.cardHead}><div><p className={s.cardEyebrow}>Resources</p><h2 className={s.cardTitle}>Intern handbook</h2></div></div>
+            <div className={s.cardHead}><div><p className={s.cardEyebrow}>Resources</p><h2 className={s.cardTitle}>AU Youth handbook</h2></div></div>
             <div className={s.list}>
               {HANDBOOK.map((h, i) => (
                 <div key={h.t} className={s.listRow}>
@@ -156,7 +156,7 @@ export default function GetHelpPage() {
         <span className={s.helpIcon} style={{ background: 'rgba(255,255,255,.15)' }}>{I.phone}</span>
         <div className={s.rowMain}>
           <p className={s.rowTitle}>Welfare &amp; Wellbeing</p>
-          <p className={s.rowSub}>Confidential support for interns — available Mon–Fri, 09:00–17:00.</p>
+          <p className={s.rowSub}>Confidential support for AU Youth members — available Mon–Fri, 09:00–17:00.</p>
         </div>
       </section>
     </>

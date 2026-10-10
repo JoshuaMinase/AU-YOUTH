@@ -32,3 +32,4 @@ Last updated: 2026-10-10
 - 023 chat media (attachments, voice messages, forwarded flag; private chat-files bucket) - NOT YET RUN. Run it BEFORE pushing the app update, because the chats page reads the new columns
 - 024 public events (admins can publish events everyone sees; private stays the default) - NOT YET RUN
 - 025 one admin per department (set_admin refuses a second admin in the same department or a member with no department; the Admins list in the Admin panel is grouped by department) - NOT YET RUN
+- 026 rename the "AU Intern Community" chat to "AU Youth Community" - NOT YET RUN

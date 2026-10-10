@@ -4,7 +4,7 @@
 
 # AU Youth Community
 
-**A digital home for African Union interns, volunteers and fellows — connect, learn and contribute.**
+**A digital home for the African Union youth community — connect, learn and contribute.**
 
 [![Next.js](https://img.shields.io/badge/Next.js-14-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-18-149ECA?logo=react&logoColor=white)](https://react.dev)
@@ -73,7 +73,7 @@ The project has two parts:
 - **People**: search, role and department filters, and connection requests.
 - **Calendar**: month view, day agenda and add/delete events. Events show up across the dashboard.
 - **Chats**: conversations, sending messages, unread badges kept in sync with the header.
-- **Get Help**: department directory (email), issue report form, intern handbook and FAQs.
+- **Get Help**: department directory (email), issue report form, AU Youth handbook and FAQs.
 - **Profile**: editable bio, details and skills, with a live completion score.
 - **Mobile bottom tab bar** and a layout that adapts down to 390px wide.
 
