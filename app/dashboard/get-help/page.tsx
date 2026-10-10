@@ -1,11 +1,11 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Hero, I } from '@/components/portal/ui';
+import { ConfirmDialog, Hero, I, Modal, useToast } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { useIso } from '@/lib/hooks';
-import { useTickets } from '@/lib/portal';
+import { useFaqs, useTickets, type Faq } from '@/lib/portal';
 import { TicketRow } from '@/components/portal/Tickets';
 import { getLenis } from '@/components/SmoothScroll';
 import s from '@/styles/Portal.module.css';
@@ -26,16 +26,46 @@ const HANDBOOK = [
   { t: 'End of placement', d: 'Reports, certificates and staying in the alumni network.' },
 ];
 
-const FAQ = [
-  { q: 'How do I get my access badge?', a: 'Bring your offer letter and passport to the Security Office on your first day, 08:30–10:00.' },
-  { q: 'Who is my cohort lead?', a: 'Your cohort lead is listed on your profile under Department. You can also message the AU Youth Community chat.' },
-  { q: 'Can I change departments?', a: 'Requests are reviewed case by case. Speak to your supervisor first, then email HRST.' },
-  { q: 'How do I get a placement certificate?', a: 'Certificates are issued after your final report is approved — usually within two weeks of your end date.' },
-];
+/** add or edit one FAQ (admins) */
+function FaqForm({ faq, onSave, onClose }: { faq?: Faq; onSave: (q: string, a: string) => Promise<string | null>; onClose: () => void }) {
+  const [q, setQ] = useState(faq?.question ?? '');
+  const [a, setA] = useState(faq?.answer ?? '');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <Modal title={faq ? 'Edit question' : 'Add a question'} onClose={onClose}>
+      <form className={s.form} onSubmit={async (e) => {
+        e.preventDefault();
+        setBusy(true); setErr(null);
+        const msg = await onSave(q.trim(), a.trim());
+        if (msg) { setErr(msg); setBusy(false); }
+      }}>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="faq-q">Question</label>
+          <input id="faq-q" className={s.input} value={q} onChange={(e) => setQ(e.target.value)} required maxLength={200} placeholder="e.g. How do I get my access badge?" />
+        </div>
+        <div className={s.field}>
+          <label className={s.label} htmlFor="faq-a">Answer</label>
+          <textarea id="faq-a" className={s.textarea} style={{ minHeight: 140 }} value={a} onChange={(e) => setA(e.target.value)} required maxLength={1500} placeholder="Keep it short and practical" />
+        </div>
+        {err && <p className={s.agendaEmpty} role="alert">{err}</p>}
+        <div className={s.formActions}>
+          <button type="button" className={s.btnLine} onClick={onClose}>Cancel</button>
+          <button type="submit" className={s.btnDark} disabled={!q.trim() || !a.trim() || busy}>{busy ? 'Saving…' : faq ? 'Save changes' : 'Add question'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 export default function GetHelpPage() {
   const { tickets, file } = useTickets();
   const { me } = useMe();
+  const isAdmin = me.access !== 'user';
+  const { faqs, loaded: faqsLoaded, error: faqsError, add: addFaq, update: updateFaq, remove: removeFaq } = useFaqs();
+  const [toast, toastNode] = useToast();
+  const [faqForm, setFaqForm] = useState<Faq | 'new' | null>(null);
+  const [faqDelete, setFaqDelete] = useState<Faq | null>(null);
   const role = me.role.trim(); // Intern, Fellow, Volunteer…
   const handbook = `${role || 'AU Youth'} handbook`;
   const mine = tickets.filter((t) => t.mine);
@@ -43,7 +73,7 @@ export default function GetHelpPage() {
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [openFaq, setOpenFaq] = useState(0);
+  const [openFaq, setOpenFaq] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   /* bring the opened panel into view */
@@ -140,18 +170,34 @@ export default function GetHelpPage() {
 
         {panel === 'faq' && (
           <section className={`${s.card} ${s.panel}`}>
-            <div className={s.cardHead}><div><p className={s.cardEyebrow}>Answers</p><h2 className={s.cardTitle}>Frequently asked questions</h2></div></div>
+            <div className={s.cardHead}>
+              <div><p className={s.cardEyebrow}>Answers</p><h2 className={s.cardTitle}>Frequently asked questions</h2></div>
+              {isAdmin && <button type="button" className={`${s.btnDark} ${s.btnSm}`} onClick={() => setFaqForm('new')}>{I.plus} Add question</button>}
+            </div>
             <div className={s.list}>
-              {FAQ.map((f, i) => (
-                <div key={f.q} className={s.listRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-                  <button type="button" onClick={() => setOpenFaq(openFaq === i ? -1 : i)} aria-expanded={openFaq === i}
-                    style={{ display: 'flex', justifyContent: 'space-between', gap: 12, border: 0, background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}>
-                    <span className={s.rowTitle}>{f.q}</span><span aria-hidden="true" className={s.rowTitle}>{openFaq === i ? '−' : '+'}</span>
-                  </button>
-                  {openFaq === i && <p className={s.rowSub} style={{ fontSize: 14, lineHeight: 1.6 }}>{f.a}</p>}
+              {faqs.map((f) => (
+                <div key={f.id} className={s.listRow} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                    <button type="button" onClick={() => setOpenFaq(openFaq === f.id ? null : f.id)} aria-expanded={openFaq === f.id}
+                      style={{ flex: 1, display: 'flex', justifyContent: 'space-between', gap: 12, border: 0, background: 'none', padding: 0, cursor: 'pointer', textAlign: 'left', font: 'inherit' }}>
+                      <span className={s.rowTitle}>{f.question}</span><span aria-hidden="true" className={s.rowTitle}>{openFaq === f.id ? '−' : '+'}</span>
+                    </button>
+                    {isAdmin && (
+                      <>
+                        <button type="button" className={s.iconBtn} aria-label={`Edit ${f.question}`} onClick={() => setFaqForm(f)}>{I.edit}</button>
+                        <button type="button" className={s.iconBtn} aria-label={`Delete ${f.question}`} onClick={() => setFaqDelete(f)}>{I.close}</button>
+                      </>
+                    )}
+                  </div>
+                  {openFaq === f.id && <p className={s.rowSub} style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{f.answer}</p>}
                 </div>
               ))}
             </div>
+            {!faqsLoaded && !faqsError && <p className={s.agendaEmpty}>Loading…</p>}
+            {faqsError && <p className={s.agendaEmpty} role="alert">Could not load the questions: {faqsError}</p>}
+            {faqsLoaded && !faqsError && !faqs.length && (
+              <p className={s.agendaEmpty}>{isAdmin ? 'No questions yet. Use “Add question” to write the first one.' : 'No questions yet. Check back soon.'}</p>
+            )}
           </section>
         )}
       </div>
@@ -163,6 +209,20 @@ export default function GetHelpPage() {
           <p className={s.rowSub}>Confidential support for AU Youth members — available Mon–Fri, 09:00–17:00.</p>
         </div>
       </section>
+      {faqForm && (
+        <FaqForm faq={faqForm === 'new' ? undefined : faqForm} onClose={() => setFaqForm(null)}
+          onSave={async (q, a) => {
+            const msg = faqForm === 'new' ? await addFaq(q, a) : await updateFaq(faqForm.id, q, a);
+            if (msg) return msg;
+            setFaqForm(null); toast(faqForm === 'new' ? 'Question added' : 'Question updated'); return null;
+          }} />
+      )}
+      {faqDelete && (
+        <ConfirmDialog title="Delete this question?" message={`"${faqDelete.question}" will be removed for everyone.`} confirmLabel="Delete"
+          onCancel={() => setFaqDelete(null)}
+          onConfirm={async () => { const msg = await removeFaq(faqDelete.id); setFaqDelete(null); toast(msg ?? 'Question deleted'); }} />
+      )}
+      {toastNode}
     </>
   );
 }

@@ -783,6 +783,41 @@ export function useAddedDepartments() {
   return { departments, loaded, remove };
 }
 
+export interface Faq { id: string; question: string; answer: string }
+
+/** Get Help FAQs (Supabase `faqs`). Everyone reads; admins add, edit and delete. Actions return an error message or null. */
+export function useFaqs() {
+  const { me } = useMe();
+  const [faqs, setFaqs] = useState<(Faq & { position: number })[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id) return;
+    const { data, error: err } = await createClient().from('faqs').select('id, question, answer, position').order('position').order('created_at');
+    if (err) setError(err.message);
+    else { setError(null); setFaqs((data ?? []) as (Faq & { position: number })[]); }
+    setLoaded(true);
+  }, [me.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const run = useCallback(async (op: PromiseLike<{ error: { message: string } | null }>) => {
+    const { error: err } = await op;
+    await load();
+    return err ? err.message : null;
+  }, [load]);
+
+  const add = useCallback((question: string, answer: string) =>
+    run(createClient().from('faqs').insert({ question, answer, position: Math.max(0, ...faqs.map((f) => f.position)) + 1 })), [run, faqs]);
+  const update = useCallback((id: string, question: string, answer: string) =>
+    run(createClient().from('faqs').update({ question, answer }).eq('id', id)), [run]);
+  const remove = useCallback((id: string) =>
+    run(createClient().from('faqs').delete().eq('id', id)), [run]);
+
+  return { faqs: faqs as Faq[], loaded, error, add, update, remove };
+}
+
 export interface FlaggedMessage { id: string; who: string; body: string; categories: string[]; time: string; reviewed: boolean }
 
 /** Messages the AI blocked in chats (Supabase `moderation_flags`, admins only), with live updates. */

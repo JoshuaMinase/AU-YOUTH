@@ -14,7 +14,7 @@ Last updated: 2026-10-10
 - /dashboard/chats attachments, voice messages and forwarding: photos (shrunk in the browser, checked by the AI), PDF / Word / Excel / PowerPoint / TXT / CSV files up to 10 MB, voice messages up to 5 minutes, and a Forward button on every message (to one or more chats). Files sit in the private chat-files bucket (needs SQL 023). Voice messages and documents are not screened by the AI, only photos and captions are
 - /dashboard/news (news table, live updates)
 - /dashboard/news/[slug] (article + more stories, read on the server)
-- /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook and FAQ stay static on purpose)
+- /dashboard/get-help: "Report an issue" saves to support_tickets (department contacts, handbook stays static on purpose; FAQs are editable by admins, see 028)
 
 ## Partly done
 - /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates). Admins see two buttons: "Add public event" (everyone sees it) and "Add private event (only me)"; members only add private events (needs 024)
@@ -34,3 +34,4 @@ Last updated: 2026-10-10
 - 025 one admin per department (set_admin refuses a second admin in the same department or a member with no department; the Admins list in the Admin panel is grouped by department) - NOT YET RUN
 - 026 rename the "AU Intern Community" chat to "AU Youth Community" - NOT YET RUN
 - 027 event details (optional last day for multi-day events, description, up to 3 photos in the public event-images bucket; click an event on the calendar to see everything) - NOT YET RUN. Run it BEFORE pushing the app update, because the calendar reads the new columns
+- 028 FAQs (Get Help FAQs live in the `faqs` table; admins add, edit and delete them on the Get Help page; no sample rows) - NOT YET RUN. Run it BEFORE pushing the app update
