@@ -36,15 +36,11 @@ export const PROFILE_DEFAULT: Profile = {
   languages: [],
 };
 
-/** completeness: base 50% + bio (25) + 5+ skills (15) + nationality and based-in filled (10) */
 /** sign-up is limited to these email domains (enforced in Supabase by docs/sql/013_roles.sql) */
 export const ALLOWED_DOMAINS = ['africanunion.org', 'africa-union.org'];
 export const isAllowedEmail = (email: string) => ALLOWED_DOMAINS.includes(email.trim().toLowerCase().split('@')[1] ?? '');
 /** super admin (one) > admin (set by the super admin) > user */
 export type Access = 'super_admin' | 'admin' | 'user';
-
-export const profileScore = (p: Profile) =>
-  Math.min(100, 50 + (p.bio.trim().length >= 20 ? 25 : 0) + (p.skills.length >= 5 ? 15 : 0) + (p.nationality.trim() && p.basedIn.trim() ? 10 : 0));
 
 /** What a member must fill in before they can post, chat, add events or connect (until then: view-only).
  *  Keep in sync with private.profile_complete() in docs/sql/022_profile_gate.sql. Admins and the super admin are not limited, only reminded. */
@@ -58,6 +54,10 @@ export const profileMissing = (p: Profile, extra: { role: string; dept: string }
   if (!p.skills.length) m.push('at least one skill');
   return m;
 };
+const PROFILE_REQUIRED = 6; // role, department, nationality, based in, gender, one skill (the bio is optional)
+/** completion %: share of the required fields filled in, so 100% means the profile is complete and nothing is locked */
+export const profileScore = (p: Profile, extra: { role: string; dept: string }) =>
+  Math.round((100 * (PROFILE_REQUIRED - profileMissing(p, extra).length)) / PROFILE_REQUIRED);
 export const PROFILE_LOCKED_MSG = 'Complete your profile first (Profile → Finish profile) to use this.';
 
 /* ── Dates ─────────────────────────────────────────────────────────── */

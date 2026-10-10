@@ -37,7 +37,7 @@ export default function DashboardHome() {
   const [commentDraft, setCommentDraft] = useState('');
 
   const { me, profile } = useMe();
-  const completion = profileScore(profile);
+  const completion = profileScore(profile, me);
 
   const { notifs, unread: newCount, markRead: readNotif, markAllRead, loaded: notifsLoaded } = useNotifications();
 

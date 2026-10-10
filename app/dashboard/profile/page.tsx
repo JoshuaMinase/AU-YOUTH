@@ -181,7 +181,7 @@ export default function ProfilePage() {
   const { connected: network } = usePeople();
   const [editing, setEditing] = useState(false);
   const [toast, toastNode] = useToast();
-  const pct = profileScore(profile);
+  const pct = profileScore(profile, me);
 
   const details: [string, string][] = [
     ['Department', me.dept], ['Role', me.role], ['Nationality', profile.nationality],
@@ -206,21 +206,8 @@ export default function ProfilePage() {
           <div>
             <p className={s.cardEyebrow}>{canWrite ? 'Reminder' : 'View only until complete'}</p>
             <h2 className={s.cardTitle} style={{ marginBottom: 6 }}>{canWrite ? 'Please finish your profile' : 'Finish your profile to unlock chats, calendar and connections'}</h2>
-            <p className={s.cardMeta}>Still needed: {missing.join(', ')}.</p>
-          </div>
-          <button type="button" className={s.btnDark} onClick={() => setEditing(true)}>Finish profile</button>
-        </section>
-      )}
-
-      {complete && pct < 100 && (
-        <section className={`${s.card} ${s.completion}`} data-reveal>
-          <div>
-            <p className={s.cardEyebrow}>{pct}% complete</p>
-            <h2 className={s.cardTitle} style={{ marginBottom: 10 }}>Complete your profile</h2>
             <div className={s.progress}><div className={s.progressFill} style={{ width: `${pct}%` }} /></div>
-            <p className={s.cardMeta} style={{ marginTop: 10 }}>
-              {profile.bio.trim().length < 20 ? 'Add a short bio' : ''}{profile.bio.trim().length < 20 && profile.skills.length < 5 ? ' and ' : ''}{profile.skills.length < 5 ? 'list at least five skills' : ''} to reach 100%.
-            </p>
+            <p className={s.cardMeta} style={{ marginTop: 10 }}>{pct}% complete. Still needed: {missing.join(', ')}.</p>
           </div>
           <button type="button" className={s.btnDark} onClick={() => setEditing(true)}>Finish profile</button>
         </section>
