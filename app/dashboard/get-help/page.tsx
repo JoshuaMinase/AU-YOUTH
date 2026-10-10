@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { Hero, I } from '@/components/portal/ui';
 import { softAvatar } from '@/lib/data';
+import { useMe } from '@/lib/me';
 import { useIso } from '@/lib/hooks';
 import { useTickets } from '@/lib/portal';
 import { TicketRow } from '@/components/portal/Tickets';
@@ -13,7 +14,7 @@ type Panel = 'report' | 'handbook' | 'faq';
 
 const CARDS: { id: Panel; title: string; sub: string; bg: string; icon: JSX.Element }[] = [
   { id: 'report', title: 'Report an issue', sub: 'Tell us about a technical problem or platform concern.', bg: '#8F2D56', icon: I.alert },
-  { id: 'handbook', title: 'AU Youth handbook', sub: 'The AU Youth guide, policies and code of conduct.', bg: '#117302', icon: I.book },
+  { id: 'handbook', title: 'Handbook', sub: 'The guide, policies and code of conduct.', bg: '#117302', icon: I.book },
   { id: 'faq', title: 'FAQs', sub: 'Frequently asked questions from the community.', bg: '#0072C6', icon: I.help },
 ];
 
@@ -34,6 +35,9 @@ const FAQ = [
 
 export default function GetHelpPage() {
   const { tickets, file } = useTickets();
+  const { me } = useMe();
+  const role = me.role.trim(); // Intern, Fellow, Volunteer…
+  const handbook = `${role || 'AU Youth'} handbook`;
   const mine = tickets.filter((t) => t.mine);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [sent, setSent] = useState(false);
@@ -68,7 +72,7 @@ export default function GetHelpPage() {
       <Hero plain eyebrow="Support" title="Get *Help*" desc="Report a problem and find AU Youth resources." />
 
       <div className={s.helpGrid}>
-        {CARDS.map((c) => (
+        {CARDS.map((c) => c.id === 'handbook' ? { ...c, title: handbook, sub: `The ${role || 'AU Youth'} guide, policies and code of conduct.` } : c).map((c) => (
           <button key={c.id} type="button" className={s.helpCard} aria-expanded={panel === c.id} aria-controls="help-panel" onClick={() => toggle(c.id)} data-reveal>
             <span className={s.helpIcon} style={softAvatar(c.bg)}>{c.icon}</span>
             <span className={s.helpTitle}>{c.title}</span>
@@ -122,7 +126,7 @@ export default function GetHelpPage() {
 
         {panel === 'handbook' && (
           <section className={`${s.card} ${s.panel}`}>
-            <div className={s.cardHead}><div><p className={s.cardEyebrow}>Resources</p><h2 className={s.cardTitle}>AU Youth handbook</h2></div></div>
+            <div className={s.cardHead}><div><p className={s.cardEyebrow}>Resources</p><h2 className={s.cardTitle}>{handbook}</h2></div></div>
             <div className={s.list}>
               {HANDBOOK.map((h, i) => (
                 <div key={h.t} className={s.listRow}>
