@@ -42,6 +42,29 @@ export const isAllowedEmail = (email: string) => ALLOWED_DOMAINS.includes(email.
 /** super admin (one) > admin (set by the super admin) > user */
 export type Access = 'super_admin' | 'admin' | 'user';
 
+/* ── Department colour tones ───────────────────────────────────────────
+ * Each department gets a slightly different calm tone for the dashboard (page tint, soft fills, bronze accent).
+ * Chosen from the department name, so everyone in a department sees the same tone. No department = the original look. */
+export interface DeptTone { bg: string; glow: string; soft: string; accent: string; accentLt: string }
+export const DEFAULT_TONE: DeptTone = { bg: '#F5F5F3', glow: '#F5F5F3', soft: '#ECECE8', accent: '#B8935A', accentLt: '#E2CBA4' };
+const DEPT_TONES: DeptTone[] = [
+  { bg: '#F6F3EE', glow: '#EFE4D2', soft: '#EDE8DF', accent: '#B8935A', accentLt: '#E2CBA4' }, // sand
+  { bg: '#F7F2F1', glow: '#F0DDDA', soft: '#EEE6E4', accent: '#B07468', accentLt: '#E5C3BB' }, // rose
+  { bg: '#F1F4F7', glow: '#DCE8F1', soft: '#E6EBEF', accent: '#5E86A3', accentLt: '#BFD4E4' }, // sky
+  { bg: '#F2F5F2', glow: '#DDE9DE', soft: '#E6EBE6', accent: '#6E9072', accentLt: '#C5D9C7' }, // sage
+  { bg: '#F4F2F7', glow: '#E4DEEE', soft: '#EAE6EF', accent: '#8473A6', accentLt: '#D2C8E6' }, // lavender
+  { bg: '#F0F5F5', glow: '#D6E8E7', soft: '#E4EBEB', accent: '#4F8E8C', accentLt: '#B9DAD8' }, // teal
+  { bg: '#F8F3EF', glow: '#F3DFCF', soft: '#EFE7E0', accent: '#C0805A', accentLt: '#EBCBB3' }, // apricot
+  { bg: '#F2F3F5', glow: '#DFE2E8', soft: '#E7E9ED', accent: '#6B778C', accentLt: '#C7CEDA' }, // slate
+];
+export function deptTone(dept: string): DeptTone {
+  const key = dept.trim().toLowerCase();
+  if (!key) return DEFAULT_TONE;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  return DEPT_TONES[h % DEPT_TONES.length];
+}
+
 /** What a member must fill in before they can post, chat, add events or connect (until then: view-only).
  *  Keep in sync with private.profile_complete() in docs/sql/022_profile_gate.sql. Admins and the super admin are not limited, only reminded. */
 export const profileMissing = (p: Profile, extra: { role: string; dept: string }): string[] => {

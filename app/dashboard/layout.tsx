@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { I } from '@/components/portal/ui';
 import { MeProvider, useMe } from '@/lib/me';
+import { deptTone } from '@/lib/data';
 import { useReveal, useSwipeTabs } from '@/lib/hooks';
 import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
@@ -26,6 +27,8 @@ function Shell({ children }: { children: React.ReactNode }) {
   const main = useRef<HTMLElement>(null);
   const { unread } = useChats();
   /* admins and the super admin get an extra Admin tab */
+  /* each department gets a slightly different calm tone (lib/data.ts deptTone) */
+  const tone = useMemo(() => deptTone(me.dept), [me.dept]);
   const nav = useMemo(() => (me.access === 'user' ? NAV : [...NAV, ADMIN_NAV]), [me.access]);
   const tabs = useMemo(() => nav.map((n) => n.href), [nav]);
   useReveal(main, [pathname]);
@@ -40,7 +43,10 @@ function Shell({ children }: { children: React.ReactNode }) {
   const active = (href: string) => (href === '/dashboard' ? pathname === href : pathname.startsWith(href));
 
   return (
-    <div className={s.shell}>
+    <div className={s.shell} style={{
+      '--p-bg': tone.bg, '--p-soft': tone.soft, '--p-accent': tone.accent, '--p-accent-lt': tone.accentLt,
+      background: `radial-gradient(1100px 520px at 12% 0%, ${tone.glow}, transparent 70%), ${tone.bg}`,
+    } as React.CSSProperties}>
       <header className={s.header}>
         <div className={s.headerInner}>
           <Link href="/dashboard" className={s.brand} aria-label="AU Youth Community — dashboard home">
