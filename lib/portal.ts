@@ -628,14 +628,20 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
 export function useNotifications() {
   const { me } = useMe();
   const [notifs, setNotifs] = useState<Notif[]>([]);
+  const [unread, setUnread] = useState(0);   // all unread, not just the 8 shown
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!me.id) return;
-    const { data, error: err } = await createClient().from('notifications')
-      .select('id, kind, title, body, href, read_at, created_at').order('created_at', { ascending: false }).limit(8);
+    const supabase = createClient();
+    const [{ data, error: err }, { count }] = await Promise.all([
+      supabase.from('notifications')
+        .select('id, kind, title, body, href, read_at, created_at').order('created_at', { ascending: false }).limit(8),
+      supabase.from('notifications').select('id', { count: 'exact', head: true }).is('read_at', null),
+    ]);
     if (err) { setError(err.message); setLoaded(true); return; }
+    setUnread(count ?? 0);
     const now = new Date();
     setError(null);
     setNotifs((data ?? []).map((r) => ({
@@ -652,7 +658,7 @@ export function useNotifications() {
     const supabase = createClient();
     const channel = supabase
       .channel(`notifs-${me.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications' }, () => { load(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${me.id}` }, () => { load(); })
       .subscribe();
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onVisible);
@@ -662,15 +668,15 @@ export function useNotifications() {
     };
   }, [me.id, load]);
 
-  const unread = notifs.filter((n) => !n.read).length;
-
   const markRead = useCallback(async (id: string) => {
     setNotifs((p) => p.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setUnread((c) => Math.max(0, c - 1));
     await createClient().from('notifications').update({ read_at: new Date().toISOString() }).eq('id', id).is('read_at', null);
   }, []);
   const markAllRead = useCallback(async () => {
     if (!me.id) return;
     setNotifs((p) => p.map((n) => ({ ...n, read: true })));
+    setUnread(0);
     await createClient().from('notifications').update({ read_at: new Date().toISOString() }).eq('user_id', me.id).is('read_at', null);
   }, [me.id]);
 
