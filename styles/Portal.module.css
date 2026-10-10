@@ -373,6 +373,72 @@
 .chatForm { display: flex; gap: 10px; padding: 14px; border-top: 1px solid var(--line); }
 .chatForm .input { flex: 1; }
 
+/* chat media: forward button, photos, files, voice messages, queued files, recorder, forward dialog */
+.msgRow { display: flex; align-items: center; gap: 6px; align-self: flex-start; max-width: min(78%, 560px); }
+.msgRowMe { align-self: flex-end; flex-direction: row-reverse; }
+.msgRow > .msg { align-self: center; max-width: none; min-width: 0; }
+.msgAct { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); cursor: pointer; opacity: 0; transition: opacity .2s, background .2s, color .2s; }
+.msgAct svg { width: 15px; height: 15px; }
+.msgAct:hover { background: var(--p-soft); color: var(--p-ink); }
+.msgRow:hover .msgAct, .msgAct:focus-visible { opacity: 1; }
+.msgFwd { display: flex; align-items: center; gap: 5px; margin-bottom: 4px; font-size: 11px; font-style: italic; opacity: .7; }
+.msgText { display: block; overflow-wrap: anywhere; }
+.msg[data-kind] .msgText { margin-top: 6px; }
+.msg[data-kind="image"] { padding: 6px; }
+.msg[data-kind="image"] .msgText, .msg[data-kind="image"] small, .msg[data-kind="image"] .msgFwd { padding: 0 8px; }
+.msgImgBtn { display: block; max-width: min(280px, 100%); padding: 0; border: 0; border-radius: 12px; overflow: hidden; background: none; cursor: zoom-in; }
+.msgImgBtn:disabled { cursor: default; }
+.msgImg { display: block; max-width: 100%; max-height: 300px; border-radius: 12px; object-fit: cover; }
+.msgImgWait { display: block; width: 220px; max-width: 100%; aspect-ratio: 4 / 3; border-radius: 12px; background: var(--p-soft); }
+.msgFile { display: flex; align-items: center; gap: 10px; width: min(280px, 100%); padding: 8px 10px; border: 0; border-radius: 12px; background: rgba(30,42,34,.07); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.msgMe .msgFile { background: rgba(255,255,255,.12); }
+.msgFile:disabled { opacity: .7; cursor: progress; }
+.msgFileIcon { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border-radius: 10px; background: var(--p-soft); color: var(--p-ink); }
+.msgMe .msgFileIcon { background: rgba(255,255,255,.16); color: #fff; }
+.msgFileIcon svg { width: 18px; height: 18px; }
+.msgFileInfo { display: flex; flex: 1; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; opacity: .85; }
+.msgFileInfo b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.msgFileGo { flex: none; opacity: .6; }
+.voice { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-width: min(230px, 100%); }
+.voiceBtn { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--p-ink); color: #fff; cursor: pointer; }
+.msgMe .voiceBtn { background: #fff; color: var(--p-ink); }
+.voiceBtn svg { width: 15px; height: 15px; fill: currentColor; }
+.voiceBar { flex: 1; min-width: 80px; height: 4px; accent-color: var(--p-ink); cursor: pointer; }
+.msgMe .voiceBar { accent-color: #fff; }
+.voiceTime { flex: none; font-size: 12px; font-variant-numeric: tabular-nums; opacity: .75; }
+.voiceErr { flex-basis: 100%; font-size: 12px; }
+
+.chatTray { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 14px 0; border-top: 1px solid var(--line); }
+.chatTray + .chatForm { border-top: 0; }
+.trayItem { display: flex; align-items: center; gap: 8px; max-width: 100%; padding: 5px 6px 5px 5px; border-radius: 12px; background: var(--p-soft); color: var(--p-ink); font-size: 12px; font-weight: 700; }
+.trayThumb { flex: none; width: 34px; height: 34px; border-radius: 8px; object-fit: cover; }
+.trayIcon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: #fff; }
+.trayIcon svg { width: 16px; height: 16px; }
+.trayName { min-width: 0; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trayRemove { display: grid; place-items: center; flex: none; width: 24px; height: 24px; border: 0; border-radius: 50%; background: none; color: var(--ink-2); cursor: pointer; }
+.trayRemove:hover { background: #fff; color: var(--p-ink); }
+.trayRemove svg { width: 12px; height: 12px; }
+.chatTool { display: grid; place-items: center; flex: none; width: 42px; height: 42px; border-radius: 11px; border: 1.5px solid var(--line); background: #fff; color: var(--ink-2); cursor: pointer; transition: border-color .2s, color .2s; }
+.chatTool:hover:not(:disabled) { border-color: var(--p-ink); color: var(--p-ink); }
+.chatTool:disabled { opacity: .45; cursor: not-allowed; }
+.chatTool svg { width: 18px; height: 18px; }
+.recBar { display: flex; align-items: center; flex: 1; gap: 10px; min-width: 0; }
+.recDot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #c0392b; animation: recPulse 1.2s ease-in-out infinite; }
+@keyframes recPulse { 50% { opacity: .25; } }
+.recLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; color: var(--p-ink); }
+.recTime { flex: none; font-size: 14px; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+
+.fwdPreview { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: var(--p-soft); font-size: 13px; color: var(--p-ink-2); }
+.fwdPreview svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
+.fwdPreview span { display: -webkit-box; min-width: 0; overflow: hidden; overflow-wrap: anywhere; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+.fwdList { max-height: min(300px, 40vh); margin: 0 -6px; padding: 0 6px; overflow-y: auto; }
+.fwdItem { display: flex; align-items: center; gap: 12px; padding: 8px 6px; border-radius: 12px; cursor: pointer; }
+.fwdItem:hover { background: #f7f6f2; }
+.fwdItem input { flex: none; width: 18px; height: 18px; accent-color: var(--p-ink); }
+.fwdName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; color: var(--p-ink); }
+.photoFull { display: block; max-width: 100%; max-height: calc(100vh - 170px); margin: 0 auto; border-radius: 14px; }
+@media (hover: none) { .msgAct { opacity: .55; } }
+
 /* ── Help ─────────────────────────────────────────────────────────── */
 .helpGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 20px; }
 .helpCard { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 22px; border-radius: 22px; background: #fff; border: 1px solid var(--line); text-align: left; cursor: pointer; font-family: inherit; color: inherit; transition: box-shadow .4s var(--ease), transform .4s var(--ease), border-color .3s; }
@@ -465,8 +531,12 @@
   .calHeadCell { padding: 8px 2px; text-align: center; font-size: 10px; letter-spacing: 0; }
   .calNum { width: 24px; height: 24px; font-size: 12px; }
   .msg { max-width: 85%; }
+  .msgRow { max-width: 92%; }
+  .chatForm { gap: 8px; padding: 10px; }
+  .chatTray { padding: 10px 10px 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .featured, .newsCard, .person, .helpCard, .comingItem, .featuredImg img, .newsImg img, .msg, .modal, .scrim, .panel, .menu, .progressFill, .toast { transition: none; animation: none; }
+  .recDot, .msgAct { transition: none; animation: none; }
 }

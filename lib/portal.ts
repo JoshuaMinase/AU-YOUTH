@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem } from './data';
+import { AUDIO_TYPES, CHAT_BUCKET, CHAT_MAX_BYTES, audioExt, baseType, checkChatFile, chatMime, cleanName, extOf, previewOf, type ChatFile, type ChatKind } from './chatFiles';
 import { useMe } from './me';
 import { NEWS_COLS, timeAgo, toNews } from './news';
 import { colorFor } from './people';
@@ -84,9 +85,26 @@ function chatTime(iso: string, now: Date) {
   return `${d.getDate()} ${MONTHS[d.getMonth()].slice(0, 3)}`;
 }
 
+/** one call to the send route (it checks the message with the AI first); returns an error message or null */
+async function postMessage(body: Record<string, unknown>): Promise<string | null> {
+  try {
+    const res = await fetch('/api/chat/send', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (res.ok) return null;
+    const data = await res.json().catch(() => null);
+    return data?.error ?? 'Could not send. Try again.';
+  } catch { return 'Could not reach the server. Check your connection.'; }
+}
+
 const CHAT_COLS = `id, is_group, title, last_message_at, dept:departments(name),
   conversation_members(user_id, last_read_at, profile:profiles!conversation_members_user_id_fkey(first_name, last_name)),
-  messages(id, sender_id, body, created_at)`;
+  messages(id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded)`;
+
+/** the file a message row carries, if any */
+const fileOf = (m: Record<string, any>): ChatFile | undefined => m.attachment_path
+  ? { path: m.attachment_path, name: m.attachment_name ?? 'file', type: m.attachment_type ?? '', size: m.attachment_size ?? 0, seconds: m.attachment_seconds ?? undefined }
+  : undefined;
 
 /**
  * Your conversations (Supabase `conversations`, `conversation_members`, `messages`) with live updates.
@@ -117,6 +135,7 @@ export function useChats() {
       const messages: Msg[] = rows.map((m) => ({
         id: m.id, from: m.sender_id === me.id ? 'me' : 'them', text: m.body, time: hhmm(new Date(m.created_at)),
         who: r.is_group && m.sender_id !== me.id ? names[m.sender_id] ?? 'Member' : undefined,
+        kind: (m.kind ?? 'text') as ChatKind, file: fileOf(m), forwarded: !!m.forwarded,
       }));
       const last = rows[rows.length - 1];
       return {
@@ -126,7 +145,7 @@ export function useChats() {
         time: chatTime(last?.created_at ?? r.last_message_at, now), messages,
         dept: r.dept?.name ?? undefined,
         members: members.map((m) => ({ id: m.user_id, name: names[m.user_id] ?? 'Member' })),
-        preview: last ? last.body : 'No messages yet',
+        preview: last ? previewOf({ kind: last.kind, body: last.body, file: fileOf(last) }) : 'No messages yet',
       };
     }));
     setLoaded(true);
@@ -168,19 +187,33 @@ export function useChats() {
   const send = useCallback(async (id: string, text: string) => {
     if (!canWrite) return PROFILE_LOCKED_MSG;
     /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
-    let msg: string | null = null;
-    try {
-      const res = await fetch('/api/chat/send', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: id, text }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        msg = data?.error ?? 'Could not send. Try again.';
-      }
-    } catch { msg = 'Could not reach the server. Check your connection.'; }
+    const msg = await postMessage({ conversationId: id, text });
     await load();
     return msg;
+  }, [load, canWrite]);
+
+  /** a photo, document or voice message: uploads the file, then sends it through the same checked route. `caption` is optional text. */
+  const sendFile = useCallback(async (id: string, file: File | Blob, o: { caption?: string; voiceSeconds?: number } = {}) => {
+    if (!canWrite) return PROFILE_LOCKED_MSG;
+    const up = await uploadChatFile(id, file, o.voiceSeconds ? { voiceSeconds: o.voiceSeconds } : {});
+    if (!up.file || !up.kind) return up.error ?? 'Could not upload the file.';
+    const msg = await postMessage({ conversationId: id, text: (o.caption ?? '').trim(), kind: up.kind, attachment: up.file });
+    if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
+    await load();
+    return msg;
+  }, [load, canWrite]);
+
+  /** forwards one message (text, photo, file or voice) to other conversations; returns an error message or null */
+  const forward = useCallback(async (messageId: string, targets: string[]) => {
+    if (!canWrite) return PROFILE_LOCKED_MSG;
+    const errors: string[] = [];
+    for (const t of targets) {
+      const e = await postMessage({ conversationId: t, forwardOf: messageId });
+      if (e) errors.push(e);
+    }
+    await load();
+    if (!errors.length) return null;
+    return targets.length === 1 ? errors[0] : `Forwarded to ${targets.length - errors.length} of ${targets.length} chats. ${errors[0]}`;
   }, [load, canWrite]);
 
   /** open (or create) a 1:1 chat with a connection; returns the conversation id or an error */
@@ -204,7 +237,7 @@ export function useChats() {
     return err ? err.message : null;
   }, [load]);
 
-  return { chats, unread, markRead, send, start, addMember, removeMember, loaded, error };
+  return { chats, unread, markRead, send, sendFile, forward, start, addMember, removeMember, loaded, error };
 }
 
 export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean }
@@ -270,6 +303,49 @@ export async function uploadNewsImage(file: File): Promise<{ url?: string; error
   const { error } = await supabase.storage.from(NEWS_BUCKET).upload(path, blob, { contentType: blob.type, cacheControl: '31536000' });
   if (error) return { error: error.message };
   return { url: supabase.storage.from(NEWS_BUCKET).getPublicUrl(path).data.publicUrl };
+}
+
+/**
+ * Chats: uploads a photo, document or voice message into the conversation's folder of the private chat-files bucket
+ * (docs/sql/023_chat_media.sql). Photos are shrunk like news photos. Returns the file details to send with the message.
+ */
+export async function uploadChatFile(conv: string, file: File | Blob, o: { voiceSeconds?: number } = {}): Promise<{ file?: ChatFile; kind?: ChatKind; error?: string }> {
+  let blob: Blob = file;
+  let type: string; let ext: string; let name: string; let kind: ChatKind;
+  if (o.voiceSeconds) {
+    type = baseType(file.type); // "audio/webm;codecs=opus" -> "audio/webm", which is what the bucket list expects
+    if (!AUDIO_TYPES.includes(type)) return { error: 'This browser recorded a sound format we cannot send.' };
+    ext = audioExt(type); name = `Voice message.${ext}`; kind = 'voice';
+    if (file.size > CHAT_MAX_BYTES) return { error: 'That voice message is too big. Please record a shorter one.' };
+  } else {
+    name = cleanName((file as File).name ?? 'file');
+    const bad = checkChatFile({ name, size: file.size });
+    if (bad) return { error: bad };
+    type = chatMime(name)!; ext = extOf(name);
+    if (type.startsWith('image/')) {
+      kind = 'image';
+      if (type !== 'image/gif') {
+        try { blob = await shrinkPhoto(file as File); type = 'image/webp'; ext = 'webp'; }
+        catch { return { error: `We could not read "${name}". Please use a JPG, PNG or WebP photo.` }; }
+      }
+    } else kind = 'file';
+  }
+  const path = `${conv}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await createClient().storage.from(CHAT_BUCKET).upload(path, blob, { contentType: type, cacheControl: '3600' });
+  if (error) return { error: error.message };
+  return { kind, file: { path, name, type, size: blob.size, seconds: o.voiceSeconds } };
+}
+
+const chatUrls = new Map<string, { url: string; at: number }>();
+/** A temporary link (valid 1 hour) to a file in the private chat bucket. `download` makes the browser save it under that name. */
+export async function getChatFileUrl(path: string, download?: string): Promise<{ url?: string; error?: string }> {
+  const key = `${path}|${download ?? ''}`;
+  const hit = chatUrls.get(key);
+  if (hit && Date.now() - hit.at < 50 * 60 * 1000) return { url: hit.url };
+  const { data, error } = await createClient().storage.from(CHAT_BUCKET).createSignedUrl(path, 3600, download ? { download } : undefined);
+  if (error || !data) return { error: error?.message ?? 'Could not open the file.' };
+  chatUrls.set(key, { url: data.signedUrl, at: Date.now() });
+  return { url: data.signedUrl };
 }
 
 /** Published articles (Supabase `news` table), newest first, with live updates. Shared by the news page and home. */

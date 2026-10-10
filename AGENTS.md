@@ -73,12 +73,16 @@ components/
                           CtaBand, Faq, OpportunityBoard, CircleGrid, icons
   portal/ui.tsx           Dashboard building blocks: icon set `I`, Hero, Modal, useToast, MiniCalendar
   portal/tags.ts          News tag → colour class (plain module, safe for server components)
+  portal/ChatMessage.tsx  One chat bubble: text, photo, file or voice message, plus its Forward button
+  portal/VoiceRecorder.tsx  Records a voice message inside the chat message box
+  portal/ForwardDialog.tsx  Pick one or more chats to forward a message to
 
 lib/
   data.ts                 ALL mock data + date helpers + profile model + avatar colour helpers
   hooks.ts                useIso, useToday, useReveal, useListAnimation, copyText
   store.ts                usePersisted (localStorage state shared between components)
   portal.ts               useEvents, useChats (shared dashboard state)
+  chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
 
 styles/
   Site.module.css         Public pages
