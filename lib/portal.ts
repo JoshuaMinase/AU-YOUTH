@@ -222,6 +222,9 @@ export function useChats() {
     const { error: err } = await createClient().from('conversation_members')
       .update({ last_read_at: new Date().toISOString() }).eq('conversation_id', id).eq('user_id', me.id);
     if (err) return err.message; // no reload, so a failing write can't loop with the chats page effect
+    // the group chat notification (SQL 030) is read once the chat is on screen
+    await createClient().from('notifications').update({ read_at: new Date().toISOString() })
+      .eq('user_id', me.id).eq('kind', 'chat_message').eq('href', `/dashboard/chats?c=${id}`).is('read_at', null);
     await load();
     return null;
   }, [me.id, load]);
@@ -618,6 +621,7 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   flagged_message: { icon: '!', bg: '#F4E8EC', fg: '#8F2D56' },
   new_department: { icon: '+', bg: '#ECECE8', fg: '#1E2A22' },
   ticket: { icon: '#', bg: '#F3EEE4', fg: '#8a6a3c' },
+  chat_message: { icon: '💬', bg: '#E8EEE9', fg: '#2F4A3A' },
 };
 
 /** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */
