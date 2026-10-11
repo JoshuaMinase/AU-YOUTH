@@ -14,8 +14,7 @@ Things to do later. Tick them off (`[x]`) when done and add new ones at the bott
 - [ ] Maybe: no message text in the email (only "X sent you a message") if people prefer more privacy.
 - [ ] Maybe: also email when a ticket is taken or resolved (only chat messages are emailed now).
 
-## Not yet tested / not yet run (from PAGES_STATUS.md)
-- [ ] Run SQL 037, 038, 039 in Supabase (reply + delete, deleted messages for admins, archive every delete) before pushing the app that uses them.
+## Not yet tested (from PAGES_STATUS.md)
 - [ ] Test /forgot-password and /reset-password on Render (Redirect URL must be set in Supabase).
 - [ ] Test the calendar (events) on Render.
 
