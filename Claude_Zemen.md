@@ -27,3 +27,4 @@ Read this file first and follow it in every session. Add new rules at the bottom
 - Local folder: `D:\Projects\AU-YOUTH`.
 - Deployed on Render at `https://au-youth.onrender.com`. `NEXT_PUBLIC_*` variables are baked in at build time, so redeploy after changing them.
 - SQL files live in `docs/sql/` and are run by hand in the Supabase SQL Editor.
+- `todo.md` in the repo root lists future work. Put only functional things in it, never SQL tasks.
