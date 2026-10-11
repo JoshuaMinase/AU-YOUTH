@@ -1,4 +1,4 @@
-/* ── Auth split layout — shared by /login and /sign-up ─────────────── */
+/* ── Auth split layout — shared by /login, /sign-up, /forgot-password and /reset-password ─────────────── */
 
 /* Root: two equal columns, exact viewport height — no scroll */
 .page {
@@ -270,3 +270,15 @@
   font-size: 14px;
   line-height: 1.4;
 }
+
+/* ── Forgot-password link (under the password field on /login) ── */
+.forgotLink {
+  align-self: flex-end;
+  margin-top: -4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(3, 34, 16, 0.6);
+  text-decoration: none;
+}
+.forgotLink:hover { color: #032210; text-decoration: underline; }
+.forgotLink:focus-visible { outline: 2px solid #032210; outline-offset: 3px; border-radius: 4px; }

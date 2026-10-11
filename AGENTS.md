@@ -17,7 +17,7 @@ A Next.js website for the African Union Youth Community (interns, volunteers, fe
 | Area | Routes | Look & feel |
 |---|---|---|
 | **Public site** | `/`, `/about`, `/opportunities`, `/community`, `/why-join`, 404 | Bold: deep AU green `#032210`, AU pattern, amber/yellow CTAs, big Chopin headings, GSAP scroll animation |
-| **Auth** | `/login`, `/sign-up` | Split screen, form left, photo right |
+| **Auth** | `/login`, `/sign-up`, `/forgot-password`, `/reset-password` | Split screen, form left, photo right |
 | **Dashboard (portal)** | `/dashboard`, `/dashboard/admin` (admins only), `/dashboard/news`, `/dashboard/news/[slug]`, `/dashboard/opportunities`, `/dashboard/opportunities/[slug]`, `/dashboard/people`, `/dashboard/calendar`, `/dashboard/chats`, `/dashboard/get-help`, `/dashboard/profile` | **Calm, neutral & minimal**: soft grey background, white cards, near-black green text, bronze used sparingly |
 
 **Backend: Supabase** (auth + Postgres with RLS + realtime). Every dashboard page reads and writes real
@@ -59,6 +59,9 @@ app/
                           the database (docs/sql/035). Never put the secret in the repo.
   not-found.tsx           404
   login/ sign-up/         Auth pages (styles/Auth.module.css)
+  forgot-password/        Asks for the email, sends the Supabase reset link (redirectTo = /auth/callback?next=/reset-password)
+  reset-password/         Reached from the email link with a recovery session; sets the new password, then goes to /dashboard
+  auth/callback/          Exchanges ?code= for a session. ?next= is honoured only for /reset-password (no open redirect)
   dashboard/
     layout.tsx            Portal header (glass pill + logo + wordmark), mobile tab bar, page reveal
     page.tsx              Dashboard home

@@ -1,10 +1,11 @@
 # Pages status
 
-Last updated: 2026-10-10
+Last updated: 2026-10-11
 
 ## Done (real data)
 - /dashboard (home): greeting, profile completion, mini calendar, Coming up (events), latest announcement (news), feed (posts, likes, comments, hidden posts), quick chat (chats), notifications (filled by database triggers)
 - /login, /sign-up, /auth/callback (Supabase auth, email confirmation)
+- /forgot-password, /reset-password (password reset by email link; needs `https://au-youth.onrender.com/auth/callback` in Supabase → Authentication → URL Configuration → Redirect URLs, no SQL) - NOT YET TESTED on Render
 - Dashboard header (real name, initials, log out) and route protection (middleware)
 - /dashboard/profile (profiles table, full edit form)
 - /dashboard/people (real members, connection requests, live updates)

@@ -83,6 +83,8 @@ function LoginView() {
             />
           </div>
 
+          <Link href="/forgot-password" className={s.forgotLink}>Forgot password?</Link>
+
           {error && <p className={s.formError} role="alert">{error}</p>}
 
           <button type="submit" className={`${s.submitBtn} ${s.submitBtnDark}`} disabled={busy}>

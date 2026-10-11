@@ -9,10 +9,12 @@ export const DOMAIN_MSG = `Sign-up is only open to AU staff emails (${DOMAINS}).
  * Turn a Supabase auth error into plain words: what went wrong and how to fix it.
  * Codes: https://supabase.com/docs/guides/auth/debugging/error-codes
  */
-export function authErrorMessage(err: { message: string; code?: string; status?: number }, during: 'login' | 'signup') {
+export function authErrorMessage(err: { message: string; code?: string; status?: number }, during: 'login' | 'signup' | 'reset') {
   const code = err.code ?? '';
   const msg = err.message ?? '';
 
+  if (during === 'reset' && (code === 'over_email_send_rate_limit' || /email rate limit/i.test(msg)))
+    return 'Too many reset emails have been sent, so we can’t send another right now. Please wait a few minutes and try again. If it keeps happening, tell the platform team.';
   if (code === 'over_email_send_rate_limit' || /email rate limit/i.test(msg))
     return 'Too many confirmation emails have been sent in the last hour, so we can’t send yours right now. Please wait about an hour and try again. If it keeps happening, tell the platform team.';
   if (code === 'over_request_rate_limit' || err.status === 429)
@@ -21,6 +23,8 @@ export function authErrorMessage(err: { message: string; code?: string; status?:
     return 'An account with this email already exists. Log in instead. If you never confirmed it, check your inbox (and spam) for the confirmation email.';
   if (code === 'weak_password' || /password should/i.test(msg))
     return 'That password is too weak. Use at least 8 characters with a mix of letters and numbers.';
+  if (code === 'same_password' || /different from the old password/i.test(msg))
+    return 'Your new password must be different from your current one. Choose another.';
   if (code === 'email_address_invalid' || /invalid.*email|email.*invalid/i.test(msg))
     return 'That email address doesn’t look right. Check it for typos and try again.';
   if (code === 'invalid_credentials' || /invalid login credentials/i.test(msg))
