@@ -10,7 +10,7 @@ import ForwardDialog from '@/components/portal/ForwardDialog';
 import GroupMembers from '@/components/portal/GroupMembers';
 import VoiceRecorder from '@/components/portal/VoiceRecorder';
 import { TicketBar } from '@/components/portal/Tickets';
-import { CHAT_ACCEPT, CHAT_MAX_STAGED, chatMime, checkChatFile, cleanName } from '@/lib/chatFiles';
+import { CHAT_ACCEPT, CHAT_MAX_STAGED, CHAT_MAX_TEXT, chatMime, checkChatFile, cleanName } from '@/lib/chatFiles';
 import { useMe } from '@/lib/me';
 import { useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
@@ -294,7 +294,7 @@ export default function ChatsPage() {
               <input ref={picker} type="file" hidden multiple accept={CHAT_ACCEPT} onChange={pick} />
               <button type="button" className={s.chatTool} onClick={() => picker.current?.click()} disabled={staged.length >= CHAT_MAX_STAGED} aria-label="Attach a photo or file">{I.attach}</button>
               <input ref={inputRef} className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
-                placeholder={staged.length ? 'Add a caption…' : `Message ${(chat.ticket ? (chat.ticket.iAmReporter ? chat.ticket.assignee : chat.ticket.reporter) : chat.name).split(' ')[0]}…`} aria-label={staged.length ? 'Caption' : 'Write a message'} maxLength={1000} />
+                placeholder={staged.length ? 'Add a caption…' : `Message ${(chat.ticket ? (chat.ticket.iAmReporter ? chat.ticket.assignee : chat.ticket.reporter) : chat.name).split(' ')[0]}…`} aria-label={staged.length ? 'Caption' : 'Write a message'} maxLength={CHAT_MAX_TEXT} />
               {input.trim() || staged.length ? (
                 <button type="submit" className={s.btnDark}>{I.send} Send</button>
               ) : (

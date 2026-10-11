@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { I, MiniCalendar, Modal, useToast } from '@/components/portal/ui';
 import { MONTHS, MONTHS_SHORT, WEEKDAYS, eventOn, lastDay, parseYmd, profileScore, ymd, softAvatar } from '@/lib/data';
+import { CHAT_MAX_TEXT } from '@/lib/chatFiles';
 import { useMe } from '@/lib/me';
 import { useToday, copyText } from '@/lib/hooks';
 import { useChats, useEvents, useFeed, useNews, useNotifications } from '@/lib/portal';
@@ -27,6 +28,13 @@ export default function DashboardHome() {
 
   /* feed */
   const { posts, total, loaded: feedLoaded, error: feedError, publish: post, remove, toggleLike, comment, hide, unhideAll, requestDelete, decline } = useFeed();
+  /* a shared link (/dashboard#<post id>) scrolls to that post once the posts have loaded */
+  const hashDone = useRef(false);
+  useEffect(() => {
+    if (hashDone.current || !feedLoaded || !posts.length || !window.location.hash) return;
+    hashDone.current = true;
+    document.getElementById(decodeURIComponent(window.location.hash.slice(1)))?.scrollIntoView({ block: 'center' });
+  }, [feedLoaded, posts.length]);
   /* post an admin is asking to have removed, and why */
   const [asking, setAsking] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -269,7 +277,7 @@ export default function DashboardHome() {
               const err = await send(qc.id, t);
               if (err) { setQcDraft(t); toast(`Not sent: ${err}`); } else toast(`Sent to ${qc.name.split(' ')[0]}`);
             }}>
-              <input value={qcDraft} onChange={(e) => setQcDraft(e.target.value)} placeholder={`Reply to ${qc.name.split(' ')[0]}…`} aria-label={`Reply to ${qc.name}`} maxLength={1000} />
+              <input value={qcDraft} onChange={(e) => setQcDraft(e.target.value)} placeholder={`Reply to ${qc.name.split(' ')[0]}…`} aria-label={`Reply to ${qc.name}`} maxLength={CHAT_MAX_TEXT} />
               <button type="submit" className={s.qcSend} disabled={!qcDraft.trim()} aria-label="Send">{I.send}</button>
             </form>}
             <div className={s.qcFoot}><Link href="/dashboard/chats" className={s.cardLink}>Open all chats →</Link></div>

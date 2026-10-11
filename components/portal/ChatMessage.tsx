@@ -3,23 +3,31 @@ import { useEffect, useRef, useState } from 'react';
 import { I } from './ui';
 import { fmtDuration, fmtSize } from '@/lib/chatFiles';
 import type { Msg, TicketInfo } from '@/lib/data';
-import { getChatFileUrl, peekChatFileUrl } from '@/lib/portal';
+import { forgetChatFileUrl, getChatFileUrl, peekChatFileUrl } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 /** a photo in a chat bubble; the link to the private file is fetched when the bubble appears */
 function ChatImage({ path, alt, onOpen }: { path: string; alt: string; onOpen: (url: string, alt: string) => void }) {
   const [url, setUrl] = useState(() => peekChatFileUrl(path) ?? '');
   const [failed, setFailed] = useState(false);
+  const retried = useRef(false);
   useEffect(() => {
     let live = true;
     getChatFileUrl(path).then((r) => { if (!live) return; if (r.url) setUrl(r.url); else setFailed(true); });
     return () => { live = false; };
   }, [path]);
+  /* the temporary link may have expired in a tab that was left open: ask for a fresh one once before giving up */
+  const broken = () => {
+    if (retried.current) { setFailed(true); return; }
+    retried.current = true;
+    forgetChatFileUrl(path);
+    getChatFileUrl(path).then((r) => { if (r.url) setUrl(r.url); else setFailed(true); });
+  };
   if (failed) return <span className={s.msgFile}><span className={s.msgFileInfo}>This photo is not available.</span></span>;
   return (
     <button type="button" className={s.msgImgBtn} onClick={() => url && onOpen(url, alt)} aria-label={`Open photo: ${alt}`} disabled={!url}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      {url ? <img className={s.msgImg} src={url} alt={alt} loading="lazy" onError={() => setFailed(true)} /> : <span className={s.msgImgWait} aria-hidden="true" />}
+      {url ? <img className={s.msgImg} src={url} alt={alt} loading="lazy" onError={broken} /> : <span className={s.msgImgWait} aria-hidden="true" />}
     </button>
   );
 }
@@ -58,6 +66,7 @@ function VoicePlayer({ path, seconds }: { path: string; seconds: number }) {
   const [now, setNow] = useState(0);
   const [dur, setDur] = useState(seconds);
   const [err, setErr] = useState('');
+  const linkAt = useRef(0);   // when the current link was fetched; the links last an hour
   useEffect(() => () => { const a = audio.current; if (a) { a.pause(); if (playing === a) playing = null; } }, []);
 
   const toggle = async () => {
@@ -65,10 +74,14 @@ function VoicePlayer({ path, seconds }: { path: string; seconds: number }) {
     if (!a) return;
     if (on) { a.pause(); return; }
     setErr('');
-    if (!a.src) {
+    if (!a.src || Date.now() - linkAt.current > 45 * 60 * 1000) {
+      const resume = a.src ? a.currentTime : 0;
+      if (a.src) forgetChatFileUrl(path);   // an old link: get a new one and carry on from the same spot
       const r = await getChatFileUrl(path);
       if (!r.url) { setErr(r.error ?? 'Could not load the voice message.'); return; }
       a.src = r.url;
+      linkAt.current = Date.now();
+      if (resume) a.addEventListener('loadedmetadata', () => { a.currentTime = resume; }, { once: true });
     }
     if (playing && playing !== a) playing.pause();
     playing = a;

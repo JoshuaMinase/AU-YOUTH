@@ -16,6 +16,7 @@ Things to do later. Tick them off (`[x]`) when done and add new ones at the bott
 
 ## Not yet tested (from PAGES_STATUS.md)
 - [ ] Test /forgot-password and /reset-password on Render (Redirect URL must be set in Supabase).
+- [ ] Make the reset link work on any device: Supabase -> Authentication -> Email Templates -> Reset Password: change the link to `{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery` (Site URL must be `https://au-youth.onrender.com`). Until then the link only works in the browser where the reset was requested.
 - [ ] Test the calendar (events) on Render.
 
 ## Cleanup (needs approval first, see AGENTS.md section 12)

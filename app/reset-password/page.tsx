@@ -1,14 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { authErrorMessage } from '@/lib/authErrors';
 import { createClient } from '@/lib/supabase/client';
 import s from '@/styles/Auth.module.css';
 
-export default function ResetPasswordPage() {
+function ResetView() {
   const router = useRouter();
+  // Set when the reset email links straight to this page (?token_hash=...): that works on ANY device or browser, and an email
+  // scanner that opens the link cannot use it up, because it is only checked when the new password is saved.
+  const tokenHash = useSearchParams().get('token_hash');
+  const verified = useRef(false);
   // null = still checking for the recovery session that /auth/callback created
   const [hasSession, setHasSession] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -16,8 +20,9 @@ export default function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (tokenHash) { setHasSession(true); return; }
     createClient().auth.getUser().then(({ data }) => setHasSession(!!data.user));
-  }, []);
+  }, [tokenHash]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -29,7 +34,17 @@ export default function ResetPasswordPage() {
     }
     setBusy(true);
     setError(null);
-    const { error: err } = await createClient().auth.updateUser({ password });
+    const supabase = createClient();
+    if (tokenHash && !verified.current) {
+      const { error: vErr } = await supabase.auth.verifyOtp({ type: 'recovery', token_hash: tokenHash });
+      if (vErr) {
+        setError('This reset link is invalid or has expired. Request a new one and use the newest email.');
+        setBusy(false);
+        return;
+      }
+      verified.current = true;   // the link is used up; a retry (say, a too-weak password) must not check it again
+    }
+    const { error: err } = await supabase.auth.updateUser({ password });
     if (err) {
       setError(authErrorMessage(err, 'reset'));
       setBusy(false);
@@ -137,5 +152,13 @@ export default function ResetPasswordPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetView />
+    </Suspense>
   );
 }

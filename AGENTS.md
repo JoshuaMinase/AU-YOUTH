@@ -62,6 +62,7 @@ app/
   not-found.tsx           404
   login/ sign-up/         Auth pages (styles/Auth.module.css)
   forgot-password/        Asks for the email, sends the Supabase reset link (redirectTo = /auth/callback?next=/reset-password)
+  reset-password/         Sets the new password. Works from the callback session, or from `?token_hash=` when the Supabase "Reset password" email template links straight here (any device; verified only on save)
   reset-password/         Reached from the email link with a recovery session; sets the new password, then goes to /dashboard
   auth/callback/          Exchanges ?code= for a session. ?next= is honoured only for /reset-password (no open redirect)
   dashboard/
@@ -103,6 +104,7 @@ lib/
   chatEmail.ts            emailChatRecipients(messageId): "new message" email for 1:1 and ticket chats, plain fetch to Brevo (no package). The database
                           function claim_chat_emails (docs/sql/040) picks the recipients: one email per chat until it is opened (or 30 min), group chats excluded.
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
+  fileSniff.ts            Checks a chat file's first bytes against its claimed type; app/api/chat/send rejects a mislabelled file (a photo must be sent as kind `image`, the only kind the AI screens)
 
 styles/
   Site.module.css         Public pages

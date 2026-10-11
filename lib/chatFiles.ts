@@ -5,6 +5,7 @@ export const CHAT_BUCKET = 'chat-files';
 export const CHAT_MAX_BYTES = 10 * 1024 * 1024;      // matches the bucket limit in SQL 023
 export const CHAT_GIF_MAX_BYTES = 4 * 1024 * 1024;   // photos are checked by the AI before sending, so keep them small
 export const CHAT_MAX_SECONDS = 300;                 // longest voice message (5 minutes)
+export const CHAT_MAX_TEXT = 2000;                   // longest message / caption (the server and the database use the same limit)
 export const CHAT_MAX_STAGED = 5;                    // files that can be queued in one go
 
 /** 'ticket' is a support-ticket card posted in a department chat (docs/sql/029_ticket_workflow.sql); it carries no file */

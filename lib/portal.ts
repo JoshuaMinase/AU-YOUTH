@@ -194,7 +194,12 @@ function toChat(r: Record<string, any>, meId: string, unread: number, now: Date)
 function mergeChat(prev: ChatRow | undefined, c: ChatRow, gone: Set<string>): ChatRow {
   if (!prev) return c;
   const have = new Set(c.messages.map((m) => m.id));
-  const extra = prev.messages.filter((m) => m.id && !have.has(m.id) && !m.pending && !gone.has(m.id));   // a deleted message is not brought back
+  /* keep what the fresh page cannot show: messages older than it (the window moved on) and newer than it (arrived live during the load).
+     A held message that sits INSIDE the fresh page's range but is missing from it was deleted (maybe while this tab slept): drop it. */
+  const lo = c.messages[0]?.at;
+  const hi = c.lastAt;
+  const inside = (m: Msg) => !!m.at && !!lo && !!hi && m.at >= lo && m.at <= hi;
+  const extra = prev.messages.filter((m) => m.id && !have.has(m.id) && !m.pending && !gone.has(m.id) && !inside(m));
   const prevNewer = !!prev.lastAt && (!c.lastAt || prev.lastAt > c.lastAt);
   if (!extra.length && !prevNewer) return c;
   const messages = [...extra, ...c.messages].sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''));
@@ -557,19 +562,27 @@ const slugify = (title: string) =>
 /** Admins: publish a new article, or update the one with `slug`. Only one article can be featured. */
 export async function saveNews(input: NewsInput, slug?: string): Promise<{ slug?: string; error?: string }> {
   const supabase = createClient();
+  /* the database allows one featured article, so the old one is un-featured first (SQL 009) ... */
+  let previous: string | null = null;
   if (input.featured) {
-    const { error } = await supabase.from('news').update({ featured: false }).eq('featured', true).neq('slug', slug ?? '');
+    const { data, error } = await supabase.from('news').update({ featured: false }).eq('featured', true).neq('slug', slug ?? '').select('slug');
     if (error) return { error: error.message };
+    previous = data?.[0]?.slug ?? null;
   }
+  /* ... and put back if the save fails, so a failed save never leaves the site without a featured article */
+  const failed = async (message: string) => {
+    if (previous) await supabase.from('news').update({ featured: true }).eq('slug', previous);
+    return { error: message };
+  };
   const { eventAt, ...rest } = input;
   const row = { ...rest, event_at: eventAt };
   if (slug) {
     const { error } = await supabase.from('news').update(row).eq('slug', slug);
-    return error ? { error: error.message } : { slug };
+    return error ? failed(error.message) : { slug };
   }
   const fresh = slugify(input.title);
   const { error } = await supabase.from('news').insert({ ...row, slug: fresh });
-  return error ? { error: error.message } : { slug: fresh };
+  return error ? failed(error.message) : { slug: fresh };
 }
 
 /** Admins: delete an article; returns an error message or null. Pass its photo `img` to remove an uploaded file too. */
@@ -700,6 +713,10 @@ const chatUrls = new Map<string, { url: string; at: number }>();
 export function peekChatFileUrl(path: string, download?: string): string | undefined {
   const hit = chatUrls.get(`${path}|${download ?? ''}`);
   return hit && Date.now() - hit.at < 50 * 60 * 1000 ? hit.url : undefined;
+}
+/** drops the cached links for a file, so the next getChatFileUrl asks for a fresh one (used when a link has expired) */
+export function forgetChatFileUrl(path: string) {
+  for (const key of [...chatUrls.keys()]) if (key.startsWith(`${path}|`)) chatUrls.delete(key);
 }
 /** A temporary link (valid 1 hour) to a file in the private chat bucket. `download` makes the browser save it under that name. */
 export async function getChatFileUrl(path: string, download?: string): Promise<{ url?: string; error?: string }> {

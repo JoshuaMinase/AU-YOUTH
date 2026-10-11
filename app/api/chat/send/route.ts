@@ -18,9 +18,10 @@
 // sent anyway (fail open) so chats keep working; the problem is written to the server log.
 import { createClient } from '@/lib/supabase/server';
 import {
-  AUDIO_TYPES, CHAT_BUCKET, CHAT_GIF_MAX_BYTES, CHAT_MAX_BYTES, CHAT_MAX_SECONDS, FILE_TYPES, baseType, cleanName,
+  AUDIO_TYPES, CHAT_BUCKET, CHAT_GIF_MAX_BYTES, CHAT_MAX_BYTES, CHAT_MAX_SECONDS, CHAT_MAX_TEXT, FILE_TYPES, baseType, cleanName,
   type ChatKind,
 } from '@/lib/chatFiles';
+import { matchesType } from '@/lib/fileSniff';
 import { emailChatRecipients } from '@/lib/chatEmail';
 
 export const dynamic = 'force-dynamic';
@@ -91,6 +92,33 @@ const CONV_RE = new RegExp(`^${UUID}$`);
 const PATH_RE = new RegExp(`^${UUID}/${UUID}\\.[a-z0-9]{2,5}$`);
 const KINDS: ChatKind[] = ['image', 'file', 'voice'];
 
+/** the first bytes of an uploaded file and its real size, read through a short-lived link (null when the file is not there) */
+async function readHead(supabase: ReturnType<typeof createClient>, path: string): Promise<{ head: Uint8Array; total: number | null } | null> {
+  try {
+    const { data, error } = await supabase.storage.from(CHAT_BUCKET).createSignedUrl(path, 60);
+    if (error || !data) return null;
+    const res = await fetch(data.signedUrl, { headers: { Range: 'bytes=0-1023' }, cache: 'no-store' });
+    if (!res.ok || !res.body) return null;
+    const range = /\/(\d+)$/.exec(res.headers.get('content-range') ?? '');
+    const length = Number(res.headers.get('content-length'));
+    const total = range ? Number(range[1]) : res.status === 200 && Number.isFinite(length) && length > 0 ? length : null;
+    const reader = res.body.getReader();
+    const head = new Uint8Array(1024);
+    let n = 0;
+    while (n < head.length) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      const take = Math.min(value.length, head.length - n);
+      head.set(value.subarray(0, take), n);
+      n += take;
+    }
+    await reader.cancel().catch(() => {});
+    return { head: head.subarray(0, n), total };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -101,7 +129,7 @@ export async function POST(request: Request) {
   const conversationId = typeof body.conversationId === 'string' ? body.conversationId : '';
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (!CONV_RE.test(conversationId)) return Response.json({ error: 'Pick a conversation first.' }, { status: 400 });
-  if (text.length > 2000) return Response.json({ error: 'That message is too long.' }, { status: 400 });
+  if (text.length > CHAT_MAX_TEXT) return Response.json({ error: 'That message is too long.' }, { status: 400 });
 
   /* a reply must answer a message of this same conversation that still exists (the database enforces the conversation too) */
   let replyTo: string | null = null;
@@ -169,6 +197,16 @@ export async function POST(request: Request) {
     const okType = kind === 'voice' ? AUDIO_TYPES.includes(type) : kind === 'image' ? isImg && FILE_TYPES.includes(type) : !isImg && FILE_TYPES.includes(type);
     if (!okType) return Response.json({ error: 'That kind of file cannot be sent.' }, { status: 400 });
 
+    /* Look at the uploaded file itself: it must exist, be the size it says, and really be what its type claims.
+       Otherwise a picture could be labelled as a document and skip the photo check. */
+    const probe = await readHead(supabase, path);
+    if (!probe) return Response.json({ error: 'Could not check that file. Please try sending it again.' }, { status: 400 });
+    if (!matchesType(type, probe.head) || (probe.total !== null && probe.total > CHAT_MAX_BYTES)) {
+      await supabase.storage.from(CHAT_BUCKET).remove([path]);
+      return Response.json({ error: 'That file is not the kind of file it says it is, so it was not sent.' }, { status: 400 });
+    }
+    const realSize = probe.total ?? size;
+
     if (text) {
       const result = await moderate(text);
       if (result !== 'unavailable' && result.length) return block(supabase, conversationId, text, result, 'message', path);
@@ -185,7 +223,7 @@ export async function POST(request: Request) {
     const newId = crypto.randomUUID();
     const { error } = await supabase.from('messages').insert({
       id: newId, conversation_id: conversationId, sender_id: user.id, body: text, kind,
-      attachment_path: path, attachment_name: name, attachment_type: type, attachment_size: size, attachment_seconds: kind === 'voice' ? seconds : null, reply_to: replyTo,
+      attachment_path: path, attachment_name: name, attachment_type: type, attachment_size: realSize, attachment_seconds: kind === 'voice' ? seconds : null, reply_to: replyTo,
     });
     if (error) return Response.json({ error: error.message }, { status: 400 });
     void emailChatRecipients(newId);
