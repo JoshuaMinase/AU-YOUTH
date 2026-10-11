@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
 import { softAvatar, type Msg } from '@/lib/data';
@@ -35,7 +35,7 @@ function StagedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
 }
 
 export default function ChatsPage() {
-  const { chats, unread, markRead, send, sendFiles, forward, addMember, removeMember, takeTicket, resolveTicket, loaded, error } = useChats();
+  const { chats, unread, markRead, loadOlder, send, sendFiles, forward, addMember, removeMember, takeTicket, resolveTicket, loaded, error } = useChats();
   const { me } = useMe();
   const [showMembers, setShowMembers] = useState(false);
   const [activeId, setActiveId] = useState('');
@@ -47,6 +47,8 @@ export default function ChatsPage() {
   const [recording, setRecording] = useState(false);
   const [fwd, setFwd] = useState<Msg | null>(null);          // message being forwarded
   const [photo, setPhoto] = useState<{ url: string; alt: string } | null>(null);
+  const [olderBusy, setOlderBusy] = useState(false);
+  const keepAt = useRef<{ height: number; top: number } | null>(null);   // scroll position to hold while older messages are added above
   const [toast, toastNode] = useToast();
   const picker = useRef<HTMLInputElement>(null);
   const msgs = useRef<HTMLDivElement>(null);
@@ -71,11 +73,32 @@ export default function ChatsPage() {
   useEffect(() => {
     if (chat && (view === 'chat' || window.matchMedia('(min-width: 861px)').matches)) markRead(chat.id);
   }, [chat, view, markRead]);
-  /* keep the newest message in view */
+  /* keep the newest message in view (not when older messages were added above: those keep their place, see below) */
+  const newestId = chat?.messages[chat.messages.length - 1]?.id;
   useEffect(() => {
     const el = msgs.current;
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [chat?.messages.length, activeId]);
+  }, [newestId, activeId]);
+
+  /* older messages were added above: keep what the person was reading where it was */
+  const oldestId = chat?.messages[0]?.id;
+  useLayoutEffect(() => {
+    const el = msgs.current;
+    const k = keepAt.current;
+    if (!el || !k) return;
+    el.scrollTop = k.top + (el.scrollHeight - k.height);
+    keepAt.current = null;
+  }, [oldestId]);
+
+  const showOlder = async () => {
+    if (!chat || olderBusy) return;
+    const el = msgs.current;
+    if (el) keepAt.current = { height: el.scrollHeight, top: el.scrollTop };
+    setOlderBusy(true); setSendErr(null);
+    const err = await loadOlder(chat.id);
+    setOlderBusy(false);
+    if (err) { keepAt.current = null; setSendErr(`Could not load earlier messages: ${err}`); }
+  };
 
   /* "I'll take this" on a ticket card: the database opens the temporary chat, and we jump into it */
   const take = async (ticketId: string) => {
@@ -201,6 +224,11 @@ export default function ChatsPage() {
           {chat.ticket && <TicketBar t={chat.ticket} expiresAt={chat.expiresAt} onResolve={(done) => resolveTicket(chat.ticket!.id, done)} />}
 
           <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite">
+            {chat.more && (
+              <button type="button" className={`${s.btnLine} ${s.btnSm}`} style={{ alignSelf: 'center', flexShrink: 0 }} onClick={showOlder} disabled={olderBusy}>
+                {olderBusy ? 'Loading…' : 'Load earlier messages'}
+              </button>
+            )}
             {chat.messages.map((m, i) => (
               <ChatMessage key={m.id ?? i} m={m} onForward={setFwd} onOpenImage={(url, alt) => setPhoto({ url, alt })} onTakeTicket={take} />
             ))}

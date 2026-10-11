@@ -125,16 +125,77 @@ function toTicketInfo(r: Record<string, any>, myId: string): TicketInfo {
   };
 }
 
+/** how many messages a chat loads at first, and how many each "Load earlier messages" adds */
+const CHAT_PAGE = 30;
+
+/** the message columns every message query asks for */
+const MSG_COLS = `id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded,
+  ticket:support_tickets!messages_ticket_id_fkey(${TICKET_COLS})`;
+
 const CHAT_COLS = `id, is_group, title, last_message_at, expires_at, dept:departments(name),
   ticket:support_tickets!conversations_ticket_id_fkey(${TICKET_COLS}),
   conversation_members(user_id, last_read_at, profile:profiles!conversation_members_user_id_fkey(first_name, last_name)),
-  messages(id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded,
-    ticket:support_tickets!messages_ticket_id_fkey(${TICKET_COLS}))`;
+  messages(${MSG_COLS})`;
 
 /** the file a message row carries, if any */
 const fileOf = (m: Record<string, any>): ChatFile | undefined => m.attachment_path
   ? { path: m.attachment_path, name: m.attachment_name ?? 'file', type: m.attachment_type ?? '', size: m.attachment_size ?? 0, seconds: m.attachment_seconds ?? undefined }
   : undefined;
+
+/** one message row -> what the chat shows; `names` = member id -> name (group chats show who wrote it) */
+function toMsg(m: Record<string, any>, meId: string, group: boolean, names: Record<string, string>): Msg {
+  return {
+    id: m.id, from: m.sender_id === meId ? 'me' : 'them', text: m.body, time: hhmm(new Date(m.created_at)), at: m.created_at,
+    who: group && m.sender_id !== meId ? names[m.sender_id] ?? 'Member' : undefined,
+    kind: (m.kind ?? 'text') as ChatKind, file: fileOf(m), forwarded: !!m.forwarded,
+    ticket: m.ticket ? toTicketInfo(m.ticket, meId) : undefined,
+  };
+}
+
+type ChatRow = Chat & { preview: string };
+
+/** one conversation row (with its newest messages) -> the chat the pages use; `unread` comes from the database count */
+function toChat(r: Record<string, any>, meId: string, unread: number, now: Date): ChatRow {
+  const members: { user_id: string; last_read_at: string; profile: { first_name: string | null; last_name: string | null } | null }[] = r.conversation_members ?? [];
+  const other = members.find((m) => m.user_id !== meId);
+  const ticket = r.ticket ? toTicketInfo(r.ticket, meId) : undefined;
+  const name = ticket ? `${ticket.code} · ${ticket.title}` : r.is_group ? r.title ?? 'Group' : fullName(other?.profile ?? null);
+  const names = Object.fromEntries(members.map((m) => [m.user_id, fullName(m.profile)]));
+  const rows: Record<string, any>[] = [...(r.messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const last = rows[rows.length - 1];
+  return {
+    id: r.id, name, group: !!r.is_group, ticket, expiresAt: r.expires_at ?? null,
+    initials: ticket ? 'TK' : r.is_group ? 'AU' : initialsOf(name), color: ticket ? '#8F2D56' : r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
+    unread, time: chatTime(last?.created_at ?? r.last_message_at, now), lastAt: last?.created_at,
+    messages: rows.map((m) => toMsg(m, meId, !!r.is_group, names)),
+    dept: r.dept?.name ?? undefined,
+    members: members.map((m) => ({ id: m.user_id, name: names[m.user_id] ?? 'Member' })),
+    preview: last ? previewOf({ kind: last.kind, body: last.body, file: fileOf(last) }) : 'No messages yet',
+  };
+}
+
+/**
+ * A fresh copy of a chat from the database, joined with what the page already holds: messages the person already has
+ * stay (a reload brings back only the newest page) and a message that arrived live while the load was running is not lost.
+ */
+function mergeChat(prev: ChatRow | undefined, c: ChatRow): ChatRow {
+  if (!prev) return c;
+  const have = new Set(c.messages.map((m) => m.id));
+  const extra = prev.messages.filter((m) => m.id && !have.has(m.id) && !m.pending);
+  const prevNewer = !!prev.lastAt && (!c.lastAt || prev.lastAt > c.lastAt);
+  if (!extra.length && !prevNewer) return c;
+  const messages = [...extra, ...c.messages].sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''));
+  return prevNewer ? { ...c, messages, lastAt: prev.lastAt, preview: prev.preview, time: prev.time, unread: Math.max(c.unread, prev.unread) } : { ...c, messages };
+}
+
+/** unread messages per chat, counted by the database (SQL 034), so it does not depend on how many messages are loaded */
+async function fetchUnread(conv?: string): Promise<Record<string, number>> {
+  const { data } = await createClient().rpc('chat_unread_counts', conv ? { conv } : {});
+  return Object.fromEntries((data ?? []).map((r: Record<string, any>) => [r.conversation_id as string, Number(r.unread)]));
+}
+
+/** where a chat's history stands: older pages already loaded, the created_at of the oldest message held, and whether there may be more */
+interface Paging { older: Msg[]; oldestAt?: string; more: boolean }
 
 /**
  * Your conversations (Supabase `conversations`, `conversation_members`, `messages`) with live updates.
@@ -152,57 +213,99 @@ function useChatsState() {
   const ticketChats = useRef<Set<string>>(new Set());
   const may = useCallback((id: string) => canWrite || ticketChats.current.has(id), [canWrite]);
 
+  /* what the callbacks below need to read without being re-created on every change */
+  const chatsRef = useRef<ChatRow[]>([]);
+  chatsRef.current = chats;
+  const [paging, setPaging] = useState<Record<string, Paging>>({});
+  const pagingRef = useRef<Record<string, Paging>>({});
+  pagingRef.current = paging;
+
+  /* the first time a chat is seen: its newest page is what is loaded, and a full page means there may be earlier ones */
+  const startPaging = useCallback((rows: Record<string, any>[]) => {
+    setPaging((p) => {
+      const n = { ...p };
+      for (const r of rows) {
+        if (n[r.id]) continue;
+        const msgs: Record<string, any>[] = r.messages ?? [];
+        n[r.id] = { older: [], oldestAt: msgs.map((m) => m.created_at as string).sort()[0], more: msgs.length >= CHAT_PAGE };
+      }
+      return n;
+    });
+  }, []);
+
+  /* every chat: only the newest CHAT_PAGE messages of each, plus the unread counts from the database */
   const load = useCallback(async () => {
     if (!me.id) return;
-    const { data, error: err } = await createClient().from('conversations').select(CHAT_COLS)
-      .order('last_message_at', { ascending: false })
-      .order('created_at', { referencedTable: 'messages', ascending: false })
-      .limit(200, { referencedTable: 'messages' });
-    if (err) { setError(err.message); setLoaded(true); return; }
+    const [res, unreadBy] = await Promise.all([
+      createClient().from('conversations').select(CHAT_COLS)
+        .order('last_message_at', { ascending: false })
+        .order('created_at', { referencedTable: 'messages', ascending: false })
+        .limit(CHAT_PAGE, { referencedTable: 'messages' }),
+      fetchUnread(),
+    ]);
+    if (res.error) { setError(res.error.message); setLoaded(true); return; }
     const now = new Date();
     setError(null);
-    const mapped = (data ?? [])
-      .filter((r: Record<string, any>) => !r.expires_at || new Date(r.expires_at) > now)   // an expired ticket chat is gone (the database hides it too)
-      .map((r: Record<string, any>): Chat & { preview: string } => {
-      const members: { user_id: string; last_read_at: string; profile: { first_name: string | null; last_name: string | null } | null }[] = r.conversation_members ?? [];
-      const mine = members.find((m) => m.user_id === me.id);
-      const other = members.find((m) => m.user_id !== me.id);
-      const ticket = r.ticket ? toTicketInfo(r.ticket, me.id) : undefined;
-      const name = ticket ? `${ticket.code} · ${ticket.title}` : r.is_group ? r.title ?? 'Group' : fullName(other?.profile ?? null);
-      const names = Object.fromEntries(members.map((m) => [m.user_id, fullName(m.profile)]));
-      const rows: Record<string, any>[] = [...(r.messages ?? [])].sort((a, b) => a.created_at.localeCompare(b.created_at));
-      const messages: Msg[] = rows.map((m) => ({
-        id: m.id, from: m.sender_id === me.id ? 'me' : 'them', text: m.body, time: hhmm(new Date(m.created_at)),
-        who: r.is_group && m.sender_id !== me.id ? names[m.sender_id] ?? 'Member' : undefined,
-        kind: (m.kind ?? 'text') as ChatKind, file: fileOf(m), forwarded: !!m.forwarded,
-        ticket: m.ticket ? toTicketInfo(m.ticket, me.id) : undefined,
-      }));
-      const last = rows[rows.length - 1];
-      return {
-        id: r.id, name, group: !!r.is_group, ticket, expiresAt: r.expires_at ?? null,
-        initials: ticket ? 'TK' : r.is_group ? 'AU' : initialsOf(name), color: ticket ? '#8F2D56' : r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
-        unread: rows.filter((m) => m.sender_id !== me.id && (!mine || m.created_at > mine.last_read_at)).length,
-        time: chatTime(last?.created_at ?? r.last_message_at, now), lastAt: last?.created_at, messages,
-        dept: r.dept?.name ?? undefined,
-        members: members.map((m) => ({ id: m.user_id, name: names[m.user_id] ?? 'Member' })),
-        preview: last ? previewOf({ kind: last.kind, body: last.body, file: fileOf(last) }) : 'No messages yet',
-      };
-    });
-    ticketChats.current = new Set(mapped.filter((c) => c.ticket).map((c) => c.id));
-    setChats(mapped);
+    const rows = (res.data ?? []).filter((r: Record<string, any>) => !r.expires_at || new Date(r.expires_at) > now);   // an expired ticket chat is gone (the database hides it too)
+    const fresh = rows.map((r: Record<string, any>) => toChat(r, me.id, unreadBy[r.id] ?? 0, now));
+    ticketChats.current = new Set(fresh.filter((c) => c.ticket).map((c) => c.id));
+    startPaging(rows);
+    setChats((prev) => fresh.map((c) => mergeChat(prev.find((x) => x.id === c.id), c)));
     setLoaded(true);
-  }, [me.id]);
+  }, [me.id, startPaging]);
+
+  /* ONE chat (after you send into it, or a ticket card arrives): the rest of the list is not touched */
+  const loadOne = useCallback(async (id: string) => {
+    if (!me.id) return;
+    const [res, unreadBy] = await Promise.all([
+      createClient().from('conversations').select(CHAT_COLS).eq('id', id)
+        .order('created_at', { referencedTable: 'messages', ascending: false })
+        .limit(CHAT_PAGE, { referencedTable: 'messages' }),
+      fetchUnread(id),
+    ]);
+    const r = res.data?.[0];
+    if (res.error || !r) { await load(); return; }   // a chat we do not know yet (or one that is gone): refresh the list
+    const now = new Date();
+    if (r.expires_at && new Date(r.expires_at) <= now) { setChats((prev) => prev.filter((c) => c.id !== id)); return; }
+    const c = toChat(r, me.id, unreadBy[id] ?? 0, now);
+    if (c.ticket) ticketChats.current.add(id);
+    startPaging([r]);
+    setChats((prev) => [mergeChat(prev.find((x) => x.id === id), c), ...prev.filter((x) => x.id !== id)]);   // the chat with the newest message goes to the top
+  }, [me.id, load, startPaging]);
+
+  /* a message arrived live: add it to its chat. Only a message from someone else in a chat we already hold is added by hand; anything else
+     (my own message from another tab, a ticket card, a chat we do not know) reloads that ONE chat. Never the whole list. */
+  const onMessage = useCallback((row: Record<string, any>) => {
+    const conv = row.conversation_id as string;
+    const c = chatsRef.current.find((x) => x.id === conv);
+    if (!c || row.ticket_id || row.sender_id === me.id) { void loadOne(conv); return; }
+    if (c.messages.some((m) => m.id === row.id)) return;
+    const names = Object.fromEntries((c.members ?? []).map((m) => [m.id, m.name]));
+    const msg = toMsg(row, me.id, !!c.group, names);
+    setChats((prev) => {
+      const cur = prev.find((x) => x.id === conv);
+      if (!cur || cur.messages.some((m) => m.id === row.id)) return prev;
+      const next: ChatRow = {
+        ...cur, messages: [...cur.messages, msg], unread: cur.unread + 1, lastAt: row.created_at,
+        time: chatTime(row.created_at, new Date()), preview: previewOf({ kind: row.kind, body: row.body, file: fileOf(row) }),
+      };
+      return [next, ...prev.filter((x) => x.id !== conv)];
+    });
+  }, [me.id, loadOne]);
 
   useEffect(() => { load(); }, [load]);
 
-  // Live updates. Several components use this hook at once, so each gets its own channel name.
+  /* Live updates. A new message goes through onMessage (no reload). Only joining / leaving a chat and a ticket change reload the list.
+     conversation_members UPDATE is NOT listened to: it fires every time anybody reads a chat (and for every send), which in the big
+     community chat would reload everyone's chats all day. Reading on another device shows up when the tab is shown again (below). */
   useEffect(() => {
     if (!me.id) return;
     const supabase = createClient();
     const channel = supabase
       .channel(`chats-${me.id}-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, () => { load(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'conversation_members' }, () => { load(); })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => { onMessage(p.new as Record<string, any>); })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_members' }, () => { load(); })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'conversation_members' }, () => { load(); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets' }, () => { load(); })   // a ticket was taken or closed
       .subscribe();
     const onVisible = () => { if (document.visibilityState === 'visible') load(); };
@@ -211,7 +314,27 @@ function useChatsState() {
       document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
-  }, [me.id, load]);
+  }, [me.id, load, onMessage]);
+
+  /** "Load earlier messages": the CHAT_PAGE messages before the oldest one held. Returns an error message or null. */
+  const loadOlder = useCallback(async (id: string): Promise<string | null> => {
+    const pg = pagingRef.current[id];
+    if (!pg?.more || !pg.oldestAt) return null;
+    const { data, error: err } = await createClient().from('messages').select(MSG_COLS)
+      .eq('conversation_id', id).lte('created_at', pg.oldestAt)   // lte + the id check below: messages sharing one timestamp are never skipped
+      .order('created_at', { ascending: false }).limit(CHAT_PAGE);
+    if (err) return err.message;
+    const rows: Record<string, any>[] = data ?? [];
+    const c = chatsRef.current.find((x) => x.id === id);
+    const names = Object.fromEntries((c?.members ?? []).map((m) => [m.id, m.name]));
+    const have = new Set([...(c?.messages ?? []), ...pg.older].map((m) => m.id));
+    const msgs = [...rows].reverse().filter((m) => !have.has(m.id)).map((m) => toMsg(m, me.id, !!c?.group, names));
+    setPaging((p) => {
+      const cur = p[id] ?? pg;
+      return { ...p, [id]: { older: [...msgs, ...cur.older], oldestAt: rows.length ? rows[rows.length - 1].created_at : cur.oldestAt, more: rows.length >= CHAT_PAGE && msgs.length > 0 } };
+    });
+    return null;
+  }, [me.id]);
 
   const unread = chats.reduce((n, c) => n + c.unread, 0);
 
@@ -235,9 +358,10 @@ function useChatsState() {
     // the group chat notification (SQL 030) is read once the chat is on screen
     await createClient().from('notifications').update({ read_at: new Date().toISOString() })
       .eq('user_id', me.id).eq('kind', 'chat_message').eq('href', `/dashboard/chats?c=${id}`).is('read_at', null);
-    await load();
+    /* read on screen: no reload needed (unless a newer message arrived meanwhile: then it stays unread and is marked on the next pass) */
+    setChats((prev) => prev.map((c) => (c.id === id && c.lastAt === upTo ? { ...c, unread: 0 } : c)));
     return null;
-  }, [me.id, load]);
+  }, [me.id]);
 
   const addPending = useCallback((id: string, msgs: Msg[]) => setPending((p) => ({ ...p, [id]: [...(p[id] ?? []), ...msgs] })), []);
   const dropPending = useCallback((id: string, ids: string[]) => {
@@ -250,10 +374,10 @@ function useChatsState() {
     addPending(id, [mine]);
     /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
     const msg = await postMessage({ conversationId: id, text });
-    await load();
+    await loadOne(id);
     dropPending(id, [mine.id!]);
     return msg;
-  }, [load, may, addPending, dropPending]);
+  }, [loadOne, may, addPending, dropPending]);
 
   /**
    * Photos, documents and voice messages. Every item shows in the chat at once with a spinner, then they upload one after
@@ -287,13 +411,13 @@ function useChatsState() {
         if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
       }
       if (msg) { error = msg; break; }
-      await load();
+      await loadOne(id);
       finish([queued[done]]);
       done++;
     }
     if (error) finish(queued.slice(done));
     return { error, done };
-  }, [load, may, addPending, dropPending]);
+  }, [loadOne, may, addPending, dropPending]);
 
   /** forwards one message (text, photo, file or voice) to other conversations; returns an error message or null */
   const forward = useCallback(async (messageId: string, targets: string[]) => {
@@ -343,10 +467,16 @@ function useChatsState() {
     return err ? err.message : null;
   }, [load]);
 
-  /* what the pages show: the loaded chats plus the messages still being sent */
-  const shown = useMemo(() => chats.map((c) => (pending[c.id]?.length ? { ...c, messages: [...c.messages, ...pending[c.id]] } : c)), [chats, pending]);
+  /* what the pages show: the older pages loaded so far, the newest messages, and the messages still being sent */
+  const shown = useMemo(() => chats.map((c) => {
+    const older = paging[c.id]?.older ?? [];
+    const more = !!paging[c.id]?.more;
+    const sending = pending[c.id] ?? [];
+    if (!older.length && !sending.length && !more) return c;
+    return { ...c, more, messages: [...older, ...c.messages, ...sending] };
+  }), [chats, paging, pending]);
 
-  return { chats: shown, unread, markRead, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
+  return { chats: shown, unread, markRead, loadOlder, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
 }
 
 type ChatsValue = ReturnType<typeof useChatsState>;
