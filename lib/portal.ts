@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, ticketCode, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem, type TicketInfo } from './data';
 import { AUDIO_TYPES, CHAT_BUCKET, CHAT_MAX_BYTES, audioExt, baseType, checkChatFile, chatMime, cleanName, extOf, previewOf, type ChatFile, type ChatKind } from './chatFiles';
 import { useMe } from './me';
@@ -138,9 +138,10 @@ const fileOf = (m: Record<string, any>): ChatFile | undefined => m.attachment_pa
 
 /**
  * Your conversations (Supabase `conversations`, `conversation_members`, `messages`) with live updates.
- * Shared by the header badge, the chats page and home quick chat. send/markRead return an error message or null.
+ * Runs ONCE, inside <ChatsProvider> in dashboard/layout.tsx; the header badge, the chats page and home quick chat all read it
+ * through useChats() below. send/markRead return an error message or null.
  */
-export function useChats() {
+function useChatsState() {
   const { me, canWrite } = useMe();
   const [chats, setChats] = useState<(Chat & { preview: string })[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -181,7 +182,7 @@ export function useChats() {
         id: r.id, name, group: !!r.is_group, ticket, expiresAt: r.expires_at ?? null,
         initials: ticket ? 'TK' : r.is_group ? 'AU' : initialsOf(name), color: ticket ? '#8F2D56' : r.is_group ? '#032210' : colorFor(other?.user_id ?? r.id),
         unread: rows.filter((m) => m.sender_id !== me.id && (!mine || m.created_at > mine.last_read_at)).length,
-        time: chatTime(last?.created_at ?? r.last_message_at, now), messages,
+        time: chatTime(last?.created_at ?? r.last_message_at, now), lastAt: last?.created_at, messages,
         dept: r.dept?.name ?? undefined,
         members: members.map((m) => ({ id: m.user_id, name: names[m.user_id] ?? 'Member' })),
         preview: last ? previewOf({ kind: last.kind, body: last.body, file: fileOf(last) }) : 'No messages yet',
@@ -217,11 +218,20 @@ export function useChats() {
   /* only write when there is something unread, so opening a chat doesn't spam updates */
   const unreadOf = useRef<Record<string, number>>({});
   unreadOf.current = Object.fromEntries(chats.map((c) => [c.id, c.unread]));
+  const lastAtOf = useRef<Record<string, string | undefined>>({});
+  lastAtOf.current = Object.fromEntries(chats.map((c) => [c.id, c.lastAt]));
+  /* newest message already marked read per chat: the same message is never marked twice, so a slow reload cannot start a loop */
+  const markedUpTo = useRef<Record<string, string>>({});
   const markRead = useCallback(async (id: string) => {
     if (!me.id || !unreadOf.current[id]) return null;
+    /* read up to the newest message by the SERVER's clock: a phone with a wrong date would otherwise keep messages unread forever
+       (and, because the chats page marks again after every reload, send requests in a loop) */
+    const upTo = lastAtOf.current[id] ?? new Date().toISOString();
+    if (markedUpTo.current[id] === upTo) return null;
+    markedUpTo.current[id] = upTo;
     const { error: err } = await createClient().from('conversation_members')
-      .update({ last_read_at: new Date().toISOString() }).eq('conversation_id', id).eq('user_id', me.id);
-    if (err) return err.message; // no reload, so a failing write can't loop with the chats page effect
+      .update({ last_read_at: upTo }).eq('conversation_id', id).eq('user_id', me.id);
+    if (err) { delete markedUpTo.current[id]; return err.message; } // no reload, so a failing write can't loop with the chats page effect
     // the group chat notification (SQL 030) is read once the chat is on screen
     await createClient().from('notifications').update({ read_at: new Date().toISOString() })
       .eq('user_id', me.id).eq('kind', 'chat_message').eq('href', `/dashboard/chats?c=${id}`).is('read_at', null);
@@ -337,6 +347,22 @@ export function useChats() {
   const shown = useMemo(() => chats.map((c) => (pending[c.id]?.length ? { ...c, messages: [...c.messages, ...pending[c.id]] } : c)), [chats, pending]);
 
   return { chats: shown, unread, markRead, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
+}
+
+type ChatsValue = ReturnType<typeof useChatsState>;
+const ChatsContext = createContext<ChatsValue | null>(null);
+
+/** Loads the chats once for the whole dashboard (one query set, one realtime channel) instead of once per component. Mounted in dashboard/layout.tsx. */
+export function ChatsProvider({ children }: { children: ReactNode }) {
+  const value = useChatsState();
+  return createElement(ChatsContext.Provider, { value }, children);
+}
+
+/** The shared chats state (header badge, chats page, home quick chat). Only works under <ChatsProvider>. */
+export function useChats(): ChatsValue {
+  const ctx = useContext(ChatsContext);
+  if (!ctx) throw new Error('useChats() must be used inside <ChatsProvider> (app/dashboard/layout.tsx)');
+  return ctx;
 }
 
 export interface NewsInput { title: string; cat: NewsCat; source: string; img: string; excerpt: string; body: string[]; featured: boolean; eventAt: string | null }

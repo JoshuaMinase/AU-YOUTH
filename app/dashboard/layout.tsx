@@ -8,7 +8,7 @@ import { I } from '@/components/portal/ui';
 import { MeProvider, useMe } from '@/lib/me';
 import { deptTone } from '@/lib/data';
 import { useReveal, useSwipeTabs } from '@/lib/hooks';
-import { useChats } from '@/lib/portal';
+import { ChatsProvider, useChats } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 type NavItem = { href: string; label: string; short?: string; icon: JSX.Element };
@@ -114,7 +114,9 @@ function Shell({ children }: { children: React.ReactNode }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <MeProvider>
-      <Shell>{children}</Shell>
+      <ChatsProvider>
+        <Shell>{children}</Shell>
+      </ChatsProvider>
     </MeProvider>
   );
 }

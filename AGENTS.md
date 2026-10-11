@@ -86,7 +86,7 @@ lib/
   data.ts                 ALL mock data + date helpers + profile model + avatar colour helpers
   hooks.ts                useIso, useToday, useReveal, useListAnimation, copyText
   store.ts                usePersisted (localStorage state shared between components)
-  portal.ts               useEvents, useChats (shared dashboard state)
+  portal.ts               useEvents, useChats (shared dashboard state; chats load once in <ChatsProvider> in dashboard/layout.tsx)
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
 
 styles/
@@ -188,7 +188,7 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
    | `auy-profile` | edited profile (bio, skills, education…) |
 
 4. `useEvents(today)` (calendar + home) now reads and writes the Supabase `events` table (RLS: your own rows plus every `is_public` event; only admins can create public events, only the owner can edit or delete). Use the other shared hooks too, do not re-implement them:
-   `useChats()` (header badge, chats page, home quick chat). The profile completion % **MUST** come
+   `useChats()` (header badge, chats page, home quick chat; it reads the one copy kept by `<ChatsProvider>`, so never call it outside the dashboard layout). The profile completion % **MUST** come
    from `profileScore()` so the home ring and the profile page always agree.
 5. When a real backend arrives: replace the internals of `lib/data.ts`, `lib/store.ts` and
    `lib/portal.ts`, and keep their function signatures so the pages don't change.

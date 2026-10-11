@@ -149,7 +149,9 @@ export async function POST(request: Request) {
     if (!PATH_RE.test(path) || !path.startsWith(`${conversationId}/`)) return Response.json({ error: 'Bad request.' }, { status: 400 });
     if (!Number.isInteger(size) || size < 1 || size > CHAT_MAX_BYTES) return Response.json({ error: 'That file is too big (10 MB at most).' }, { status: 400 });
     if (seconds !== null && (!Number.isInteger(seconds) || seconds < 1 || seconds > CHAT_MAX_SECONDS)) return Response.json({ error: 'Bad request.' }, { status: 400 });
-    const okType = kind === 'voice' ? AUDIO_TYPES.includes(type) : kind === 'image' ? type.startsWith('image/') && FILE_TYPES.includes(type) : FILE_TYPES.includes(type);
+    // a photo must be sent as kind "image" (that is the only kind the AI looks at), so a document may not carry an image type
+    const isImg = type.startsWith('image/');
+    const okType = kind === 'voice' ? AUDIO_TYPES.includes(type) : kind === 'image' ? isImg && FILE_TYPES.includes(type) : !isImg && FILE_TYPES.includes(type);
     if (!okType) return Response.json({ error: 'That kind of file cannot be sent.' }, { status: 400 });
 
     if (text) {
