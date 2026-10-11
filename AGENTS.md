@@ -195,7 +195,9 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
 4. `useEvents(today)` (calendar + home) now reads and writes the Supabase `events` table (RLS: your own rows plus every `is_public` event; only admins can create public events, only the owner can edit or delete). Use the other shared hooks too, do not re-implement them:
    `useChats()` (header badge, chats page, home quick chat; it reads the one copy kept by `<ChatsProvider>`, so never call it outside the dashboard layout). The profile completion % **MUST** come
    from `profileScore()` so the home ring and the profile page always agree.
-5. When a real backend arrives: replace the internals of `lib/data.ts`, `lib/store.ts` and
+5. **SQL files and notification kinds:** never write `check (kind in (...))` for `notifications` by hand. A new kind is added with
+   `select private.allow_notification_kinds(array['my_kind']);` (docs/sql/036). It only adds, so re-running an old SQL file cannot remove a newer kind.
+6. When a real backend arrives: replace the internals of `lib/data.ts`, `lib/store.ts` and
    `lib/portal.ts`, and keep their function signatures so the pages don't change.
 
 ---
