@@ -6,7 +6,7 @@
 --  * Reply: messages.reply_to points at the message being answered, in the SAME conversation (enforced by the foreign key).
 --  * Delete: a member can delete their own messages (never a ticket card). The row is removed for everyone.
 --    A reply to a deleted message keeps its place and shows "Original message deleted" (reply_gone).
---    The app removes the attached file from the chat-files bucket (storage policy 023: you may remove files you own).
+--    The attached file stays in the chat-files bucket so admins can still open it (see 038).
 
 -- 1) the reply link. A composite foreign key keeps a reply in the conversation of the message it answers.
 alter table public.messages add column if not exists reply_to uuid;

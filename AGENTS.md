@@ -96,7 +96,7 @@ lib/
                           the SQL function `chat_unread_counts` (docs/sql/034). A live message is added by hand (never reload the whole list per
                           message); do NOT listen to `conversation_members` UPDATE (it fires on every read and send).
                           Reply and delete (docs/sql/037): `reply_to` links a message to the one it answers (same conversation, enforced by a composite foreign key);
-                          `deleteMessage(id)` removes my own message and its file; deleted ids are kept in `goneIds` so a reload never brings them back; a realtime
+                          `deleteMessage(id)` removes my own message (a database trigger first saves a copy in `deleted_messages` for admins, docs/sql/038; the attached file stays in storage for them); deleted ids are kept in `goneIds` so a reload never brings them back; a realtime
                           DELETE on `messages` calls `dropMessage`. A reply to a deleted message shows "Original message deleted" (`reply_gone`).
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
 

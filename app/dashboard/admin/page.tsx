@@ -9,7 +9,7 @@ import TicketArchive from '@/components/portal/TicketArchive';
 import { softAvatar } from '@/lib/data';
 import { useMe } from '@/lib/me';
 import { usePeople } from '@/lib/people';
-import { useAddedDepartments, useDeleteRequests, useDepartmentOptions, useDepartments, useDeptChatAdmin, useFlaggedMessages, useTickets } from '@/lib/portal';
+import { useAddedDepartments, useDeleteRequests, useDepartmentOptions, useDepartments, useDeptChatAdmin, useDeletedMessages, useFlaggedMessages, useTickets, getChatFileUrl } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const linkBtn = { border: 0, background: 'none', cursor: 'pointer' } as const;
@@ -24,6 +24,9 @@ export default function AdminPage() {
   const { departments, loaded: deptsLoaded, remove: removeDept } = useAddedDepartments();
   const allDepts = useDepartments();
   const { flags, loaded: flagsLoaded, markReviewed } = useFlaggedMessages();
+  const { rows: deletedRows, loaded: deletedLoaded, error: deletedError } = useDeletedMessages();
+  const [fileBusy, setFileBusy] = useState<string | null>(null);
+  const [fileErr, setFileErr] = useState<string | null>(null);
   const { chats: deptChats, loaded: deptChatsLoaded, membersOf, addMember, removeMember } = useDeptChatAdmin();
   const [openChat, setOpenChat] = useState<string | null>(null);
   const [chatMembers, setChatMembers] = useState<{ id: string; name: string }[]>([]);
@@ -53,6 +56,16 @@ export default function AdminPage() {
     const t = q.trim().toLowerCase();
     return t ? members.filter((m) => `${m.name} ${m.dept}`.toLowerCase().includes(t)).slice(0, 8) : [];
   }, [members, q]);
+  /* open the file of a deleted message (photos in a new tab, documents and voice messages download) */
+  const openFile = async (id: string, path: string, name: string, isImage: boolean) => {
+    setFileBusy(id); setFileErr(null);
+    const r = await getChatFileUrl(path, isImage ? undefined : name);
+    setFileBusy(null);
+    if (!r.url) { setFileErr(r.error ?? 'Could not open the file.'); return; }
+    const a = document.createElement('a');
+    a.href = r.url; a.target = '_blank'; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+  };
   const flagList = flags.filter((f) => flagFilter === 'all' || !f.reviewed);
   /* tickets nobody routed come first, then the newest */
   const toRoute = tickets.filter((t) => !t.dept && t.status === 'open').length;
@@ -232,6 +245,35 @@ export default function AdminPage() {
           ))}
         </div>
         {flagsLoaded && !flagList.length && <p className={s.agendaEmpty}>{flagFilter === 'new' ? 'Nothing to review.' : 'No messages have been blocked yet.'}</p>}
+      </section>
+
+      {/* ── Messages members deleted ── */}
+      <section className={`${s.card} ${s.panel}`}>
+        <div className={s.cardHead}>
+          <div><p className={s.cardEyebrow}>Chats</p><h2 className={s.cardTitle}>Deleted messages</h2></div>
+        </div>
+        <p className={s.rowSub} style={{ margin: '0 0 10px' }}>A copy is kept when a member deletes their own message, so abuse cannot be wiped away. Only admins see this list. The latest 100 are shown.</p>
+        <div className={s.list}>
+          {deletedRows.map((d) => (
+            <div key={d.id} className={s.listRow} style={{ alignItems: 'flex-start' }}>
+              <div className={s.rowMain}>
+                <p className={s.rowTitle}>{d.who} deleted a message in {d.chat}:</p>
+                {d.text && <p className={s.rowSub} style={{ whiteSpace: 'pre-wrap' }}>&ldquo;{d.text.length > 300 ? `${d.text.slice(0, 300)}…` : d.text}&rdquo;</p>}
+                {d.file && <p className={s.rowSub}>{d.kind === 'image' ? 'Photo' : d.kind === 'voice' ? 'Voice message' : 'File'}: {d.file.name}</p>}
+                <p className={s.rowSub}>Sent {d.sent} · deleted {d.deleted}</p>
+              </div>
+              {d.file && (
+                <button type="button" className={`${s.btnLine} ${s.btnSm}`} disabled={fileBusy === d.id}
+                  onClick={() => openFile(d.id, d.file!.path, d.file!.name, d.kind === 'image')}>
+                  {fileBusy === d.id ? 'Opening…' : d.kind === 'image' ? 'View photo' : 'Open file'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {fileErr && <p className={s.agendaEmpty} role="alert">{fileErr}</p>}
+        {deletedError && <p className={s.agendaEmpty} role="alert">Could not load deleted messages: {deletedError}</p>}
+        {deletedLoaded && !deletedError && !deletedRows.length && <p className={s.agendaEmpty}>No messages have been deleted yet.</p>}
       </section>
 
       {/* ── Support tickets ── */}

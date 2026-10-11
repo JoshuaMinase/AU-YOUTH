@@ -337,15 +337,13 @@ function useChatsState() {
     if (conv && !held) void loadOne(conv);
   }, [loadOne]);
 
-  /** delete one of my own messages for everyone (SQL 037). Returns an error message or null. */
+  /** delete one of my own messages for everyone (SQL 037; admins can still read it, SQL 038). Returns an error message or null. */
   const deleteMessage = useCallback(async (id: string): Promise<string | null> => {
     const supabase = createClient();
     const { data, error: err } = await supabase.from('messages').delete().eq('id', id).eq('sender_id', me.id).select('attachment_path');
     if (err) return err.message;
     if (!data?.length) return 'Could not delete that message. It may already be gone.';
-    const path = data[0].attachment_path as string | null;
-    if (path) await supabase.storage.from(CHAT_BUCKET).remove([path]);   // the file goes with the message (storage policy 023: you may remove files you own)
-    dropMessage(id);
+    dropMessage(id);   // the database saved a copy for the admins (SQL 038); an attached file stays in storage for them
     return null;
   }, [me.id, dropMessage]);
 
@@ -1365,6 +1363,44 @@ export function useFlaggedMessages() {
   }, [me.id, load]);
 
   return { flags, loaded, markReviewed };
+}
+
+export interface DeletedMessage { id: string; who: string; chat: string; text: string; kind: ChatKind; file?: ChatFile; sent: string; deleted: string }
+
+/** Messages members deleted (Supabase `deleted_messages`, admins only, SQL 038): kept so abuse cannot be wiped away. Live updates. */
+export function useDeletedMessages() {
+  const { me } = useMe();
+  const [rows, setRows] = useState<DeletedMessage[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!me.id || me.access === 'user') return;
+    const { data, error: err } = await createClient().from('deleted_messages')
+      .select('id, sender_name, chat_label, body, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, sent_at, deleted_at')
+      .order('deleted_at', { ascending: false }).limit(100);
+    if (err) { setError(err.message); setLoaded(true); return; }
+    const now = new Date();
+    setError(null);
+    setRows((data ?? []).map((r: Record<string, any>) => ({
+      id: r.id, who: r.sender_name, chat: r.chat_label, text: r.body ?? '', kind: (r.kind ?? 'text') as ChatKind, file: fileOf(r),
+      sent: timeAgo(r.sent_at, now), deleted: timeAgo(r.deleted_at, now),
+    })));
+    setLoaded(true);
+  }, [me.id, me.access]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!me.id || me.access === 'user') return;
+    const supabase = createClient();
+    const channel = supabase.channel(`deleted-${me.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'deleted_messages' }, () => { load(); })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [me.id, me.access, load]);
+
+  return { rows, loaded, error };
 }
 
 export interface DeptChatRow { id: string; dept: string; count: number }

@@ -319,7 +319,7 @@ export default function ChatsPage() {
       {del && (
         <Modal title="Delete message" onClose={() => { if (!delBusy) setDel(null); }}>
           <p className={s.fwdPreview}>{I.trash}<span>{previewOf({ kind: del.kind, body: del.text, file: del.file }) || 'This message'}</span></p>
-          <p className={s.agendaEmpty} style={{ margin: '0 0 10px' }}>This removes the message for everyone in the chat. It cannot be undone.</p>
+          <p className={s.agendaEmpty} style={{ margin: '0 0 10px' }}>This removes the message for everyone in the chat and cannot be undone. Admins can still see deleted messages for moderation.</p>
           {delErr && <p className={s.agendaEmpty} role="alert" style={{ marginBottom: 10 }}>{delErr}</p>}
           <div className={s.formActions}>
             <button type="button" className={s.btnLine} onClick={() => setDel(null)} disabled={delBusy}>Cancel</button>
