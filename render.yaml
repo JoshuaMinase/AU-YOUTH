@@ -17,3 +17,9 @@ services:
         value: "1"
       - key: PING_SECRET
         sync: false   # the value is set in the Render dashboard, never in this file
+      - key: BREVO_API_KEY
+        sync: false   # chat emails (docs/sql/040); value set in the Render dashboard
+      - key: EMAIL_FROM
+        sync: false   # sender address verified in Brevo, e.g. notifications@yourdomain.org
+      - key: EMAIL_FROM_NAME
+        value: AU Youth Community

@@ -57,6 +57,8 @@ app/
   about/ opportunities/ community/ why-join/   Public pages (server components using SiteShell)
   api/ping/               Needs header `x-ping-secret` = env PING_SECRET (Render). The self-ping in instrumentation.ts sends it. send_due_reminders(secret) checks a hash in
                           the database (docs/sql/035). Never put the secret in the repo.
+  api/chat/send/          Saves chat messages after the AI check; then emails the other person of a 1:1 or ticket chat (lib/chatEmail.ts, docs/sql/040).
+                          Needs BREVO_API_KEY and EMAIL_FROM (plus PING_SECRET) on Render; if one is missing, no email is sent and the chat works as before.
   not-found.tsx           404
   login/ sign-up/         Auth pages (styles/Auth.module.css)
   forgot-password/        Asks for the email, sends the Supabase reset link (redirectTo = /auth/callback?next=/reset-password)
@@ -98,6 +100,8 @@ lib/
                           Reply and delete (docs/sql/037): `reply_to` links a message to the one it answers (same conversation, enforced by a composite foreign key);
                           `deleteMessage(id)` removes my own message (a database trigger first saves a copy in `deleted_messages` for admins, docs/sql/038; the attached file stays in storage for them); deleted ids are kept in `goneIds` so a reload never brings them back; a realtime
                           DELETE on `messages` calls `dropMessage`. A reply to a deleted message shows "Original message deleted" (`reply_gone`).
+  chatEmail.ts            emailChatRecipients(messageId): "new message" email for 1:1 and ticket chats, plain fetch to Brevo (no package). The database
+                          function claim_chat_emails (docs/sql/040) picks the recipients: one email per chat until it is opened (or 30 min), group chats excluded.
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
 
 styles/

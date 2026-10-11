@@ -13,6 +13,7 @@
 // The AI checks every text, and every photo (OpenAI cannot check voice messages or documents, so those are not screened).
 //
 // Needs the OPENAI_API_KEY environment variable on Render (server only, never NEXT_PUBLIC_*).
+// After a message is saved, the other person in a 1:1 chat or ticket chat gets an email (lib/chatEmail.ts, docs/sql/040); it never blocks or fails the send.
 // OpenAI's moderation endpoint is free. If the key is missing or OpenAI is down, the message is
 // sent anyway (fail open) so chats keep working; the problem is written to the server log.
 import { createClient } from '@/lib/supabase/server';
@@ -20,6 +21,7 @@ import {
   AUDIO_TYPES, CHAT_BUCKET, CHAT_GIF_MAX_BYTES, CHAT_MAX_BYTES, CHAT_MAX_SECONDS, FILE_TYPES, baseType, cleanName,
   type ChatKind,
 } from '@/lib/chatFiles';
+import { emailChatRecipients } from '@/lib/chatEmail';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,8 +136,9 @@ export async function POST(request: Request) {
       const { error } = await supabase.storage.from(CHAT_BUCKET).copy(src.attachment_path, path);
       if (error) return Response.json({ error: 'Could not forward the file. Try again.' }, { status: 400 });
     }
+    const newId = crypto.randomUUID();
     const { error } = await supabase.from('messages').insert({
-      conversation_id: conversationId, sender_id: user.id, body: src.body, kind: src.kind, forwarded: true,
+      id: newId, conversation_id: conversationId, sender_id: user.id, body: src.body, kind: src.kind, forwarded: true,
       attachment_path: path, attachment_name: src.attachment_name, attachment_type: src.attachment_type,
       attachment_size: src.attachment_size, attachment_seconds: src.attachment_seconds,
     });
@@ -143,6 +146,7 @@ export async function POST(request: Request) {
       if (path) await supabase.storage.from(CHAT_BUCKET).remove([path]);
       return Response.json({ error: error.message }, { status: 400 });
     }
+    void emailChatRecipients(newId);
     return Response.json({ ok: true });
   }
 
@@ -178,11 +182,13 @@ export async function POST(request: Request) {
       if (result !== 'unavailable' && result.length) return block(supabase, conversationId, `[Photo blocked: ${name}]${text ? ` ${text}` : ''}`, result, 'photo', path);
     }
 
+    const newId = crypto.randomUUID();
     const { error } = await supabase.from('messages').insert({
-      conversation_id: conversationId, sender_id: user.id, body: text, kind,
+      id: newId, conversation_id: conversationId, sender_id: user.id, body: text, kind,
       attachment_path: path, attachment_name: name, attachment_type: type, attachment_size: size, attachment_seconds: kind === 'voice' ? seconds : null, reply_to: replyTo,
     });
     if (error) return Response.json({ error: error.message }, { status: 400 });
+    void emailChatRecipients(newId);
     return Response.json({ ok: true });
   }
 
@@ -192,7 +198,9 @@ export async function POST(request: Request) {
   const result = await moderate(text);
   if (result !== 'unavailable' && result.length) return block(supabase, conversationId, text, result, 'message');
 
-  const { error } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: user.id, body: text, reply_to: replyTo });
+  const newId = crypto.randomUUID();
+  const { error } = await supabase.from('messages').insert({ id: newId, conversation_id: conversationId, sender_id: user.id, body: text, reply_to: replyTo });
   if (error) return Response.json({ error: error.message }, { status: 400 });
+  void emailChatRecipients(newId);
   return Response.json({ ok: true });
 }
