@@ -3,7 +3,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { softAvatar, type Msg } from '@/lib/data';
+import { softAvatar, type Msg, type ReplyInfo } from '@/lib/data';
+import { previewOf } from '@/lib/chatFiles';
 import ChatMessage from '@/components/portal/ChatMessage';
 import ForwardDialog from '@/components/portal/ForwardDialog';
 import GroupMembers from '@/components/portal/GroupMembers';
@@ -35,7 +36,7 @@ function StagedFile({ file, onRemove }: { file: File; onRemove: () => void }) {
 }
 
 export default function ChatsPage() {
-  const { chats, unread, markRead, loadOlder, send, sendFiles, forward, addMember, removeMember, takeTicket, resolveTicket, loaded, error } = useChats();
+  const { chats, unread, markRead, loadOlder, deleteMessage, send, sendFiles, forward, addMember, removeMember, takeTicket, resolveTicket, loaded, error } = useChats();
   const { me } = useMe();
   const [showMembers, setShowMembers] = useState(false);
   const [activeId, setActiveId] = useState('');
@@ -48,6 +49,11 @@ export default function ChatsPage() {
   const [fwd, setFwd] = useState<Msg | null>(null);          // message being forwarded
   const [photo, setPhoto] = useState<{ url: string; alt: string } | null>(null);
   const [olderBusy, setOlderBusy] = useState(false);
+  const [replyTo, setReplyTo] = useState<ReplyInfo | null>(null);   // the message the next one answers
+  const [del, setDel] = useState<Msg | null>(null);                 // message waiting for "Delete for everyone" to be confirmed
+  const [delBusy, setDelBusy] = useState(false);
+  const [delErr, setDelErr] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const keepAt = useRef<{ height: number; top: number } | null>(null);   // scroll position to hold while older messages are added above
   const lastTop = useRef(0);                                              // previous scrollTop, to tell scrolling up from down
   const autoOff = useRef(false);                                          // set after a failed auto-load; the button still works
@@ -58,7 +64,7 @@ export default function ChatsPage() {
   /* department chats: the super admin and admins of that department manage the members (the database enforces it too) */
   const norm = (v?: string) => (v ?? '').trim().toLowerCase();
   const canManage = !!chat?.dept && (me.access === 'super_admin' || (me.access === 'admin' && norm(me.dept) === norm(chat.dept)));
-  useEffect(() => { setShowMembers(false); setStaged([]); setRecording(false); autoOff.current = false; lastTop.current = 0; }, [activeId]);
+  useEffect(() => { setShowMembers(false); setStaged([]); setRecording(false); setReplyTo(null); autoOff.current = false; lastTop.current = 0; }, [activeId]);
 
   /* /dashboard/chats?c=<id> (the People "Message" button) opens that conversation */
   useEffect(() => {
@@ -110,6 +116,25 @@ export default function ChatsPage() {
     if (movingUp && el.scrollTop < 80 && chat?.more && !olderBusy && !autoOff.current) showOlder();
   };
 
+  /* Reply: quote this message above the message box; the quote is taken from the bubble the person tapped */
+  const startReply = (m: Msg) => {
+    if (!m.id) return;
+    const text = previewOf({ kind: m.kind, body: m.text, file: m.file });
+    setReplyTo({ id: m.id, who: m.from === 'me' ? 'You' : m.who ?? (chat?.ticket ? (chat.ticket.iAmReporter ? chat.ticket.assignee : chat.ticket.reporter) : chat?.name ?? 'Member'), text });
+    inputRef.current?.focus();
+  };
+
+  const confirmDelete = async () => {
+    if (!del?.id) return;
+    setDelBusy(true); setDelErr(null);
+    const err = await deleteMessage(del.id);
+    setDelBusy(false);
+    if (err) { setDelErr(err); return; }
+    if (replyTo?.id === del.id) setReplyTo(null);
+    setDel(null);
+    toast('Message deleted');
+  };
+
   /* "I'll take this" on a ticket card: the database opens the temporary chat, and we jump into it */
   const take = async (ticketId: string) => {
     const r = await takeTicket(ticketId);
@@ -127,19 +152,23 @@ export default function ChatsPage() {
     if (staged.length) {
       const files = staged;
       setSendErr(null); setStaged([]); setInput('');
-      const r = await sendFiles(chat.id, files.map((f, i) => ({ file: f, caption: i === 0 ? text : '' })));
+      const reply = replyTo ?? undefined;
+      setReplyTo(null);
+      const r = await sendFiles(chat.id, files.map((f, i) => ({ file: f, caption: i === 0 ? text : '', reply: i === 0 ? reply : undefined })));
       if (r.error) {
         setStaged((p) => [...files.slice(r.done), ...p]);   // keep what was not sent so it can be retried
         if (r.done === 0) setInput((cur) => cur || text);
+        if (r.done === 0) setReplyTo(reply ?? null);
         setSendErr(`Not sent: ${r.error}`);
       }
       return;
     }
 
     if (!text) return;
-    setInput(''); setSendErr(null);
-    const err = await send(chat.id, text);
-    if (err) { setInput(text); setSendErr(`Not sent: ${err}`); }
+    const reply = replyTo ?? undefined;
+    setInput(''); setSendErr(null); setReplyTo(null);
+    const err = await send(chat.id, text, reply);
+    if (err) { setInput(text); setReplyTo(reply ?? null); setSendErr(`Not sent: ${err}`); }
   };
 
   const pick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -240,7 +269,7 @@ export default function ChatsPage() {
               </button>
             )}
             {chat.messages.map((m, i) => (
-              <ChatMessage key={m.id ?? i} m={m} onForward={setFwd} onOpenImage={(url, alt) => setPhoto({ url, alt })} onTakeTicket={take} />
+              <ChatMessage key={m.id ?? i} m={m} onReply={startReply} onForward={setFwd} onDelete={(x) => { setDelErr(null); setDel(x); }} onOpenImage={(url, alt) => setPhoto({ url, alt })} onTakeTicket={take} />
             ))}
             {!chat.messages.length && <p className={s.agendaEmpty}>{chat.ticket ? 'No messages yet. Say hello and sort out the problem here.' : 'No messages yet. Say hello!'}</p>}
           </div>
@@ -251,13 +280,20 @@ export default function ChatsPage() {
               {staged.map((f, i) => <StagedFile key={`${f.name}-${f.size}-${i}`} file={f} onRemove={() => setStaged((p) => p.filter((_, j) => j !== i))} />)}
             </div>
           )}
+          {replyTo && (
+            <div className={s.chatReplyBar}>
+              <span className={s.chatReplyIcon} aria-hidden="true">{I.reply}</span>
+              <span className={s.chatReplyText}><b>Replying to {replyTo.who}</b><span>{replyTo.text}</span></span>
+              <button type="button" className={s.trayRemove} onClick={() => setReplyTo(null)} aria-label="Cancel reply">{I.close}</button>
+            </div>
+          )}
           <form className={s.chatForm} onSubmit={submit}>
             {recording ? (
               <VoiceRecorder onDone={sendVoice} onCancel={() => setRecording(false)} onError={(m) => { setRecording(false); setSendErr(m); }} />
             ) : (<>
               <input ref={picker} type="file" hidden multiple accept={CHAT_ACCEPT} onChange={pick} />
               <button type="button" className={s.chatTool} onClick={() => picker.current?.click()} disabled={staged.length >= CHAT_MAX_STAGED} aria-label="Attach a photo or file">{I.attach}</button>
-              <input className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
+              <input ref={inputRef} className={s.input} value={input} onChange={(e) => setInput(e.target.value)}
                 placeholder={staged.length ? 'Add a caption…' : `Message ${(chat.ticket ? (chat.ticket.iAmReporter ? chat.ticket.assignee : chat.ticket.reporter) : chat.name).split(' ')[0]}…`} aria-label={staged.length ? 'Caption' : 'Write a message'} maxLength={1000} />
               {input.trim() || staged.length ? (
                 <button type="submit" className={s.btnDark}>{I.send} Send</button>
@@ -279,6 +315,17 @@ export default function ChatsPage() {
             if (!err) toast(ids.length === 1 ? 'Message forwarded' : `Forwarded to ${ids.length} chats`);
             return err;
           }} />
+      )}
+      {del && (
+        <Modal title="Delete message" onClose={() => { if (!delBusy) setDel(null); }}>
+          <p className={s.fwdPreview}>{I.trash}<span>{previewOf({ kind: del.kind, body: del.text, file: del.file }) || 'This message'}</span></p>
+          <p className={s.agendaEmpty} style={{ margin: '0 0 10px' }}>This removes the message for everyone in the chat. It cannot be undone.</p>
+          {delErr && <p className={s.agendaEmpty} role="alert" style={{ marginBottom: 10 }}>{delErr}</p>}
+          <div className={s.formActions}>
+            <button type="button" className={s.btnLine} onClick={() => setDel(null)} disabled={delBusy}>Cancel</button>
+            <button type="button" className={s.btnDark} onClick={confirmDelete} disabled={delBusy}>{delBusy ? 'Deleting…' : 'Delete for everyone'}</button>
+          </div>
+        </Modal>
       )}
       {photo && (
         <Modal title="Photo" onClose={() => setPhoto(null)}>

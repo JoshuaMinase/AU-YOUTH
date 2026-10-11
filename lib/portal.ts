@@ -1,6 +1,6 @@
 'use client';
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, ticketCode, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem, type TicketInfo } from './data';
+import { MONTHS, PROFILE_LOCKED_MSG, WEEKDAYS, sortEvents, startOfDay, ticketCode, type CalEvent, type Chat, type EventType, type Msg, type NewsCat, type NewsItem, type ReplyInfo, type TicketInfo } from './data';
 import { AUDIO_TYPES, CHAT_BUCKET, CHAT_MAX_BYTES, audioExt, baseType, checkChatFile, chatMime, cleanName, extOf, previewOf, type ChatFile, type ChatKind } from './chatFiles';
 import { useMe } from './me';
 import { NEWS_COLS, OPP_COLS, timeAgo, toNews, toOpp, type OppKind, type Opportunity } from './news';
@@ -130,6 +130,7 @@ const CHAT_PAGE = 30;
 
 /** the message columns every message query asks for */
 const MSG_COLS = `id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded,
+  reply_to, reply_gone, reply:messages!messages_reply_fk(id, sender_id, body, kind, attachment_name),
   ticket:support_tickets!messages_ticket_id_fkey(${TICKET_COLS})`;
 
 const CHAT_COLS = `id, is_group, title, last_message_at, expires_at, dept:departments(name),
@@ -142,12 +143,24 @@ const fileOf = (m: Record<string, any>): ChatFile | undefined => m.attachment_pa
   ? { path: m.attachment_path, name: m.attachment_name ?? 'file', type: m.attachment_type ?? '', size: m.attachment_size ?? 0, seconds: m.attachment_seconds ?? undefined }
   : undefined;
 
+/** the quote above a reply: who wrote the message, and a short line of what it said (SQL 037) */
+function replyOf(m: Record<string, any>, meId: string, names: Record<string, string>): ReplyInfo | undefined {
+  const r = m.reply;
+  if (r) {
+    return {
+      id: r.id, who: r.sender_id === meId ? 'You' : names[r.sender_id] ?? 'Member',
+      text: previewOf({ kind: r.kind, body: r.body ?? '', file: r.attachment_name ? { path: '', name: r.attachment_name, type: '', size: 0 } : undefined }),
+    };
+  }
+  return m.reply_gone ? { who: '', text: '', gone: true } : undefined;
+}
+
 /** one message row -> what the chat shows; `names` = member id -> name (group chats show who wrote it) */
 function toMsg(m: Record<string, any>, meId: string, group: boolean, names: Record<string, string>): Msg {
   return {
     id: m.id, from: m.sender_id === meId ? 'me' : 'them', text: m.body, time: hhmm(new Date(m.created_at)), at: m.created_at,
     who: group && m.sender_id !== meId ? names[m.sender_id] ?? 'Member' : undefined,
-    kind: (m.kind ?? 'text') as ChatKind, file: fileOf(m), forwarded: !!m.forwarded,
+    kind: (m.kind ?? 'text') as ChatKind, file: fileOf(m), forwarded: !!m.forwarded, reply: replyOf(m, meId, names),
     ticket: m.ticket ? toTicketInfo(m.ticket, meId) : undefined,
   };
 }
@@ -178,10 +191,10 @@ function toChat(r: Record<string, any>, meId: string, unread: number, now: Date)
  * A fresh copy of a chat from the database, joined with what the page already holds: messages the person already has
  * stay (a reload brings back only the newest page) and a message that arrived live while the load was running is not lost.
  */
-function mergeChat(prev: ChatRow | undefined, c: ChatRow): ChatRow {
+function mergeChat(prev: ChatRow | undefined, c: ChatRow, gone: Set<string>): ChatRow {
   if (!prev) return c;
   const have = new Set(c.messages.map((m) => m.id));
-  const extra = prev.messages.filter((m) => m.id && !have.has(m.id) && !m.pending);
+  const extra = prev.messages.filter((m) => m.id && !have.has(m.id) && !m.pending && !gone.has(m.id));   // a deleted message is not brought back
   const prevNewer = !!prev.lastAt && (!c.lastAt || prev.lastAt > c.lastAt);
   if (!extra.length && !prevNewer) return c;
   const messages = [...extra, ...c.messages].sort((a, b) => (a.at ?? '').localeCompare(b.at ?? ''));
@@ -212,6 +225,9 @@ function useChatsState() {
   /* a ticket chat works even with an unfinished profile (the person who reported a problem must be able to answer) */
   const ticketChats = useRef<Set<string>>(new Set());
   const may = useCallback((id: string) => canWrite || ticketChats.current.has(id), [canWrite]);
+
+  /* ids of messages deleted during this visit: a reload must not bring them back from the copy the page already holds */
+  const goneIds = useRef<Set<string>>(new Set());
 
   /* what the callbacks below need to read without being re-created on every change */
   const chatsRef = useRef<ChatRow[]>([]);
@@ -250,7 +266,7 @@ function useChatsState() {
     const fresh = rows.map((r: Record<string, any>) => toChat(r, me.id, unreadBy[r.id] ?? 0, now));
     ticketChats.current = new Set(fresh.filter((c) => c.ticket).map((c) => c.id));
     startPaging(rows);
-    setChats((prev) => fresh.map((c) => mergeChat(prev.find((x) => x.id === c.id), c)));
+    setChats((prev) => fresh.map((c) => mergeChat(prev.find((x) => x.id === c.id), c, goneIds.current)));
     setLoaded(true);
   }, [me.id, startPaging]);
 
@@ -270,7 +286,7 @@ function useChatsState() {
     const c = toChat(r, me.id, unreadBy[id] ?? 0, now);
     if (c.ticket) ticketChats.current.add(id);
     startPaging([r]);
-    setChats((prev) => [mergeChat(prev.find((x) => x.id === id), c), ...prev.filter((x) => x.id !== id)]);   // the chat with the newest message goes to the top
+    setChats((prev) => [mergeChat(prev.find((x) => x.id === id), c, goneIds.current), ...prev.filter((x) => x.id !== id)]);   // the chat with the newest message goes to the top
   }, [me.id, load, startPaging]);
 
   /* a message arrived live: add it to its chat. Only a message from someone else in a chat we already hold is added by hand; anything else
@@ -281,7 +297,15 @@ function useChatsState() {
     if (!c || row.ticket_id || row.sender_id === me.id) { void loadOne(conv); return; }
     if (c.messages.some((m) => m.id === row.id)) return;
     const names = Object.fromEntries((c.members ?? []).map((m) => [m.id, m.name]));
-    const msg = toMsg(row, me.id, !!c.group, names);
+    /* a live row has no joined data: the quote comes from messages already held, or the chat is reloaded to get it */
+    let reply: ReplyInfo | undefined;
+    if (row.reply_to) {
+      const q = [...(pagingRef.current[conv]?.older ?? []), ...c.messages].find((m) => m.id === row.reply_to);
+      if (!q) { void loadOne(conv); return; }
+      const other = (c.members ?? []).find((m) => m.id !== me.id)?.name ?? 'Member';
+      reply = { id: q.id, who: q.from === 'me' ? 'You' : q.who ?? other, text: previewOf({ kind: q.kind, body: q.text, file: q.file }) };
+    }
+    const msg = { ...toMsg(row, me.id, !!c.group, names), reply };
     setChats((prev) => {
       const cur = prev.find((x) => x.id === conv);
       if (!cur || cur.messages.some((m) => m.id === row.id)) return prev;
@@ -295,6 +319,36 @@ function useChatsState() {
 
   useEffect(() => { load(); }, [load]);
 
+  /* a message was deleted (by me, on another device of mine, or live by its author): drop it, mark the replies to it, fix the chat's last line */
+  const dropMessage = useCallback((id: string) => {
+    goneIds.current.add(id);
+    const gone = (m: Msg): Msg => (m.reply?.id === id ? { ...m, reply: { who: '', text: '', gone: true } } : m);
+    setPaging((p) => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, { ...v, older: v.older.filter((m) => m.id !== id).map(gone) }])));
+    const conv = chatsRef.current.find((c) => c.messages.some((m) => m.id === id))?.id;
+    setChats((prev) => prev.map((c) => {
+      if (!c.messages.some((m) => m.id === id || m.reply?.id === id)) return c;
+      const messages = c.messages.filter((m) => m.id !== id).map(gone);
+      const last = messages[messages.length - 1];
+      if (!last || c.messages[c.messages.length - 1]?.id !== id) return { ...c, messages };
+      return { ...c, messages, lastAt: last.at, time: chatTime(last.at ?? c.lastAt ?? '', new Date()), preview: previewOf({ kind: last.kind, body: last.text, file: last.file }) };
+    }));
+    /* nothing left in the newest page: ask the database what the chat shows now */
+    const held = conv ? chatsRef.current.find((c) => c.id === conv)?.messages.filter((m) => m.id !== id).length : 1;
+    if (conv && !held) void loadOne(conv);
+  }, [loadOne]);
+
+  /** delete one of my own messages for everyone (SQL 037). Returns an error message or null. */
+  const deleteMessage = useCallback(async (id: string): Promise<string | null> => {
+    const supabase = createClient();
+    const { data, error: err } = await supabase.from('messages').delete().eq('id', id).eq('sender_id', me.id).select('attachment_path');
+    if (err) return err.message;
+    if (!data?.length) return 'Could not delete that message. It may already be gone.';
+    const path = data[0].attachment_path as string | null;
+    if (path) await supabase.storage.from(CHAT_BUCKET).remove([path]);   // the file goes with the message (storage policy 023: you may remove files you own)
+    dropMessage(id);
+    return null;
+  }, [me.id, dropMessage]);
+
   /* Live updates. A new message goes through onMessage (no reload). Only joining / leaving a chat and a ticket change reload the list.
      conversation_members UPDATE is NOT listened to: it fires every time anybody reads a chat (and for every send), which in the big
      community chat would reload everyone's chats all day. Reading on another device shows up when the tab is shown again (below). */
@@ -304,6 +358,7 @@ function useChatsState() {
     const channel = supabase
       .channel(`chats-${me.id}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (p) => { onMessage(p.new as Record<string, any>); })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'messages' }, (p) => { const id = (p.old as Record<string, any>)?.id; if (id) dropMessage(id as string); })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'conversation_members' }, () => { load(); })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'conversation_members' }, () => { load(); })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'support_tickets' }, () => { load(); })   // a ticket was taken or closed
@@ -314,7 +369,7 @@ function useChatsState() {
       document.removeEventListener('visibilitychange', onVisible);
       supabase.removeChannel(channel);
     };
-  }, [me.id, load, onMessage]);
+  }, [me.id, load, onMessage, dropMessage]);
 
   /** "Load earlier messages": the CHAT_PAGE messages before the oldest one held. Returns an error message or null. */
   const loadOlder = useCallback(async (id: string): Promise<string | null> => {
@@ -368,12 +423,12 @@ function useChatsState() {
     setPending((p) => ({ ...p, [id]: (p[id] ?? []).filter((m) => !ids.includes(m.id!)) }));
   }, []);
 
-  const send = useCallback(async (id: string, text: string) => {
+  const send = useCallback(async (id: string, text: string, reply?: ReplyInfo) => {
     if (!may(id)) return PROFILE_LOCKED_MSG;
-    const mine: Msg = { id: `pending-${crypto.randomUUID()}`, from: 'me', text, time: hhmm(new Date()), kind: 'text', pending: true };
+    const mine: Msg = { id: `pending-${crypto.randomUUID()}`, from: 'me', text, time: hhmm(new Date()), kind: 'text', pending: true, reply };
     addPending(id, [mine]);
     /* goes through the server so the AI can check the text first (app/api/chat/send/route.ts) */
-    const msg = await postMessage({ conversationId: id, text });
+    const msg = await postMessage({ conversationId: id, text, replyTo: reply?.id });
     await loadOne(id);
     dropPending(id, [mine.id!]);
     return msg;
@@ -384,14 +439,14 @@ function useChatsState() {
    * another through the same checked route. Stops at the first failure: `done` is how many were sent, `error` says why the next one was not.
    * `caption` is optional text.
    */
-  const sendFiles = useCallback(async (id: string, items: { file: File | Blob; caption?: string; voiceSeconds?: number }[]) => {
+  const sendFiles = useCallback(async (id: string, items: { file: File | Blob; caption?: string; voiceSeconds?: number; reply?: ReplyInfo }[]) => {
     if (!may(id)) return { error: PROFILE_LOCKED_MSG as string | null, done: 0 };
     const queued: Msg[] = items.map((it) => {
       const name = it.voiceSeconds ? 'Voice message' : cleanName((it.file as File).name ?? 'file');
       const type = it.voiceSeconds ? baseType(it.file.type) : chatMime(name) ?? '';
       const kind: ChatKind = it.voiceSeconds ? 'voice' : type.startsWith('image/') ? 'image' : 'file';
       return {
-        id: `pending-${crypto.randomUUID()}`, from: 'me', text: (it.caption ?? '').trim(), time: hhmm(new Date()), pending: true, kind,
+        id: `pending-${crypto.randomUUID()}`, from: 'me', text: (it.caption ?? '').trim(), time: hhmm(new Date()), pending: true, kind, reply: it.reply,
         localUrl: kind === 'image' ? URL.createObjectURL(it.file) : undefined,
         file: { path: '', name, type, size: it.file.size, seconds: it.voiceSeconds },
       };
@@ -407,7 +462,7 @@ function useChatsState() {
       if (!up.file || !up.kind) msg = up.error ?? 'Could not upload the file.';
       else {
         if (up.kind === 'image') void getChatFileUrl(up.file.path); // warm the link so the sent photo shows without a flash
-        msg = await postMessage({ conversationId: id, text: (it.caption ?? '').trim(), kind: up.kind, attachment: up.file });
+        msg = await postMessage({ conversationId: id, text: (it.caption ?? '').trim(), kind: up.kind, attachment: up.file, replyTo: it.reply?.id });
         if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
       }
       if (msg) { error = msg; break; }
@@ -476,7 +531,7 @@ function useChatsState() {
     return { ...c, more, messages: [...older, ...c.messages, ...sending] };
   }), [chats, paging, pending]);
 
-  return { chats: shown, unread, markRead, loadOlder, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
+  return { chats: shown, unread, markRead, loadOlder, deleteMessage, send, sendFiles, forward, start, addMember, removeMember, takeTicket, resolveTicket, loaded, error };
 }
 
 type ChatsValue = ReturnType<typeof useChatsState>;

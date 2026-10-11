@@ -154,9 +154,9 @@ function TicketCard({ t, time, onTake }: { t: TicketInfo; time: string; onTake?:
   );
 }
 
-/** one chat bubble: text, photo, file or voice message, with a Forward button (a ticket card is a card instead) */
-export default function ChatMessage({ m, onForward, onOpenImage, onTakeTicket }: {
-  m: Msg; onForward: (m: Msg) => void; onOpenImage: (url: string, alt: string) => void;
+/** one chat bubble: text, photo, file or voice message, with Reply, Forward and (my own messages) Delete buttons (a ticket card is a card instead) */
+export default function ChatMessage({ m, onReply, onForward, onDelete, onOpenImage, onTakeTicket }: {
+  m: Msg; onReply: (m: Msg) => void; onForward: (m: Msg) => void; onDelete: (m: Msg) => void; onOpenImage: (url: string, alt: string) => void;
   onTakeTicket?: (ticketId: string) => Promise<string | null>;
 }) {
   const mine = m.from === 'me';
@@ -166,6 +166,13 @@ export default function ChatMessage({ m, onForward, onOpenImage, onTakeTicket }:
       <div className={`${s.msg} ${mine ? s.msgMe : s.msgThem}`} data-kind={m.kind && m.kind !== 'text' ? m.kind : undefined} data-pending={m.pending ? '' : undefined}>
         {m.forwarded && <span className={s.msgFwd}>{I.forward} Forwarded</span>}
         {m.who && <b style={{ display: 'block', fontSize: 12 }}>{m.who}</b>}
+        {m.reply && (
+          <div className={s.msgQuote} data-gone={m.reply.gone ? '' : undefined}>
+            {m.reply.gone
+              ? <span>Original message deleted</span>
+              : <><b>{m.reply.who}</b><span>{m.reply.text}</span></>}
+          </div>
+        )}
         {m.pending && m.file && <PendingBody m={m} />}
         {!m.pending && m.file && m.kind === 'image' && <ChatImage path={m.file.path} alt={m.text ? `Photo: ${m.text}` : 'Photo sent in the chat'} onOpen={onOpenImage} />}
         {!m.pending && m.file && m.kind === 'file' && <ChatFileCard path={m.file.path} name={m.file.name} size={m.file.size} />}
@@ -175,7 +182,9 @@ export default function ChatMessage({ m, onForward, onOpenImage, onTakeTicket }:
           ? <small className={s.msgWait}><span className={s.spin} aria-hidden="true" /> Sending…</small>
           : <small>{m.time}</small>}
       </div>
+      {m.id && !m.pending && <button type="button" className={s.msgAct} onClick={() => onReply(m)} aria-label="Reply to this message">{I.reply}</button>}
       {m.id && !m.pending && <button type="button" className={s.msgAct} onClick={() => onForward(m)} aria-label="Forward this message">{I.forward}</button>}
+      {m.id && !m.pending && mine && <button type="button" className={s.msgAct} onClick={() => onDelete(m)} aria-label="Delete this message">{I.trash}</button>}
     </div>
   );
 }

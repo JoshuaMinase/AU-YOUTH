@@ -7,6 +7,7 @@
 //   { conversationId, text?, kind, attachment }               a photo, file or voice message (file already uploaded
 //                                                             to the chat-files bucket, docs/sql/023_chat_media.sql);
 //                                                             `text` is the optional caption
+//   Text and file messages may also carry `replyTo` (the id of the message being answered, in the same conversation).
 //   { conversationId, forwardOf }                             forwards a message you can read; its file is copied into
 //                                                             this conversation's folder
 // The AI checks every text, and every photo (OpenAI cannot check voice messages or documents, so those are not screened).
@@ -93,12 +94,22 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return Response.json({ error: 'Please log in again.' }, { status: 401 });
 
-  let body: { conversationId?: unknown; text?: unknown; kind?: unknown; attachment?: unknown; forwardOf?: unknown };
+  let body: { conversationId?: unknown; text?: unknown; kind?: unknown; attachment?: unknown; forwardOf?: unknown; replyTo?: unknown };
   try { body = await request.json(); } catch { return Response.json({ error: 'Bad request.' }, { status: 400 }); }
   const conversationId = typeof body.conversationId === 'string' ? body.conversationId : '';
   const text = typeof body.text === 'string' ? body.text.trim() : '';
   if (!CONV_RE.test(conversationId)) return Response.json({ error: 'Pick a conversation first.' }, { status: 400 });
   if (text.length > 2000) return Response.json({ error: 'That message is too long.' }, { status: 400 });
+
+  /* a reply must answer a message of this same conversation that still exists (the database enforces the conversation too) */
+  let replyTo: string | null = null;
+  if (body.replyTo !== undefined && body.replyTo !== null) {
+    const rid = typeof body.replyTo === 'string' ? body.replyTo : '';
+    if (!CONV_RE.test(rid)) return Response.json({ error: 'Bad request.' }, { status: 400 });
+    const { data: target } = await supabase.from('messages').select('id').eq('id', rid).eq('conversation_id', conversationId).maybeSingle();
+    if (!target) return Response.json({ error: 'The message you are replying to is no longer there.' }, { status: 404 });
+    replyTo = rid;
+  }
 
   /* ── forward a message ─────────────────────────────────────────── */
   if (body.forwardOf !== undefined) {
@@ -169,7 +180,7 @@ export async function POST(request: Request) {
 
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId, sender_id: user.id, body: text, kind,
-      attachment_path: path, attachment_name: name, attachment_type: type, attachment_size: size, attachment_seconds: kind === 'voice' ? seconds : null,
+      attachment_path: path, attachment_name: name, attachment_type: type, attachment_size: size, attachment_seconds: kind === 'voice' ? seconds : null, reply_to: replyTo,
     });
     if (error) return Response.json({ error: error.message }, { status: 400 });
     return Response.json({ ok: true });
@@ -181,7 +192,7 @@ export async function POST(request: Request) {
   const result = await moderate(text);
   if (result !== 'unavailable' && result.length) return block(supabase, conversationId, text, result, 'message');
 
-  const { error } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: user.id, body: text });
+  const { error } = await supabase.from('messages').insert({ conversation_id: conversationId, sender_id: user.id, body: text, reply_to: replyTo });
   if (error) return Response.json({ error: error.message }, { status: 400 });
   return Response.json({ ok: true });
 }

@@ -78,7 +78,7 @@ components/
                           CtaBand, Faq, OpportunityBoard, CircleGrid, icons
   portal/ui.tsx           Dashboard building blocks: icon set `I`, Hero, Modal, useToast, MiniCalendar
   portal/tags.ts          News tag → colour class (plain module, safe for server components)
-  portal/ChatMessage.tsx  One chat bubble: text, photo, file or voice message, plus its Forward button; a ticket card in department chats
+  portal/ChatMessage.tsx  One chat bubble: text, photo, file or voice message, the quote of the message it answers, plus Reply / Forward / Delete (own messages only) buttons; a ticket card in department chats
   portal/Tickets.tsx      TicketRow (Get Help list + admin queue) and TicketBar (resolve bar above a temporary ticket chat)
   portal/TicketArchive.tsx  Admin-only, collapsed lookup to read a ticket chat read-only (logged)
   portal/VoiceRecorder.tsx  Records a voice message inside the chat message box
@@ -95,6 +95,9 @@ lib/
                           Chats load only the newest 30 messages each (CHAT_PAGE); `loadOlder(id)` adds earlier pages; unread counts come from
                           the SQL function `chat_unread_counts` (docs/sql/034). A live message is added by hand (never reload the whole list per
                           message); do NOT listen to `conversation_members` UPDATE (it fires on every read and send).
+                          Reply and delete (docs/sql/037): `reply_to` links a message to the one it answers (same conversation, enforced by a composite foreign key);
+                          `deleteMessage(id)` removes my own message and its file; deleted ids are kept in `goneIds` so a reload never brings them back; a realtime
+                          DELETE on `messages` calls `dropMessage`. A reply to a deleted message shows "Original message deleted" (`reply_gone`).
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
 
 styles/

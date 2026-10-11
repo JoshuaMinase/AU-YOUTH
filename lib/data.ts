@@ -174,9 +174,12 @@ export interface TicketInfo {
 /** T-0012 */
 export const ticketCode = (no: number) => `T-${String(no).padStart(4, '0')}`;
 
+/** the quoted message shown above a reply */
+export interface ReplyInfo { id?: string; who: string; text: string; gone?: boolean }
 export interface Msg { id?: string; from: 'me' | 'them'; text: string; time: string; who?: string;
   /** server time it was sent (orders and pages the history) */ at?: string;
   /** photo, file or voice message (text is then the optional caption); 'ticket' = a ticket card (see `ticket`) */ kind?: ChatKind; file?: ChatFile; forwarded?: boolean; ticket?: TicketInfo;
+  /** the message this one answers ("Reply"); gone = that message was deleted */ reply?: ReplyInfo;
   /** still being sent (shown at once with a spinner); localUrl previews a photo that is uploading */ pending?: boolean; localUrl?: string }
 export interface Chat { id: string; initials: string; name: string; color: string; time: string; unread: number; messages: Msg[]; group?: boolean;
   /** server time of the newest message (used to mark the chat read without trusting the device clock) */ lastAt?: string;
