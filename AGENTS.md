@@ -55,6 +55,8 @@ app/
   globals.css             Fonts (@font-face Chopin), global tokens, Lenis CSS. Keep it small.
   page.tsx                Home: Landing → CommunitySection → PhotoStackSection → IdeasSection + Footer
   about/ opportunities/ community/ why-join/   Public pages (server components using SiteShell)
+  api/ping/               Needs header `x-ping-secret` = env PING_SECRET (Render). The self-ping in instrumentation.ts sends it. send_due_reminders(secret) checks a hash in
+                          the database (docs/sql/035). Never put the secret in the repo.
   not-found.tsx           404
   login/ sign-up/         Auth pages (styles/Auth.module.css)
   dashboard/
@@ -87,6 +89,9 @@ lib/
   hooks.ts                useIso, useToday, useReveal, useListAnimation, copyText
   store.ts                usePersisted (localStorage state shared between components)
   portal.ts               useEvents, useChats (shared dashboard state; chats load once in <ChatsProvider> in dashboard/layout.tsx)
+                          Chats load only the newest 30 messages each (CHAT_PAGE); `loadOlder(id)` adds earlier pages; unread counts come from
+                          the SQL function `chat_unread_counts` (docs/sql/034). A live message is added by hand (never reload the whole list per
+                          message); do NOT listen to `conversation_members` UPDATE (it fires on every read and send).
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
 
 styles/

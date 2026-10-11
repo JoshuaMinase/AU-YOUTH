@@ -17,7 +17,8 @@ export async function register() {
 
   const ping = async () => {
     try {
-      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30_000) });
+      // /api/ping refuses a call without the secret (set PING_SECRET on Render)
+      const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30_000), headers: { 'x-ping-secret': process.env.PING_SECRET ?? '' } });
       console.log(`[self-ping] ${res.status} ${url}`);
     } catch (err) {
       console.warn('[self-ping] failed:', err instanceof Error ? err.message : err);
