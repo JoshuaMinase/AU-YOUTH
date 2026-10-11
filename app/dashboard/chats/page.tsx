@@ -49,6 +49,8 @@ export default function ChatsPage() {
   const [photo, setPhoto] = useState<{ url: string; alt: string } | null>(null);
   const [olderBusy, setOlderBusy] = useState(false);
   const keepAt = useRef<{ height: number; top: number } | null>(null);   // scroll position to hold while older messages are added above
+  const lastTop = useRef(0);                                              // previous scrollTop, to tell scrolling up from down
+  const autoOff = useRef(false);                                          // set after a failed auto-load; the button still works
   const [toast, toastNode] = useToast();
   const picker = useRef<HTMLInputElement>(null);
   const msgs = useRef<HTMLDivElement>(null);
@@ -56,7 +58,7 @@ export default function ChatsPage() {
   /* department chats: the super admin and admins of that department manage the members (the database enforces it too) */
   const norm = (v?: string) => (v ?? '').trim().toLowerCase();
   const canManage = !!chat?.dept && (me.access === 'super_admin' || (me.access === 'admin' && norm(me.dept) === norm(chat.dept)));
-  useEffect(() => { setShowMembers(false); setStaged([]); setRecording(false); }, [activeId]);
+  useEffect(() => { setShowMembers(false); setStaged([]); setRecording(false); autoOff.current = false; lastTop.current = 0; }, [activeId]);
 
   /* /dashboard/chats?c=<id> (the People "Message" button) opens that conversation */
   useEffect(() => {
@@ -97,7 +99,15 @@ export default function ChatsPage() {
     setOlderBusy(true); setSendErr(null);
     const err = await loadOlder(chat.id);
     setOlderBusy(false);
-    if (err) { keepAt.current = null; setSendErr(`Could not load earlier messages: ${err}`); }
+    if (err) { keepAt.current = null; autoOff.current = true; setSendErr(`Could not load older messages: ${err}`); }
+  };
+
+  /* scrolling up to the top loads the next page by itself (only when moving up, so the jump to the newest message never triggers it) */
+  const onMsgsScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const movingUp = el.scrollTop < lastTop.current;
+    lastTop.current = el.scrollTop;
+    if (movingUp && el.scrollTop < 80 && chat?.more && !olderBusy && !autoOff.current) showOlder();
   };
 
   /* "I'll take this" on a ticket card: the database opens the temporary chat, and we jump into it */
@@ -223,10 +233,10 @@ export default function ChatsPage() {
 
           {chat.ticket && <TicketBar t={chat.ticket} expiresAt={chat.expiresAt} onResolve={(done) => resolveTicket(chat.ticket!.id, done)} />}
 
-          <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite">
+          <div ref={msgs} className={s.msgs} data-lenis-prevent aria-live="polite" onScroll={onMsgsScroll}>
             {chat.more && (
               <button type="button" className={`${s.btnLine} ${s.btnSm}`} style={{ alignSelf: 'center', flexShrink: 0 }} onClick={showOlder} disabled={olderBusy}>
-                {olderBusy ? 'Loading…' : 'Load earlier messages'}
+                {olderBusy ? 'Loading…' : 'Load older messages'}
               </button>
             )}
             {chat.messages.map((m, i) => (
