@@ -18,7 +18,7 @@ Last updated: 2026-10-11
 - /dashboard/get-help: "Report an issue" files an internal ticket (T-0001…): the member picks the department that should fix it, or lets the admins decide. A ticket for a department shows as a card in that department's group chat; any member there can take it with "I'll take this", which opens a temporary chat with the reporter. Both mark it resolved to close it; the chat disappears for them 24 hours later. Admins route unrouted tickets in the Admin panel and can look up and read any ticket chat (read-only, logged) from the collapsed "Ticket chats" card there (needs SQL 029). Department contacts and handbook stay static on purpose; FAQs are editable by admins, see 028
 
 ## Partly done
-- /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates). Admins see two buttons: "Add public event" (everyone sees it) and "Add private event (only me)"; members only add private events (needs 024)
+- /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates). Admins see two buttons: "Add public event" (everyone sees it) and "Add private event (only me)"; members only add private events (needs 024). Opportunity deadlines (or the day of an Event) also show on the calendar, read only, in their own colour with a Deadline legend entry; clicking one opens a small card with a link to the opportunity (no SQL, uses `opportunities.event_at`); the home mini calendar and Coming up do not show them yet
 
 ## Not done (still mock or static)
 - Public pages (/, /community, /opportunities, /why-join): static marketing pages, no backend needed

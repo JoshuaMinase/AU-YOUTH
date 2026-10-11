@@ -129,6 +129,7 @@
 .ev_session { --ev: #8F2D56; }
 .ev_call { --ev: #218380; }
 .ev_forum { --ev: var(--p-ink); }
+.ev_deadline { --ev: #B4532A; }   /* opportunity deadline or event day (read only) */
 .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ev, var(--p-ink)); flex: none; }
 
 /* toast */

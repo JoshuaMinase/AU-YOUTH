@@ -202,7 +202,7 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
    | `auy-connections` | people the user sent connection requests to |
    | `auy-profile` | edited profile (bio, skills, education…) |
 
-4. `useEvents(today)` (calendar + home) now reads and writes the Supabase `events` table (RLS: your own rows plus every `is_public` event; only admins can create public events, only the owner can edit or delete). Use the other shared hooks too, do not re-implement them:
+4. `useEvents(today)` (calendar + home) now reads and writes the Supabase `events` table (RLS: your own rows plus every `is_public` event; only admins can create public events, only the owner can edit or delete). The calendar page also adds every opportunity that has a date (`opportunities.event_at`: the deadline, or the day of an Event) from `useOpportunities()` as a read-only item (colour `ev_deadline`, opens the opportunity); the home page does not show them yet. Use the other shared hooks too, do not re-implement them:
    `useChats()` (header badge, chats page, home quick chat; it reads the one copy kept by `<ChatsProvider>`, so never call it outside the dashboard layout). The profile completion % **MUST** come
    from `profileScore()` so the home ring and the profile page always agree.
 5. **SQL files and notification kinds:** never write `check (kind in (...))` for `notifications` by hand. A new kind is added with

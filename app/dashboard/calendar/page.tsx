@@ -1,16 +1,35 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useRef, useState } from 'react';
 import { ConfirmDialog, Hero, I, Modal, useToast } from '@/components/portal/ui';
-import { EVENT_TYPES, MONTHS, MONTHS_SHORT, WEEKDAYS, dateRangeLabel, eventDays, lastDay, monthCells, parseYmd, ymd, type CalEvent, type EventType } from '@/lib/data';
+import { EVENT_TYPES, MONTHS, MONTHS_SHORT, WEEKDAYS, dateRangeLabel, eventDays, lastDay, monthCells, parseYmd, sortEvents, ymd, type CalEvent, type EventType } from '@/lib/data';
 import { useToday } from '@/lib/hooks';
 import { useMe } from '@/lib/me';
-import { removeEventImages, uploadEventImage, useEvents, type EventInput } from '@/lib/portal';
+import type { Opportunity } from '@/lib/news';
+import { removeEventImages, uploadEventImage, useEvents, useOpportunities, type EventInput } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
 const HEADS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const MAX_PHOTOS = 3;
+
+/** an opportunity's date (deadline, or the day of an Event) shown on the calendar. Read only: it opens the opportunity. */
+type CalItem = CalEvent & { opp?: { slug: string; kind: string } };
+const evClass = (e: CalItem) => (e.opp ? 'ev_deadline' : `ev_${e.type}`);
+const oppLabel = (kind: string) => (kind === 'Event' ? 'Event day' : 'Deadline');
+/** the "where" part of a line: the location of an event, or "Deadline · Internship" for an opportunity */
+const place = (e: CalItem) => (e.opp ? `${oppLabel(e.opp.kind)} · ${e.opp.kind}` : e.location);
+
+function oppToItem(o: Opportunity): CalItem | null {
+  if (!o.eventAt) return null;
+  const d = new Date(o.eventAt); // the viewer's own time zone, like the rest of the calendar
+  const p = (n: number) => String(n).padStart(2, '0');
+  return {
+    id: `opp-${o.id}`, date: ymd(d), time: `${p(d.getHours())}:${p(d.getMinutes())}`, title: o.title, type: 'event', location: '',
+    isPublic: true, mine: false, endDate: null, description: o.excerpt, images: [], by: '', opp: { slug: o.slug, kind: o.kind },
+  };
+}
 
 function EventForm({ date, event, isPublic, onSave, onClose }: { date: string; event?: CalEvent; isPublic: boolean; onSave: (e: EventInput) => Promise<string | null>; onClose: () => void }) {
   const [f, setF] = useState({
@@ -122,7 +141,27 @@ function EventForm({ date, event, isPublic, onSave, onClose }: { date: string; e
 }
 
 /** Everything about one event. The owner can edit or delete it from here. */
-function EventDetail({ ev, onClose, onEdit, onDelete }: { ev: CalEvent; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+function EventDetail({ ev, onClose, onEdit, onDelete }: { ev: CalItem; onClose: () => void; onEdit: () => void; onDelete: () => void }) {
+  if (ev.opp) {
+    return (
+      <Modal title={ev.title} onClose={onClose}>
+        <div className={s.evDetail}>
+          <div className={s.evTags}>
+            <span className={`${s.tag} ${s.tMuted}`}>{ev.opp.kind}</span>
+            <span className={`${s.tag} ${s.tMuted}`}>{oppLabel(ev.opp.kind)}</span>
+          </div>
+          <ul className={s.evFacts}>
+            <li>{I.calendar}<span>{dateRangeLabel(ev)}</span></li>
+            <li>{I.clock}<span>{ev.time}</span></li>
+          </ul>
+          {ev.description ? <p className={s.evDesc}>{ev.description}</p> : null}
+          <div className={s.formActions}>
+            <Link href={`/dashboard/opportunities/${ev.opp.slug}`} className={s.btnDark}>View opportunity</Link>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
   const type = EVENT_TYPES.find((t) => t.id === ev.type)?.label ?? ev.type;
   const days = ev.endDate ? eventDays(ev).length : 1;
   return (
@@ -162,7 +201,15 @@ export default function CalendarPage() {
   const today = useToday();
   const { me } = useMe();
   const isAdmin = me.access !== 'user';
-  const { events, add, update, remove, loaded, error } = useEvents(today);
+  const { events: myEvents, add, update, remove, loaded: eventsLoaded, error: eventsError } = useEvents(today);
+  const { items: opps, loaded: oppsLoaded, error: oppsError } = useOpportunities();
+  const loaded = eventsLoaded && oppsLoaded;
+  const error = eventsError ?? oppsError;
+  /* events plus the opportunity deadlines (SQL 033 `event_at`), in one list */
+  const events = useMemo<CalItem[]>(
+    () => [...myEvents, ...opps.map(oppToItem).filter((x): x is CalItem => x !== null)].sort(sortEvents),
+    [myEvents, opps],
+  );
   const [toast, toastNode] = useToast();
   const [view, setView] = useState<{ y: number; m: number } | null>(null);
   const [selected, setSelected] = useState('');
@@ -177,7 +224,7 @@ export default function CalendarPage() {
   const selKey = selected || todayKey;
 
   const byDay = useMemo(() => {
-    const m: Record<string, CalEvent[]> = {};
+    const m: Record<string, CalItem[]> = {};
     events.forEach((e) => { eventDays(e).forEach((k) => { (m[k] ??= []).push(e); }); });
     return m;
   }, [events]);
@@ -194,10 +241,10 @@ export default function CalendarPage() {
     const monthEnd = ymd(new Date(today.getFullYear(), today.getMonth() + 1, 0));
     const yearEnd = `${today.getFullYear()}-12-31`;
     const g = [
-      { label: 'This week', items: [] as CalEvent[], until: weekEnd },
-      { label: 'This month', items: [] as CalEvent[], until: monthEnd },
-      { label: 'Later this year', items: [] as CalEvent[], until: yearEnd },
-      { label: 'Next year and beyond', items: [] as CalEvent[], until: '9999-12-31' },
+      { label: 'This week', items: [] as CalItem[], until: weekEnd },
+      { label: 'This month', items: [] as CalItem[], until: monthEnd },
+      { label: 'Later this year', items: [] as CalItem[], until: yearEnd },
+      { label: 'Next year and beyond', items: [] as CalItem[], until: '9999-12-31' },
     ];
     const key = ymd(today);
     events.filter((e) => lastDay(e) >= key).forEach((e) => {
@@ -237,7 +284,7 @@ export default function CalendarPage() {
                   aria-label={`${d.getDate()} ${MONTHS[d.getMonth()]}, ${evs.length} event${evs.length === 1 ? '' : 's'}`}>
                   <span className={s.calNum}>{d.getDate()}</span>
                   {evs.slice(0, 2).map((ev) => (
-                    <span key={ev.id} className={`${s.chip} ${s[`ev_${ev.type}`]}`}><span>{k === ev.date ? ev.time : '…'}</span><span>{ev.title}</span></span>
+                    <span key={ev.id} className={`${s.chip} ${s[evClass(ev)]}`}><span>{k === ev.date ? ev.time : '…'}</span><span>{ev.title}</span></span>
                   ))}
                   {evs.length > 2 && <span className={s.more}>+{evs.length - 2} more</span>}
                 </button>
@@ -247,6 +294,7 @@ export default function CalendarPage() {
 
           <div className={s.legend}>
             {EVENT_TYPES.map((t) => <span key={t.id} className={s[`ev_${t.id}`]}><i className={s.dot} />{t.label}</span>)}
+            <span className={s.ev_deadline}><i className={s.dot} />Deadline</span>
           </div>
         </section>
 
@@ -260,10 +308,10 @@ export default function CalendarPage() {
             </div>
             <div className={s.dayList}>
               {dayEvents.map((ev) => (
-                <div key={ev.id} className={`${s.dayItem} ${s[`ev_${ev.type}`]}`}>
+                <div key={ev.id} className={`${s.dayItem} ${s[evClass(ev)]}`}>
                   <button type="button" className={s.dayItemBtn} onClick={() => setViewId(ev.id)} aria-label={`Open details for ${ev.title}`}>
                     <span className={s.dayItemTitle}>{ev.title}</span>
-                    <span className={s.dayItemMeta}>{ev.endDate ? `${dateRangeLabel(ev)} · ` : ''}{ev.time} · {ev.location}{(ev.isPublic || isAdmin) && ` · ${ev.isPublic ? 'Public' : 'Private'}`}</span>
+                    <span className={s.dayItemMeta}>{ev.endDate ? `${dateRangeLabel(ev)} · ` : ''}{ev.time} · {place(ev)}{!ev.opp && (ev.isPublic || isAdmin) && ` · ${ev.isPublic ? 'Public' : 'Private'}`}</span>
                   </button>
                   {ev.mine && (
                     <>
@@ -295,19 +343,19 @@ export default function CalendarPage() {
                   {g.items.map((ev) => {
                     const d = parseYmd(ev.date);
                     const days = ev.endDate ? eventDays(ev).length : 1;
-                    const typeLabel = EVENT_TYPES.find((t) => t.id === ev.type)?.label ?? ev.type;
+                    const typeLabel = ev.opp ? `${ev.opp.kind} · ${oppLabel(ev.opp.kind)}` : EVENT_TYPES.find((t) => t.id === ev.type)?.label ?? ev.type;
                     return (
-                      <button key={ev.id} type="button" className={`${s.upItem} ${s[`ev_${ev.type}`]}`}
+                      <button key={ev.id} type="button" className={`${s.upItem} ${s[evClass(ev)]}`}
                         onClick={() => { setSelected(ev.date); setView({ y: d.getFullYear(), m: d.getMonth() }); setViewId(ev.id); }}>
                         <span className={s.dateTile}><span className={s.dateMonth}>{MONTHS_SHORT[d.getMonth()]}</span><span className={s.dateDay}>{d.getDate()}</span></span>
                         <span>
                           <span className={s.comingTitle} style={{ display: 'block' }}>{ev.title}</span>
-                          <span className={s.comingMeta}>{dateRangeLabel(ev)} · {ev.time} · {ev.location}</span>
+                          <span className={s.comingMeta}>{dateRangeLabel(ev)} · {ev.time} · {place(ev)}</span>
                         </span>
                         {/* a short preview on hover or keyboard focus; the full details open on click */}
                         <span className={s.upPreview} aria-hidden="true">
                           <span className={s.upPreviewInner}>
-                            <span className={s.upPreviewMeta}>{typeLabel}{days > 1 ? ` · ${days} days` : ''}{ev.isPublic ? ' · Public' : ' · Private'}{ev.images.length ? ` · ${ev.images.length} photo${ev.images.length === 1 ? '' : 's'}` : ''}</span>
+                            <span className={s.upPreviewMeta}>{typeLabel}{days > 1 ? ` · ${days} days` : ''}{!ev.opp && (ev.isPublic ? ' · Public' : ' · Private')}{ev.images.length ? ` · ${ev.images.length} photo${ev.images.length === 1 ? '' : 's'}` : ''}</span>
                             <span className={s.upPreviewText}>{ev.description || 'No description added.'}</span>
                             <span className={s.upPreviewHint}>Click for all details</span>
                           </span>
