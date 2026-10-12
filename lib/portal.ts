@@ -130,7 +130,7 @@ const CHAT_PAGE = 30;
 
 /** the message columns every message query asks for */
 const MSG_COLS = `id, sender_id, body, created_at, kind, attachment_path, attachment_name, attachment_type, attachment_size, attachment_seconds, forwarded,
-  reply_to, reply_gone, reply:messages!messages_reply_fk(id, sender_id, body, kind, attachment_name),
+  reply_to, reply_gone,
   ticket:support_tickets!messages_ticket_id_fkey(${TICKET_COLS})`;
 
 const CHAT_COLS = `id, is_group, title, last_message_at, expires_at, dept:departments(name),
@@ -142,6 +142,15 @@ const CHAT_COLS = `id, is_group, title, last_message_at, expires_at, dept:depart
 const fileOf = (m: Record<string, any>): ChatFile | undefined => m.attachment_path
   ? { path: m.attachment_path, name: m.attachment_name ?? 'file', type: m.attachment_type ?? '', size: m.attachment_size ?? 0, seconds: m.attachment_seconds ?? undefined }
   : undefined;
+
+/** the message a reply quotes is fetched separately (no self-embed: PostgREST cannot resolve messages -> messages in its schema cache) */
+async function attachReplies(msgs: Record<string, any>[]): Promise<void> {
+  const ids = [...new Set(msgs.map((m) => m.reply_to as string | null).filter((x): x is string => !!x))];
+  if (!ids.length) return;
+  const { data } = await createClient().from('messages').select('id, sender_id, body, kind, attachment_name').in('id', ids);
+  const by = new Map<string, Record<string, any>>((data ?? []).map((r: Record<string, any>) => [r.id as string, r]));
+  for (const m of msgs) if (m.reply_to) m.reply = by.get(m.reply_to) ?? null;
+}
 
 /** the quote above a reply: who wrote the message, and a short line of what it said (SQL 037) */
 function replyOf(m: Record<string, any>, meId: string, names: Record<string, string>): ReplyInfo | undefined {
@@ -267,6 +276,7 @@ function useChatsState() {
     if (res.error) { setError(res.error.message); setLoaded(true); return; }
     const now = new Date();
     setError(null);
+    await attachReplies((res.data ?? []).flatMap((r: Record<string, any>) => r.messages ?? []));
     const rows = (res.data ?? []).filter((r: Record<string, any>) => !r.expires_at || new Date(r.expires_at) > now);   // an expired ticket chat is gone (the database hides it too)
     const fresh = rows.map((r: Record<string, any>) => toChat(r, me.id, unreadBy[r.id] ?? 0, now));
     ticketChats.current = new Set(fresh.filter((c) => c.ticket).map((c) => c.id));
@@ -286,6 +296,7 @@ function useChatsState() {
     ]);
     const r = res.data?.[0];
     if (res.error || !r) { await load(); return; }   // a chat we do not know yet (or one that is gone): refresh the list
+    await attachReplies(r.messages ?? []);
     const now = new Date();
     if (r.expires_at && new Date(r.expires_at) <= now) { setChats((prev) => prev.filter((c) => c.id !== id)); return; }
     const c = toChat(r, me.id, unreadBy[id] ?? 0, now);
@@ -383,6 +394,7 @@ function useChatsState() {
       .order('created_at', { ascending: false }).limit(CHAT_PAGE);
     if (err) return err.message;
     const rows: Record<string, any>[] = data ?? [];
+    await attachReplies(rows);
     const c = chatsRef.current.find((x) => x.id === id);
     const names = Object.fromEntries((c?.members ?? []).map((m) => [m.id, m.name]));
     const have = new Set([...(c?.messages ?? []), ...pg.older].map((m) => m.id));

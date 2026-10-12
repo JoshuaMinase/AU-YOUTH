@@ -106,6 +106,7 @@ lib/
                           Reply and delete (docs/sql/037): `reply_to` links a message to the one it answers (same conversation, enforced by a composite foreign key);
                           `deleteMessage(id)` removes my own message (a database trigger first saves a copy in `deleted_messages` for admins, docs/sql/038; the attached file stays in storage for them); deleted ids are kept in `goneIds` so a reload never brings them back; a realtime
                           DELETE on `messages` calls `dropMessage`. A reply to a deleted message shows "Original message deleted" (`reply_gone`).
+                          The quote above a reply is NOT embedded in the message select (PostgREST cannot resolve `messages` -> `messages`: "Could not find a relationship between 'messages' and 'messages'"); `attachReplies()` fetches the quoted messages in one extra query.
   chatEmail.ts            emailChatRecipients(messageId): "new message" email for 1:1 and ticket chats, plain fetch to Brevo (no package). The database
                           function claim_chat_emails (docs/sql/040) picks the recipients: one email per chat until it is opened (or 30 min), group chats excluded.
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
