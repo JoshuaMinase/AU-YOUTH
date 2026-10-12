@@ -12,7 +12,6 @@ import s from '@/styles/Auth.module.css';
 export default function SignUpPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const [sentTo, setSentTo] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -50,7 +49,8 @@ export default function SignUpPage() {
       router.push('/dashboard');
       router.refresh();
     } else {
-      setSentTo(email);
+      // Email confirmation is on: Supabase emailed a code, the next page takes it.
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     }
   }
 
@@ -151,13 +151,8 @@ export default function SignUpPage() {
           </label>
 
           {error && <p className={s.formError} role="alert">{error}</p>}
-          {sentTo && (
-            <p className={s.formNote} role="status">
-              Check your inbox: we sent a confirmation link to {sentTo}. Click it to finish creating your account.
-            </p>
-          )}
 
-          <button type="submit" className={`${s.submitBtn} ${s.submitBtnGold}`} disabled={busy || !!sentTo}>
+          <button type="submit" className={`${s.submitBtn} ${s.submitBtnGold}`} disabled={busy}>
             {busy ? 'Creating account…' : 'Create my account'}
           </button>
         </form>

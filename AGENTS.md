@@ -62,6 +62,7 @@ app/
   terms/ privacy/ cookies/ acceptable-use/   Legal pages (server components using <LegalPage>). The facts they quote (operator, contact email, governing law, dates, minimum age) live in lib/legal.ts only.
   not-found.tsx           404
   login/ sign-up/         Auth pages (styles/Auth.module.css)
+  verify-email/           Sign-up step 2: the member types the one-time code from the email (supabase.auth.verifyOtp, type `signup`), which confirms the account and signs them in. Sign-up goes here after the form; login goes here (`?notice=unconfirmed`) when the email is not confirmed yet. "Send a new code" uses auth.resend. Needs the Supabase "Confirm signup" email template to contain `{{ .Token }}`.
   forgot-password/        Asks for the email, sends the Supabase reset link (redirectTo = /auth/callback?next=/reset-password)
   reset-password/         Sets the new password. Works from the callback session, or from `?token_hash=` when the Supabase "Reset password" email template links straight here (any device; verified only on save)
   reset-password/         Reached from the email link with a recovery session; sets the new password, then goes to /dashboard

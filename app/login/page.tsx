@@ -11,7 +11,7 @@ function LoginView() {
   const router = useRouter();
   const params = useSearchParams();
   const [error, setError] = useState<string | null>(
-    params.get('error') === 'confirm' ? 'That confirmation link is invalid or expired. Please log in or sign up again.' : null,
+    params.get('error') === 'confirm' ? 'That link is invalid or expired. Please log in, or sign up again to get a new code.' : null,
   );
   const [busy, setBusy] = useState(false);
 
@@ -20,11 +20,16 @@ function LoginView() {
     const form = new FormData(e.currentTarget);
     setBusy(true);
     setError(null);
+    const email = String(form.get('email')).trim();
     const { error: err } = await createClient().auth.signInWithPassword({
-      email: String(form.get('email')).trim(),
+      email,
       password: String(form.get('password')),
     });
     if (err) {
+      if (err.code === 'email_not_confirmed') {
+        router.push(`/verify-email?email=${encodeURIComponent(email)}&notice=unconfirmed`);
+        return;
+      }
       setError(authErrorMessage(err, 'login'));
       setBusy(false);
       return;

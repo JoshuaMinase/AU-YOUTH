@@ -149,7 +149,7 @@ const SECTIONS: LegalSection[] = [
     id: 'email', title: 'Emails we send',
     body: (
       <p>
-        We send emails to confirm your address and to reset your password. When you get a message in a one-to-one or ticket chat, we send a “new
+        We send emails to confirm your address (with a one-time code you type into the sign-up page) and to reset your password. When you get a message in a one-to-one or ticket chat, we send a “new
         message” email with the sender’s name and the text of the message (one email per chat until you open it). Group chats do not send these emails.
       </p>
     ),

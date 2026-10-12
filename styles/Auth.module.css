@@ -166,6 +166,27 @@
   box-shadow: 0 6px 22px rgba(251,177,60,0.45);
 }
 
+/* ── One-time code page ─────────────────────────────────────────────── */
+.otp {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  padding-left: calc(16px + 0.4em); /* centres the digits despite the trailing letter-spacing */
+}
+.resendBtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: #032210;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.resendBtn:disabled { color: rgba(3,34,16,0.45); text-decoration: none; cursor: default; }
+
 /* ── Terms checkbox (sign-up) ───────────────────────────────────────── */
 .consent {
   display: flex;
