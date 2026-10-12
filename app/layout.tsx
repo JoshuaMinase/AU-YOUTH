@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import SmoothScroll from '../components/SmoothScroll';
+import CookieBanner from '../components/CookieBanner';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body suppressHydrationWarning>
         <SmoothScroll />
         {children}
+        <CookieBanner />
       </body>
     </html>
   );

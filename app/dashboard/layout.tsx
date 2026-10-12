@@ -9,6 +9,8 @@ import { MeProvider, useMe } from '@/lib/me';
 import { deptTone } from '@/lib/data';
 import { useReveal, useSwipeTabs } from '@/lib/hooks';
 import { ChatsProvider, useChats } from '@/lib/portal';
+import { LEGAL_LINKS } from '@/lib/legal';
+import CookieSettingsButton from '@/components/CookieSettingsButton';
 import s from '@/styles/Portal.module.css';
 
 type NavItem = { href: string; label: string; short?: string; icon: JSX.Element };
@@ -100,6 +102,10 @@ function Shell({ children }: { children: React.ReactNode }) {
           </section>
         )}
         {children}
+        <nav className={s.legalLinks} aria-label="Legal">
+          {LEGAL_LINKS.map(([t, h]) => <Link key={h} href={h}>{t}</Link>)}
+          <CookieSettingsButton className={s.legalLinkBtn} />
+        </nav>
       </main>
 
       <nav className={s.tabbar} aria-label="Portal (mobile)">

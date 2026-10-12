@@ -133,6 +133,34 @@
   text-align: right;
 }
 
+/* legal links under the copyright line */
+.legal {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 16px;
+  margin-top: 10px;
+  max-width: 320px;
+}
+.linksCol .legal a,
+.legalBtn {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.6);
+}
+.legalBtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.legalBtn:hover,
+.linksCol .legal a:hover { color: #ffffff; }
+.legalBtn:focus-visible { outline: 2px solid var(--au-yellow); outline-offset: 2px; }
+
 /* ── Decorative SVGs — absolutely positioned, pointer-none ─────────── */
 
 .mandalaSvg {
@@ -250,6 +278,10 @@
   .copyright {
     text-align: left;
     font-size: 11px;
+  }
+
+  .legal {
+    justify-content: flex-start;
   }
 
   .mandalaSvg {

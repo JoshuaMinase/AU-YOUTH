@@ -59,6 +59,7 @@ app/
                           the database (docs/sql/035). Never put the secret in the repo.
   api/chat/send/          Saves chat messages after the AI check; then emails the other person of a 1:1 or ticket chat (lib/chatEmail.ts, docs/sql/040).
                           Needs BREVO_API_KEY and EMAIL_FROM (plus PING_SECRET) on Render; if one is missing, no email is sent and the chat works as before.
+  terms/ privacy/ cookies/ acceptable-use/   Legal pages (server components using <LegalPage>). The facts they quote (operator, contact email, governing law, dates, minimum age) live in lib/legal.ts only.
   not-found.tsx           404
   login/ sign-up/         Auth pages (styles/Auth.module.css)
   forgot-password/        Asks for the email, sends the Supabase reset link (redirectTo = /auth/callback?next=/reset-password)
@@ -73,11 +74,12 @@ app/
 components/
   SmoothScroll.tsx        THE ONLY Lenis instance. Exposes getLenis().
   Nav.tsx                 Public-site nav (glass pill, compacts on scroll, mobile menu)
-  Footer.tsx              Footer. <Footer overlap /> only on the home page.
+  Footer.tsx              Footer. <Footer overlap /> only on the home page. Has the legal links + "Cookie settings".
+  CookieBanner.tsx        Cookie notice, mounted once in app/layout.tsx. Choice kept by lib/consent.ts. CookieSettingsButton.tsx reopens it (footer, portal, Cookie Policy).
   Landing.tsx             Home hero + flying cards (positions from components/layout.ts)
   layout.ts               1440×1600 design canvas maths + NAV_LINKS
   CommunitySection / PhotoStackSection / IdeasSection / IdeasFolder   Home sections
-  site/                   Public-page building blocks: SiteShell, PageHero, SplitHeading,
+  site/                   Public-page building blocks: SiteShell, PageHero, LegalPage (legal pages), SplitHeading,
                           CtaBand, Faq, OpportunityBoard, CircleGrid, icons
   portal/ui.tsx           Dashboard building blocks: icon set `I`, Hero, Modal, useToast, MiniCalendar
   portal/tags.ts          News tag → colour class (plain module, safe for server components)
@@ -91,6 +93,8 @@ components/
   portal/OpportunityEditor.tsx, OpportunityAdmin.tsx  Admins: write / edit an opportunity; registered list board + CSV
 
 lib/
+  legal.ts                Operator name, contact email, governing law, "last updated" date, terms version and minimum age quoted by the legal pages; also LEGAL_LINKS.
+  consent.ts              Cookie notice choice (localStorage `auy-cookie-consent`).
   data.ts                 ALL mock data + date helpers + profile model + avatar colour helpers
   hooks.ts                useIso, useToday, useReveal, useListAnimation, copyText
   store.ts                usePersisted (localStorage state shared between components)
@@ -201,6 +205,7 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
       | `auy-chats-read` / `auy-chats-sent` | no longer used: chats live in Supabase (`useChats()`) |
    | `auy-posts`, `auy-likes`, `auy-hidden`, `auy-comments` | no longer used: the feed lives in Supabase (`useFeed()`) |
    | `auy-notifs-read` | no longer used: notifications live in Supabase (`useNotifications()`) |
+   | `auy-cookie-consent` | the cookie notice was accepted (lib/consent.ts) |
    | `auy-connections` | people the user sent connection requests to |
    | `auy-profile` | edited profile (bio, skills, education…) |
 
@@ -306,6 +311,7 @@ Dashboard rules:
 ## 10. Content rules
 
 - Copy is about AU interns, volunteers and fellows. Keep it warm, short and practical.
+- **Privacy and legal pages must stay true.** Adding a new cookie, tracker, analytics tool, third-party service, or kind of personal data **MUST** also update `app/privacy/page.tsx` and `app/cookies/page.tsx` (and `LEGAL.updated` / `LEGAL.termsVersion` in `lib/legal.ts` when the change matters). Optional cookies need an opt-in in the cookie notice first.
 - Mock people, emails (`*@au.int`) and news are placeholders. **MUST NOT** present them as real
   facts outside this demo, and **MUST NOT** add real personal data.
 - The current user is `ME` in `lib/data.ts` (Yididiya D.). Change names there, nowhere else.

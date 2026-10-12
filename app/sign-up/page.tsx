@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { GENDERS, isAllowedEmail } from '@/lib/data';
 import { DOMAIN_MSG, authErrorMessage } from '@/lib/authErrors';
 import { createClient } from '@/lib/supabase/client';
+import { LEGAL } from '@/lib/legal';
 import s from '@/styles/Auth.module.css';
 
 export default function SignUpPage() {
@@ -33,6 +34,9 @@ export default function SignUpPage() {
           first_name: String(form.get('firstName')).trim(),
           last_name: String(form.get('lastName')).trim(),
           gender: String(form.get('gender') ?? ''),
+          // proof that the Terms box was ticked (kept with the account, no SQL needed)
+          terms_version: LEGAL.termsVersion,
+          terms_accepted_at: new Date().toISOString(),
         },
       },
     });
@@ -135,6 +139,16 @@ export default function SignUpPage() {
               required
             />
           </div>
+
+          <label className={s.consent} htmlFor="signup-terms">
+            <input id="signup-terms" name="terms" type="checkbox" required />
+            <span>
+              I am {LEGAL.minAge} or older and I agree to the{' '}
+              <Link href="/terms" target="_blank" rel="noopener">Terms of Use</Link>,{' '}
+              <Link href="/acceptable-use" target="_blank" rel="noopener">Acceptable Use Policy</Link> and{' '}
+              <Link href="/privacy" target="_blank" rel="noopener">Privacy Policy</Link>.
+            </span>
+          </label>
 
           {error && <p className={s.formError} role="alert">{error}</p>}
           {sentTo && (

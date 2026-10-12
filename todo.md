@@ -14,6 +14,12 @@ Things to do later. Tick them off (`[x]`) when done and add new ones at the bott
 - [ ] Maybe: no message text in the email (only "X sent you a message") if people prefer more privacy.
 - [ ] Maybe: also email when a ticket is taken or resolved (only chat messages are emailed now).
 
+## Legal
+- [ ] Open `lib/legal.ts` and set the real operator name, contact email and governing law; have a lawyer read the Terms, Privacy, Cookie and Acceptable Use pages before launch.
+- [ ] Let members delete their own account and download their data from the profile page (the Privacy Policy now says to email for this).
+- [ ] Ask existing members to accept the Terms once (the sign-up tick covers new members only); the version is saved as `terms_version` in each account's metadata.
+- [ ] If analytics or any other optional cookie is ever added: give the cookie notice a real "Essential only" choice and keep the tool off until it is accepted.
+
 ## Not yet tested (from PAGES_STATUS.md)
 - [ ] Test /forgot-password and /reset-password on Render (Redirect URL must be set in Supabase).
 - [ ] Make the reset link work on any device: Supabase -> Authentication -> Email Templates -> Reset Password: change the link to `{{ .SiteURL }}/reset-password?token_hash={{ .TokenHash }}&type=recovery` (Site URL must be `https://au-youth.onrender.com`). Until then the link only works in the browser where the reset was requested.

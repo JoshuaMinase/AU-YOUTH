@@ -7,6 +7,8 @@ import s from '../styles/Footer.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
 import { useIso } from '../lib/hooks';
+import { LEGAL_LINKS } from '../lib/legal';
+import CookieSettingsButton from './CookieSettingsButton';
 
 const LINKS = [
   ['About', '/about'], ['Opportunities', '/opportunities'], ['Community', '/community'],
@@ -143,6 +145,10 @@ export default function Footer({ overlap = false }: { overlap?: boolean }) {
           <p className={s.copyright}>
             © {new Date().getFullYear()} African Union Youth Network
           </p>
+          <nav className={s.legal} aria-label="Legal">
+            {LEGAL_LINKS.map(([t, h]) => <Link key={h} href={h}>{t}</Link>)}
+            <CookieSettingsButton className={s.legalBtn} />
+          </nav>
         </div>
 
       </div>

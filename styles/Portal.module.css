@@ -629,3 +629,11 @@
   .recDot, .msgAct { transition: none; animation: none; }
   .spin { animation: none; border-right-color: currentColor; opacity: .6; }   /* no spinning: the "Sending…" text still says what is happening */
 }
+
+/* legal links at the bottom of every portal page */
+.legalLinks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 18px; padding: 28px 12px 12px; font-size: 12.5px; }
+.legalLinks a, .legalLinkBtn { color: var(--p-ink-2); text-decoration: none; font-weight: 600; }
+.legalLinkBtn { padding: 0; border: 0; background: none; font-family: inherit; font-size: inherit; cursor: pointer; }
+.legalLinks a:hover, .legalLinkBtn:hover { color: var(--p-ink); text-decoration: underline; text-underline-offset: 3px; }
+.legalLinks a:focus-visible, .legalLinkBtn:focus-visible { outline: 2px solid var(--p-ink); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 860px) { .legalLinks { padding-bottom: 96px; } }

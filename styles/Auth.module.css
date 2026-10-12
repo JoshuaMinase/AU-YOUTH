@@ -166,6 +166,30 @@
   box-shadow: 0 6px 22px rgba(251,177,60,0.45);
 }
 
+/* ── Terms checkbox (sign-up) ───────────────────────────────────────── */
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(3,34,16,0.75);
+  cursor: pointer;
+}
+.consent input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: #032210;
+  cursor: pointer;
+}
+.consent a {
+  color: #032210;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
 /* ── Bottom link ────────────────────────────────────────────────────── */
 .switchText {
   margin-top: 16px;
