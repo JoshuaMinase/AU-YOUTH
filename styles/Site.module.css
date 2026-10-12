@@ -196,12 +196,33 @@
 /* ── 404 ──────────────────────────────────────────────────────────── */
 .nf { min-height: 100vh; }
 
-/* 404 game: Lost page catcher (components/site/PageCatcher.tsx). Fixed 400x500 canvas scaled by CSS. */
-.gc { max-width: 440px; margin: 0 auto; }
+/* 404 game: Lost page catcher (components/site/PageCatcher.tsx). A "Want to play a game?" button in the hero opens it full screen. */
+.gcDialog {
+  position: fixed; inset: 0; z-index: 200; isolation: isolate; outline: none;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 64px 16px 12px; color: #fff;
+  background: var(--au-green) url('/assets/pattern.svg') center / cover no-repeat;
+  animation: gcIn .35s var(--ease);
+}
+.gcDialog::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(3,34,16,.82); }
+@keyframes gcIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .gcDialog { animation: none; } }
+.gcTop { position: absolute; top: 12px; left: 16px; right: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.gcBrand { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--au-yellow); }
+.gcBrand::before { content: ''; width: 28px; height: 2px; background: currentColor; }
+.gcClose {
+  display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,.45); background: transparent; color: #fff; font: 700 14px/1 var(--font); cursor: pointer;
+  transition: background .2s ease, color .2s ease;
+}
+.gcClose:hover { background: #fff; color: var(--au-green); }
+.gc { width: 100%; display: flex; flex-direction: column; align-items: center; }
 .gcStage {
   position: relative; isolation: isolate; overflow: hidden; aspect-ratio: 4 / 5; border-radius: 22px;
+  width: min(100%, calc((100vh - 130px) * .8));
+  width: min(100%, calc((100dvh - 130px) * .8));
   background: var(--au-green) url('/assets/pattern.svg') center / cover no-repeat; color: #fff;
-  box-shadow: 0 24px 50px rgba(3,34,16,.22);
+  box-shadow: 0 24px 60px rgba(0,0,0,.35);
 }
 .gcStage::before { content: ''; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(3,34,16,.35), rgba(3,34,16,.7)); }
 .gcCanvas { display: block; width: 100%; height: 100%; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -214,10 +235,10 @@
 .gcLife { width: 12px; height: 16px; border-radius: 3px; background: #fff; transition: opacity .3s ease; }
 .gcLife[data-lost="true"] { opacity: .25; }
 .gcOverlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: rgba(3,34,16,.78); }
-.gcTitle { font-size: clamp(26px, 6vw, 34px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; color: var(--au-yellow); }
+.gcTitle { font-size: clamp(26px, 6vw, 38px); font-weight: 900; line-height: 1.05; letter-spacing: -0.02em; color: var(--au-yellow); }
 .gcText { max-width: 28ch; font-size: 16px; line-height: 1.55; color: rgba(255,255,255,.82); }
 .gcActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 4px; }
-.gcHint { margin-top: 14px; text-align: center; font-size: 14px; color: var(--ink-3); }
+.gcHint { margin-top: 12px; text-align: center; font-size: 14px; color: rgba(255,255,255,.65); }
 
 /* ── Responsive ───────────────────────────────────────────────────── */
 @media (max-width: 1024px) {

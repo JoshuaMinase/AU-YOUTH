@@ -60,7 +60,7 @@ app/
   api/chat/send/          Saves chat messages after the AI check; then emails the other person of a 1:1 or ticket chat (lib/chatEmail.ts, docs/sql/040).
                           Needs BREVO_API_KEY and EMAIL_FROM (plus PING_SECRET) on Render; if one is missing, no email is sent and the chat works as before.
   terms/ privacy/ cookies/ acceptable-use/   Legal pages (server components using <LegalPage>). The facts they quote (operator, contact email, governing law, dates, minimum age) live in lib/legal.ts only.
-  not-found.tsx           404 (hero + the Lost page catcher game)
+  not-found.tsx           404 (hero; its "Want to play a game?" button opens the Lost page catcher full screen)
   login/ sign-up/         Auth pages (styles/Auth.module.css)
   verify-email/           Sign-up step 2: the member types the one-time code from the email (supabase.auth.verifyOtp, type `signup`), which confirms the account and signs them in. Sign-up goes here after the form; login goes here (`?notice=unconfirmed`) when the email is not confirmed yet. "Send a new code" uses auth.resend. Needs the Supabase "Confirm signup" email template to contain `{{ .Token }}`.
   forgot-password/        Asks for the email, sends the Supabase reset link (redirectTo = /auth/callback?next=/reset-password)
@@ -81,7 +81,7 @@ components/
   layout.ts               1440×1600 design canvas maths + NAV_LINKS
   CommunitySection / PhotoStackSection / IdeasSection / IdeasFolder   Home sections
   site/                   Public-page building blocks: SiteShell, PageHero, LegalPage (legal pages), SplitHeading,
-                          CtaBand, Faq, OpportunityBoard, CircleGrid, icons, PageCatcher (the 404 mini game: canvas on a fixed 400x500 area, arrow keys / A D / pointer drag, saves nothing)
+                          CtaBand, Faq, OpportunityBoard, CircleGrid, icons, PageCatcher (the 404 mini game, opens as a full-screen dialog from the hero: canvas, arrow keys / A D / pointer drag, Esc closes, saves nothing)
   portal/ui.tsx           Dashboard building blocks: icon set `I`, Hero, Modal, useToast, MiniCalendar
   portal/tags.ts          News tag → colour class (plain module, safe for server components)
   portal/ChatMessage.tsx  One chat bubble: text, photo, file or voice message, the quote of the message it answers, plus Reply / Forward / Delete (own messages only) buttons; a ticket card in department chats
