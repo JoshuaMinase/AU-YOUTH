@@ -167,14 +167,7 @@
 }
 
 /* ── One-time code page ─────────────────────────────────────────────── */
-.otp {
-  text-align: center;
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: 0.4em;
-  padding-left: calc(16px + 0.4em); /* centres the digits despite the trailing letter-spacing */
-}
-/* Decorative code boxes under the input (animated by OtpBoxes in verify-email/page.tsx; only transform + opacity move) */
+/* Code boxes (the real input is invisible on top of them; animated by OtpBoxes in verify-email/page.tsx; only transform + opacity move) */
 .otpStage {
   position: relative;
   display: grid;
@@ -183,6 +176,25 @@
   gap: 8px;
   padding: 6px 0;
 }
+.otpWrap { position: relative; }
+/* the real input: invisible, covers the boxes so a tap or paste lands in it */
+.otpInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  caret-color: transparent;
+  font: inherit;
+  font-size: 16px; /* stops iPhones zooming in on focus */
+  cursor: text;
+}
+.otpInput::selection { background: transparent; }
 .otpBox {
   position: relative;
   display: flex;

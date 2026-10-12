@@ -15,7 +15,7 @@ const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)'
 
 type OtpPhase = 'idle' | 'verifying' | 'error' | 'success';
 
-// Decorative row of 6 boxes under the real input (the input stays the only control; this row is aria-hidden).
+// The visible code row: 6 boxes with the real input laid invisibly on top (the input stays the only control; this row is aria-hidden).
 // Typing: the digit pops into its box and the active box glows. Verifying: the boxes gather, spread into a ring
 // and orbit. Wrong code: they settle back, shake and get a red outline. Right code: they merge into one box
 // with a ring and a check, then onSuccessDone fires. Only transform and opacity are animated.
@@ -112,7 +112,7 @@ function OtpBoxes({ code, phase, focused, onSuccessDone }: {
     });
   }, [phase]);
 
-  const activeIdx = phase === 'idle' && focused && code.length < OTP_BOXES ? code.length : -1;
+  const activeIdx = phase === 'idle' && focused ? Math.min(code.length, OTP_BOXES - 1) : -1;
   return (
     <div className={s.otpStage} ref={stageRef} aria-hidden="true">
       {Array.from({ length: OTP_BOXES }, (_, i) => (
@@ -128,7 +128,7 @@ function OtpBoxes({ code, phase, focused, onSuccessDone }: {
           ].join(' ')}
         >
           {i < code.length && <span ref={(el) => { digitRefs.current[i] = el; }}>{code[i]}</span>}
-          {i === activeIdx && <span className={s.otpCaret} />}
+          {i === activeIdx && i >= code.length && <span className={s.otpCaret} />}
         </span>
       ))}
       <span className={s.otpRing} ref={ringRef} />
@@ -264,25 +264,26 @@ function VerifyView() {
 
           <div className={s.field}>
             <label className={s.label} htmlFor="verify-code">Code from the email</label>
-            <input
-              id="verify-code"
-              className={`${s.input} ${s.otp}`}
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{6,10}"
-              title="Enter the numeric code from the email"
-              placeholder="······"
-              autoComplete="one-time-code"
-              maxLength={10}
-              value={code}
-              onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); if (phase === 'error') setPhase('idle'); }}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              required
-            />
+            {/* the boxes are what you see; the real input sits invisibly on top of them (typing, paste, autofill, focus) */}
+            <div className={s.otpWrap}>
+              <OtpBoxes code={code} phase={phase} focused={focused} onSuccessDone={goIn} />
+              <input
+                id="verify-code"
+                className={s.otpInput}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6,10}"
+                title="Enter the numeric code from the email"
+                autoComplete="one-time-code"
+                maxLength={10}
+                value={code}
+                onChange={(e) => { setCode(e.target.value.replace(/\D/g, '')); if (phase === 'error') setPhase('idle'); }}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                required
+              />
+            </div>
           </div>
-
-          <OtpBoxes code={code} phase={phase} focused={focused} onSuccessDone={goIn} />
 
           {error && <p className={s.formError} role="alert">{error}</p>}
           {note && <p className={s.formNote} role="status" ref={noteRef}>{note}</p>}
