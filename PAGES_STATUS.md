@@ -1,6 +1,6 @@
 # Pages status
 
-Last updated: 2026-10-11
+Last updated: 2026-10-12
 
 ## Done (real data)
 - /dashboard (home): greeting, profile completion, mini calendar, Coming up (events), latest announcement (news), feed (posts, likes, comments, hidden posts), quick chat (chats), notifications (filled by database triggers)
@@ -19,6 +19,8 @@ Last updated: 2026-10-11
 
 ## Partly done
 - /dashboard/calendar (events): built, waiting for test on Render (events table, add / edit / delete, live updates). Admins see two buttons: "Add public event" (everyone sees it) and "Add private event (only me)"; members only add private events (needs 024). Opportunity deadlines (or the day of an Event) also show on the calendar, read only, in their own colour with a Deadline legend entry; clicking one opens a small card with a link to the opportunity (no SQL, uses `opportunities.event_at`); the home mini calendar and Coming up do not show them yet
+
+- 404 page (app/not-found.tsx): hero plus the "Lost page catcher" mini game (components/site/PageCatcher.tsx). Pages fall, arrow keys / A D / drag move the basket, three misses end the game; the corner counter shows pages found out of 404; the best score is kept only until the tab closes (nothing saved, so no privacy or cookie change). Waiting for a test on Render
 
 ## Not done (still mock or static)
 - Public pages (/, /community, /opportunities, /why-join): static marketing pages, no backend needed
