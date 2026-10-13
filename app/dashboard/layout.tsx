@@ -9,7 +9,7 @@ import NotificationBell from '@/components/portal/NotificationBell';
 import { MeProvider, useMe } from '@/lib/me';
 import { deptTone } from '@/lib/data';
 import { useReveal, useSwipeTabs } from '@/lib/hooks';
-import { ChatsProvider, NotificationsProvider } from '@/lib/portal';
+import { ChatsProvider, NotificationsProvider, useChats } from '@/lib/portal';
 import { LEGAL_LINKS } from '@/lib/legal';
 import CookieSettingsButton from '@/components/CookieSettingsButton';
 import s from '@/styles/Portal.module.css';
@@ -27,6 +27,7 @@ const ADMIN_NAV: NavItem = { href: '/dashboard/admin', label: 'Admin', icon: I.s
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { me, ready, complete, canWrite, missing } = useMe();
+  const { unread: unreadChats } = useChats();
   const pathname = usePathname();
   const router = useRouter();
   const main = useRef<HTMLElement>(null);
@@ -69,6 +70,11 @@ function Shell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className={s.hdrRight}>
+            <Link href="/dashboard/chats" className={s.chatsBtn} aria-current={active('/dashboard/chats') ? 'page' : undefined}
+              aria-label={`Chats${unreadChats ? `, ${unreadChats} unread` : ''}`}>
+              {I.chat}<span className={s.chatsBtnLabel}>Chats</span>
+              {unreadChats > 0 && <span className={s.redBubble} aria-hidden="true">{unreadChats > 99 ? '99+' : unreadChats}</span>}
+            </Link>
             <NotificationBell />
             <Link href="/dashboard/profile" className={s.avatar} aria-label="Your profile"
               aria-current={active('/dashboard/profile') ? 'page' : undefined}>

@@ -18,7 +18,7 @@ const greet = (d: Date) => { const h = d.getHours(); return h < 12 ? 'Good morni
 export default function DashboardHome() {
   const today = useToday();
   const { events, loaded: eventsLoaded } = useEvents(today);
-  const { chats, unread, send, markRead } = useChats();
+  const { chats, unread, send } = useChats();
   const { news, loaded: newsLoaded } = useNews();
   /* latest announcement: the featured article, else the newest one */
   const lead = news.find((n) => n.featured) ?? news[0];
@@ -53,9 +53,8 @@ export default function DashboardHome() {
   const upcoming = useMemo(() => (today ? events.filter((e) => lastDay(e) >= ymd(today)).slice(0, 3) : []), [events, today]);
   /* quick chat: unread conversations first, then most recent */
   const recentChats = useMemo(() => [...chats].sort((a, b) => b.unread - a.unread).slice(0, 3), [chats]);
-  const [qcId, setQcId] = useState('');
   const [qcDraft, setQcDraft] = useState('');
-  const qc = chats.find((c) => c.id === qcId) ?? recentChats[0];
+  const qc = recentChats[0];   /* the reply box below writes to the top conversation */
 
   /* run a feed action, then toast its result (or the error) */
   const act = async (op: Promise<string | null>, done?: string) => {
@@ -261,15 +260,15 @@ export default function DashboardHome() {
             </div>
             <div className={s.qc}>
               {recentChats.map((c) => (
-                <button key={c.id} type="button" className={s.qcRow} aria-pressed={c.id === qc?.id}
-                  onClick={() => { setQcId(c.id); markRead(c.id); }}>
+                <Link key={c.id} href={`/dashboard/chats?c=${encodeURIComponent(c.id)}`} className={s.qcRow} data-active={c.id === qc?.id ? '' : undefined}
+                  aria-label={`Open chat with ${c.name}${c.unread ? `, ${c.unread} unread` : ''}`}>
                   <span className={`${s.av} ${s.qcAv}`} style={softAvatar(c.color)}>{c.initials}</span>
                   <span className={s.qcMain}>
                     <span className={s.qcTop}><span className={s.qcName}>{c.name}</span><span className={s.qcTime}>{c.time}</span></span>
                     <span className={s.qcPreview} data-unread={c.unread ? '' : undefined} style={{ display: 'block' }}>{c.preview}</span>
                   </span>
                   {c.unread > 0 && <span className={s.chatUnread}>{c.unread}</span>}
-                </button>
+                </Link>
               ))}
               {!recentChats.length && <p className={s.agendaEmpty}>No conversations yet.</p>}
             </div>

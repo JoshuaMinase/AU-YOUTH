@@ -68,7 +68,7 @@ app/
   reset-password/         Reached from the email link with a recovery session; sets the new password, then goes to /dashboard
   auth/callback/          Exchanges ?code= for a session. ?next= is honoured only for /reset-password (no open redirect)
   dashboard/
-    layout.tsx            Portal header (glass pill + logo + wordmark + notification bell, avatar, log out), mobile tab bar, page reveal. There is no Chats button in the header: chats open from the Quick chat card on the home page (its pill shows the unread count) and from the People "Message" button, ticket chats and notifications.
+    layout.tsx            Portal header (glass pill + logo + wordmark + notification bell, avatar, log out), mobile tab bar, page reveal. The header has a Chats button next to the bell (red unread count; icon only on a phone). Chats also open from the Quick chat card on the home page (each row opens that conversation at `/dashboard/chats?c=<id>`; its pill shows the unread count) and from the People "Message" button, ticket chats and notifications.
     page.tsx              Dashboard home
     news/ news/[slug]/ opportunities/ opportunities/[slug]/ people/ calendar/ chats/ get-help/ profile/
 
@@ -216,7 +216,7 @@ public/SVG/               Footer pattern ("Asset 1the pattern.svg", referenced U
    | `auy-profile` | edited profile (bio, skills, education…) |
 
 4. `useEvents(today)` (calendar + home) now reads and writes the Supabase `events` table (RLS: your own rows plus every `is_public` event; only admins can create public events, only the owner can edit or delete). The calendar page also adds every opportunity that has a date (`opportunities.event_at`: the deadline, or the day of an Event) from `useOpportunities()` as a read-only item (colour `ev_deadline`, opens the opportunity); the home page does not show them yet. Use the other shared hooks too, do not re-implement them:
-   `useChats()` (header badge, chats page, home quick chat; it reads the one copy kept by `<ChatsProvider>`, so never call it outside the dashboard layout). The profile completion % **MUST** come
+   `useChats()` (header Chats button, chats page, home quick chat; it reads the one copy kept by `<ChatsProvider>`, so never call it outside the dashboard layout). The profile completion % **MUST** come
    from `profileScore()` so the home ring and the profile page always agree.
 5. **SQL files and notification kinds:** never write `check (kind in (...))` for `notifications` by hand. A new kind is added with
    `select private.allow_notification_kinds(array['my_kind']);` (docs/sql/036). It only adds, so re-running an old SQL file cannot remove a newer kind.

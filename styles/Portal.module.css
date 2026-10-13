@@ -39,6 +39,7 @@
 .chatsBtn { position: relative; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 10px; background: #fff; color: var(--p-ink); border: 1px solid var(--line); font-weight: 700; font-size: 14px; text-decoration: none; transition: background .2s, border-color .2s, transform .15s; }
 .chatsBtn:hover { border-color: var(--p-ink); transform: translateY(-1px); }
 .chatsBtn[aria-current="page"] { background: var(--p-ink); color: #fff; border-color: var(--p-ink); }
+.chatsBtn .redBubble { position: absolute; top: -7px; right: -7px; }
 .chatsBtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* red number bubble: unread notifications (bell) and unread chats (Quick chat) */
 .redBubble { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #D23B3B; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 2px #fff; }
@@ -295,9 +296,9 @@
 
 /* quick chat — recent conversations + inline reply */
 .qc { display: flex; flex-direction: column; gap: 4px; }
-.qcRow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-radius: 14px; background: none; text-align: left; font-family: inherit; color: inherit; cursor: pointer; transition: background .2s; }
+.qcRow { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px; border: 0; border-radius: 14px; background: none; text-align: left; font-family: inherit; color: inherit; text-decoration: none; cursor: pointer; transition: background .2s; }
 .qcRow:hover { background: #f6f6f3; }
-.qcRow[aria-pressed="true"] { background: var(--p-soft); }
+.qcRow[data-active] { background: var(--p-soft); }
 .qcAv { position: relative; }
 .qcAv::after { content: ''; position: absolute; right: 0; bottom: 0; width: 11px; height: 11px; border-radius: 50%; background: #3aa55d; border: 2px solid #fff; }
 .qcMain { flex: 1; min-width: 0; }
@@ -581,6 +582,8 @@
   .main { touch-action: pan-y pinch-zoom; }   /* sideways swipes go to useSwipeTabs */
   .nav { display: none; }
   .hdrRight { margin-left: auto; }
+  .chatsBtnLabel { display: none; }   /* icon only: the header is tight on a phone */
+  .chatsBtn:has(.chatsBtnLabel) { width: 40px; padding: 0; justify-content: center; }
   .tabbar { position: fixed; z-index: 60; left: 10px; right: 10px; bottom: 10px; display: flex; justify-content: space-around; padding: 6px; border-radius: 18px; background: rgba(30,42,34,.94); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); box-shadow: 0 14px 34px rgba(3,34,16,.35); }
   .tabbar a { display: flex; flex-direction: column; align-items: center; gap: 3px; flex: 1; padding: 8px 4px; border-radius: 12px; color: rgba(255,255,255,.65); font-size: 11px; font-weight: 700; text-decoration: none; }
   .tabbar a svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
