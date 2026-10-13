@@ -254,7 +254,10 @@ export default function DashboardHome() {
                 <p className={s.cardEyebrow}>Messages</p>
                 <h3 className={s.cardTitle}>Quick chat</h3>
               </div>
-              <span className={s.unreadPill}>{unread ? `${unread} unread` : 'All read'}</span>
+              <Link href="/dashboard/chats" className={s.chatsPill} aria-label={`Open chats${unread ? `, ${unread} unread` : ', all read'}`}>
+                {unread > 0 ? 'Chats' : 'All read'}
+                {unread > 0 && <span className={s.redBubble} aria-hidden="true">{unread > 99 ? '99+' : unread}</span>}
+              </Link>
             </div>
             <div className={s.qc}>
               {recentChats.map((c) => (

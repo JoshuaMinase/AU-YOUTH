@@ -7,6 +7,7 @@ import { softAvatar, type Msg, type ReplyInfo } from '@/lib/data';
 import { previewOf } from '@/lib/chatFiles';
 import ChatMessage from '@/components/portal/ChatMessage';
 import ForwardDialog from '@/components/portal/ForwardDialog';
+import LeaveSiteDialog from '@/components/portal/LeaveSiteDialog';
 import GroupMembers from '@/components/portal/GroupMembers';
 import VoiceRecorder from '@/components/portal/VoiceRecorder';
 import { TicketBar } from '@/components/portal/Tickets';
@@ -48,6 +49,7 @@ export default function ChatsPage() {
   const [recording, setRecording] = useState(false);
   const [fwd, setFwd] = useState<Msg | null>(null);          // message being forwarded
   const [photo, setPhoto] = useState<{ url: string; alt: string } | null>(null);
+  const [link, setLink] = useState<string | null>(null);   // a link in a message waiting for "Open link"
   const [olderBusy, setOlderBusy] = useState(false);
   const [replyTo, setReplyTo] = useState<ReplyInfo | null>(null);   // the message the next one answers
   const [del, setDel] = useState<Msg | null>(null);                 // message waiting for "Delete for everyone" to be confirmed
@@ -269,7 +271,7 @@ export default function ChatsPage() {
               </button>
             )}
             {chat.messages.map((m, i) => (
-              <ChatMessage key={m.id ?? i} m={m} onReply={startReply} onForward={setFwd} onDelete={(x) => { setDelErr(null); setDel(x); }} onOpenImage={(url, alt) => setPhoto({ url, alt })} onTakeTicket={take} />
+              <ChatMessage key={m.id ?? i} m={m} onReply={startReply} onForward={setFwd} onDelete={(x) => { setDelErr(null); setDel(x); }} onOpenImage={(url, alt) => setPhoto({ url, alt })} onOpenLink={setLink} onTakeTicket={take} />
             ))}
             {!chat.messages.length && <p className={s.agendaEmpty}>{chat.ticket ? 'No messages yet. Say hello and sort out the problem here.' : 'No messages yet. Say hello!'}</p>}
           </div>
@@ -333,6 +335,7 @@ export default function ChatsPage() {
           <img className={s.photoFull} src={photo.url} alt={photo.alt} />
         </Modal>
       )}
+      {link && <LeaveSiteDialog url={link} onClose={() => setLink(null)} />}
       {toastNode}
     </>
   );

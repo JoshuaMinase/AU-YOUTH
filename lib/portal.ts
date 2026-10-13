@@ -1022,8 +1022,8 @@ const NOTIF_LOOK: Record<string, { icon: string; bg: string; fg: string }> = {
   reminder: { icon: '⏰', bg: '#E3EFFA', fg: '#0060a8' },
 };
 
-/** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. */
-export function useNotifications() {
+/** Your latest notifications (Supabase `notifications`, written by database triggers) with live updates. Runs once, inside <NotificationsProvider>. */
+function useNotificationsState() {
   const { me } = useMe();
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [unread, setUnread] = useState(0);   // all unread, not just the 8 shown
@@ -1079,6 +1079,22 @@ export function useNotifications() {
   }, [me.id]);
 
   return { notifs, unread, markRead, markAllRead, loaded, error };
+}
+
+type NotificationsValue = ReturnType<typeof useNotificationsState>;
+const NotificationsContext = createContext<NotificationsValue | null>(null);
+
+/** Loads the notifications once for the whole dashboard (one query set, one realtime channel): the header bell and the home card share it. Mounted in dashboard/layout.tsx. */
+export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const value = useNotificationsState();
+  return createElement(NotificationsContext.Provider, { value }, children);
+}
+
+/** The shared notifications state (header bell, home card). Only works under <NotificationsProvider>. */
+export function useNotifications(): NotificationsValue {
+  const ctx = useContext(NotificationsContext);
+  if (!ctx) throw new Error('useNotifications() must be used inside <NotificationsProvider> (app/dashboard/layout.tsx)');
+  return ctx;
 }
 
 /** Role pick-list (Supabase `member_roles`, SQL 032). A role typed on the profile that isn't listed is added by the database. */

@@ -68,7 +68,7 @@ app/
   reset-password/         Reached from the email link with a recovery session; sets the new password, then goes to /dashboard
   auth/callback/          Exchanges ?code= for a session. ?next= is honoured only for /reset-password (no open redirect)
   dashboard/
-    layout.tsx            Portal header (glass pill + logo + wordmark), mobile tab bar, page reveal
+    layout.tsx            Portal header (glass pill + logo + wordmark + notification bell, avatar, log out), mobile tab bar, page reveal. There is no Chats button in the header: chats open from the Quick chat card on the home page (its pill shows the unread count) and from the People "Message" button, ticket chats and notifications.
     page.tsx              Dashboard home
     news/ news/[slug]/ opportunities/ opportunities/[slug]/ people/ calendar/ chats/ get-help/ profile/
 
@@ -89,6 +89,8 @@ components/
   portal/TicketArchive.tsx  Admin-only, collapsed lookup to read a ticket chat read-only (logged)
   portal/VoiceRecorder.tsx  Records a voice message inside the chat message box
   portal/ForwardDialog.tsx  Pick one or more chats to forward a message to
+  portal/NotificationBell.tsx  Header bell: red number = unread notifications; opens a panel with the latest ones (Mark all read). Reads the shared useNotifications().
+  portal/LeaveSiteDialog.tsx  "Leave AU Youth Community?" dialog shown before a link in a chat message opens (new tab, noopener). The chats page owns it (state `link`).
   portal/NotifyMe.tsx     "Notify me" card (date + reminder toggle) on news articles and opportunities
   portal/RegisterBar.tsx  Apply (link) or Register me / Registered on an opportunity
   portal/OpportunityEditor.tsx, OpportunityAdmin.tsx  Admins: write / edit an opportunity; registered list board + CSV
@@ -99,7 +101,8 @@ lib/
   data.ts                 ALL mock data + date helpers + profile model + avatar colour helpers
   hooks.ts                useIso, useToday, useReveal, useListAnimation, copyText
   store.ts                usePersisted (localStorage state shared between components)
-  portal.ts               useEvents, useChats (shared dashboard state; chats load once in <ChatsProvider> in dashboard/layout.tsx)
+  portal.ts               useNotifications reads the one copy kept by <NotificationsProvider> in dashboard/layout.tsx (header bell and home card; do not subscribe to `notifications` anywhere else).
+                          useEvents, useChats (shared dashboard state; chats load once in <ChatsProvider> in dashboard/layout.tsx)
                           Chats load only the newest 30 messages each (CHAT_PAGE); `loadOlder(id)` adds earlier pages; unread counts come from
                           the SQL function `chat_unread_counts` (docs/sql/034). A live message is added by hand (never reload the whole list per
                           message); do NOT listen to `conversation_members` UPDATE (it fires on every read and send).
@@ -109,6 +112,7 @@ lib/
                           The quote above a reply is NOT embedded in the message select (PostgREST cannot resolve `messages` -> `messages`: "Could not find a relationship between 'messages' and 'messages'"); `attachReplies()` fetches the quoted messages in one extra query.
   chatEmail.ts            emailChatRecipients(messageId): "new message" email for 1:1 and ticket chats, plain fetch to Brevo (no package). The database
                           function claim_chat_emails (docs/sql/040) picks the recipients: one email per chat until it is opened (or 30 min), group chats excluded.
+  chatLinks.ts            splitLinks(text): finds http(s) / www. links in a chat message (ChatMessage shows them as links; a click asks first). Other schemes (javascript:, ftp:) stay plain text.
   chatFiles.ts            Chat attachment limits, allowed file types and helpers (also used by app/api/chat/send)
   fileSniff.ts            Checks a chat file's first bytes against its claimed type; app/api/chat/send rejects a mislabelled file (a photo must be sent as kind `image`, the only kind the AI screens)
 
@@ -269,7 +273,7 @@ Dashboard rules:
    - **Left:** compact profile-completion row → mini calendar card
    - **Centre:** latest announcement (photo `baskets.webp` + dark scrim) → text-only greeting →
      post composer → feed
-   - **Right:** **Quick chat first** → Notifications → Coming up
+   - **Right:** **Quick chat first** (its top-right pill links to /dashboard/chats and carries the red unread number) → Notifications → Coming up
    - On mobile the centre column comes first and a bottom tab bar replaces the header nav.
 5. Buttons: `.btnDark` (primary), `.btnLine` (secondary), `.btn` (soft bronze), `.btnGhost` (on
    dark), plus `.btnSm`. Cards: `.card`. Do not invent new button styles.

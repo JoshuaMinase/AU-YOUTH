@@ -21,7 +21,7 @@
 /* ── Header (glass pill, like the landing nav) ────────────────────── */
 .header { position: sticky; top: 12px; z-index: 50; padding: 0 12px; }
 .headerInner {
-  max-width: 1312px; height: 64px; margin: 12px auto 0; padding: 0 12px 0 16px;
+  position: relative; max-width: 1312px; height: 64px; margin: 12px auto 0; padding: 0 12px 0 16px;
   display: flex; align-items: center; gap: 16px;
   background: rgba(236,236,236,0.86); -webkit-backdrop-filter: blur(16px) saturate(180%); backdrop-filter: blur(16px) saturate(180%);
   border: 1px solid rgba(255,255,255,.6); border-radius: 16px; box-shadow: 0 10px 30px rgba(3,34,16,.10);
@@ -40,7 +40,28 @@
 .chatsBtn:hover { border-color: var(--p-ink); transform: translateY(-1px); }
 .chatsBtn[aria-current="page"] { background: var(--p-ink); color: #fff; border-color: var(--p-ink); }
 .chatsBtn svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.badge { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--p-accent); color: #fff; font-size: 11px; font-weight: 700; }
+/* red number bubble: unread notifications (bell) and unread chats (Quick chat) */
+.redBubble { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #D23B3B; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; box-shadow: 0 0 0 2px #fff; }
+/* notification bell + panel */
+.bellBtn { position: relative; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 10px; background: #fff; color: var(--p-ink); border: 1px solid var(--line); cursor: pointer; transition: background .2s, border-color .2s, transform .15s; }
+.bellBtn:hover, .bellBtn[aria-expanded="true"] { border-color: var(--p-ink); transform: translateY(-1px); }
+.bellBtn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.bellBtn .redBubble { position: absolute; top: -7px; right: -7px; }
+.bellPanel { position: absolute; z-index: 70; top: calc(100% + 10px); right: 0; width: min(380px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 120px)); display: flex; flex-direction: column; border-radius: 22px; background: #fff; border: 1px solid var(--line); box-shadow: 0 24px 60px rgba(3,34,16,.18); animation: pop .25s var(--ease); overflow: hidden; }
+.bellHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 12px; }
+.bellTitle { margin: 0; font-size: 18px; font-weight: 700; color: var(--p-ink); }
+.bellList { overflow-y: auto; overscroll-behavior: contain; padding: 0 10px 12px; }
+.bellItem { display: flex; gap: 12px; padding: 12px; border-radius: 14px; text-decoration: none; color: inherit; transition: background .2s; }
+.bellItem:hover { background: #f7f6f2; }
+.chatsPill { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 999px; background: var(--p-soft); color: var(--p-ink); font-size: 12px; font-weight: 700; text-decoration: none; transition: background .2s, transform .15s; }
+.chatsPill:hover { background: #e2e2dd; transform: translateY(-1px); }
+.chatsPill .redBubble { margin-right: -6px; box-shadow: none; }
+/* a link inside a chat bubble, and the address shown before it opens */
+.msgLink { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }
+.msgMe .msgLink { color: var(--p-accent-lt); }
+.leaveUrl { display: flex; flex-direction: column; gap: 4px; margin-bottom: 20px; padding: 12px 14px; border-radius: 14px; background: var(--p-soft); min-width: 0; }
+.leaveUrl b { font-size: 15px; color: var(--p-ink); overflow-wrap: anywhere; }
+.leaveUrl span { font-size: 12px; line-height: 1.45; color: var(--p-ink-2); overflow-wrap: anywhere; word-break: break-all; }
 .avatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--p-ink); color: var(--p-accent-lt); font-weight: 700; font-size: 14px; text-decoration: none; border: 2px solid #fff; box-shadow: 0 0 0 1.5px rgba(3,34,16,.2); transition: transform .2s; }
 .avatar:hover { transform: scale(1.06); }
 .avatar[aria-current="page"] { box-shadow: 0 0 0 2px var(--p-accent); }
@@ -291,7 +312,6 @@
 .qcSend { display: grid; place-items: center; flex: none; width: 36px; height: 36px; border: 0; border-radius: 10px; background: var(--p-ink); color: #fff; cursor: pointer; transition: opacity .2s; }
 .qcSend:disabled { opacity: .35; cursor: default; }
 .qcFoot { display: flex; justify-content: center; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
-.unreadPill { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: var(--p-soft); color: var(--p-ink); font-size: 12px; font-weight: 700; }
 
 /* ── News ─────────────────────────────────────────────────────────── */
 .featured { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); overflow: hidden; border-radius: 24px; background: #fff; border: 1px solid var(--line); margin-bottom: 20px; text-decoration: none; color: inherit; transition: box-shadow .4s var(--ease), transform .4s var(--ease); }
@@ -585,7 +605,7 @@
   .headerInner { gap: 8px; }
   .brandLogo { height: 38px; }
   .brandWm { width: 72px; }
-  .chatsBtn span:not(.badge) { display: none; }
+  .bellPanel { left: 0; width: auto; }
   .newsGrid, .helpGrid, .peopleGrid, .infoGrid, .formRow { grid-template-columns: 1fr; }
   .toolbar { flex-direction: column; align-items: stretch; }
   .search { min-width: 0; }

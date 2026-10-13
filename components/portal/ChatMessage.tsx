@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { I } from './ui';
 import { fmtDuration, fmtSize } from '@/lib/chatFiles';
 import type { Msg, TicketInfo } from '@/lib/data';
+import { splitLinks } from '@/lib/chatLinks';
 import { forgetChatFileUrl, getChatFileUrl, peekChatFileUrl } from '@/lib/portal';
 import s from '@/styles/Portal.module.css';
 
@@ -167,9 +168,23 @@ function TicketCard({ t, time, onTake }: { t: TicketInfo; time: string; onTake?:
   );
 }
 
+/** message text where web links are clickable; a click does not open the link but asks first (the chats page shows the dialog) */
+function LinkedText({ text, onOpenLink }: { text: string; onOpenLink: (url: string) => void }) {
+  return (
+    <>
+      {splitLinks(text).map((p, i) => typeof p === 'string' ? p : (
+        <a key={i} href={p.href} className={s.msgLink} target="_blank" rel="noopener noreferrer"
+          onClick={(e) => { e.preventDefault(); onOpenLink(p.href); }}
+          onAuxClick={(e) => e.preventDefault()}>{p.text}</a>
+      ))}
+    </>
+  );
+}
+
 /** one chat bubble: text, photo, file or voice message, with Reply, Forward and (my own messages) Delete buttons (a ticket card is a card instead) */
-export default function ChatMessage({ m, onReply, onForward, onDelete, onOpenImage, onTakeTicket }: {
+export default function ChatMessage({ m, onReply, onForward, onDelete, onOpenImage, onOpenLink, onTakeTicket }: {
   m: Msg; onReply: (m: Msg) => void; onForward: (m: Msg) => void; onDelete: (m: Msg) => void; onOpenImage: (url: string, alt: string) => void;
+  onOpenLink: (url: string) => void;
   onTakeTicket?: (ticketId: string) => Promise<string | null>;
 }) {
   const mine = m.from === 'me';
@@ -190,7 +205,7 @@ export default function ChatMessage({ m, onReply, onForward, onDelete, onOpenIma
         {!m.pending && m.file && m.kind === 'image' && <ChatImage path={m.file.path} alt={m.text ? `Photo: ${m.text}` : 'Photo sent in the chat'} onOpen={onOpenImage} />}
         {!m.pending && m.file && m.kind === 'file' && <ChatFileCard path={m.file.path} name={m.file.name} size={m.file.size} />}
         {!m.pending && m.file && m.kind === 'voice' && <VoicePlayer path={m.file.path} seconds={m.file.seconds ?? 0} />}
-        {m.text && <span className={s.msgText}>{m.text}</span>}
+        {m.text && <span className={s.msgText}><LinkedText text={m.text} onOpenLink={onOpenLink} /></span>}
         {m.pending
           ? <small className={s.msgWait}><span className={s.spin} aria-hidden="true" /> Sending…</small>
           : <small>{m.time}</small>}

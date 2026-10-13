@@ -5,10 +5,11 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { I } from '@/components/portal/ui';
+import NotificationBell from '@/components/portal/NotificationBell';
 import { MeProvider, useMe } from '@/lib/me';
 import { deptTone } from '@/lib/data';
 import { useReveal, useSwipeTabs } from '@/lib/hooks';
-import { ChatsProvider, useChats } from '@/lib/portal';
+import { ChatsProvider, NotificationsProvider } from '@/lib/portal';
 import { LEGAL_LINKS } from '@/lib/legal';
 import CookieSettingsButton from '@/components/CookieSettingsButton';
 import s from '@/styles/Portal.module.css';
@@ -29,7 +30,6 @@ function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const main = useRef<HTMLElement>(null);
-  const { unread } = useChats();
   /* admins and the super admin get an extra Admin tab */
   /* each department gets a slightly different calm tone (lib/data.ts deptTone) */
   const tone = useMemo(() => deptTone(me.dept), [me.dept]);
@@ -69,11 +69,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className={s.hdrRight}>
-            <Link href="/dashboard/chats" className={s.chatsBtn} aria-label={`Chats${unread ? `, ${unread} unread` : ''}`}
-              aria-current={active('/dashboard/chats') ? 'page' : undefined}>
-              {I.chat}<span>Chats</span>
-              {unread > 0 && <span className={s.badge}>{unread}</span>}
-            </Link>
+            <NotificationBell />
             <Link href="/dashboard/profile" className={s.avatar} aria-label="Your profile"
               aria-current={active('/dashboard/profile') ? 'page' : undefined}>
               {me.initials}
@@ -121,7 +117,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <MeProvider>
       <ChatsProvider>
-        <Shell>{children}</Shell>
+        <NotificationsProvider>
+          <Shell>{children}</Shell>
+        </NotificationsProvider>
       </ChatsProvider>
     </MeProvider>
   );
