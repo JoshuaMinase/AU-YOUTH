@@ -351,10 +351,13 @@
 .person { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 18px 20px; border-radius: 22px; background: #fff; border: 1px solid var(--line); text-align: center; transition: box-shadow .4s var(--ease), transform .4s var(--ease); }
 .person:hover { box-shadow: 0 18px 40px rgba(3,34,16,.1); transform: translateY(-4px); }
 .personAv { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; font-size: 22px; font-weight: 700; margin-bottom: 4px; box-shadow: 0 0 0 4px #fff, 0 0 0 5.5px var(--line); }
-.personName { font-size: 16px; font-weight: 700; color: var(--p-ink); }
-.personDept { font-size: 13px; color: var(--ink-2); }
-.personCountry { font-size: 13px; color: var(--ink-3); }
-.personActions { display: flex; gap: 8px; margin-top: 6px; width: 100%; }
+.personName { font-size: 16px; font-weight: 700; color: var(--p-ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personTags { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; min-height: 24px; }
+.personDept { font-size: 13px; line-height: 18px; min-height: 18px; color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personCountry { font-size: 13px; line-height: 18px; min-height: 18px; color: var(--ink-3); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.personEmpty { color: var(--ink-3); opacity: .6; font-style: italic; }
+.personFoot { display: flex; align-items: center; justify-content: center; min-height: 28px; margin-top: 4px; }
+.personActions { display: flex; gap: 8px; margin-top: auto; padding-top: 6px; width: 100%; }
 .personActions > * { flex: 1; }
 .connected { background: #e6f3e2 !important; color: #117302 !important; border-color: #e6f3e2 !important; }
 

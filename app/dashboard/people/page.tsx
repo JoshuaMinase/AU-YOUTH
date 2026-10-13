@@ -111,11 +111,14 @@ export default function PeoplePage() {
           return (
             <article key={p.id} className={s.person}>
               <span className={s.personAv} style={softAvatar(p.color)}>{p.initials}</span>
-              <h2 className={s.personName}>{p.name}</h2>
-              {p.role && <span className={`${s.tag} ${ROLE_TAG[p.role] ?? s.tBlue}`}>{p.role}</span>}
-              {p.access !== 'user' && <span className={`${s.tag} ${s.tMuted}`}>{p.access === 'super_admin' ? 'Super admin' : 'Admin'}</span>}
-              <p className={s.personDept}>{p.dept || '—'}</p>
-              <p className={s.personCountry}>{p.place || ' '}</p>
+              <h2 className={s.personName} title={p.name}>{p.name}</h2>
+              {/* fixed slot: cards with and without a role / admin tag keep the same height */}
+              <div className={s.personTags}>
+                {p.role && <span className={`${s.tag} ${ROLE_TAG[p.role] ?? s.tBlue}`}>{p.role}</span>}
+                {p.access !== 'user' && <span className={`${s.tag} ${s.tMuted}`}>{p.access === 'super_admin' ? 'Super admin' : 'Admin'}</span>}
+              </div>
+              <p className={`${s.personDept} ${p.dept ? '' : s.personEmpty}`}>{p.dept || 'Department not set'}</p>
+              <p className={`${s.personCountry} ${p.place ? '' : s.personEmpty}`}>{p.place || 'Location not set'}</p>
               <div className={s.personActions}>
                 {rel === 'none' && (
                   <button type="button" className={`${s.btnLine} ${s.btnSm}`} disabled={busy === p.id}
@@ -135,17 +138,21 @@ export default function PeoplePage() {
                 <button type="button" className={`${s.btnDark} ${s.btnSm}`} aria-label={`Message ${p.name}`} disabled={busy === p.id}
                   onClick={() => openChat(p.id, p.name)}>{I.chat}</button>
               </div>
-              {me.access === 'super_admin' && p.access !== 'super_admin' && (
-                <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer', marginTop: 8 }} disabled={busy === p.id}
-                  onClick={() => act(p.id, () => setAdmin(p.id, p.access !== 'admin'), p.access === 'admin' ? `${p.name} is no longer an admin` : `${p.name} is now an admin`)}>
-                  {p.access === 'admin' ? 'Remove admin' : 'Make admin'}
-                </button>
+              {me.access === 'super_admin' && (
+                <div className={s.personFoot}>
+                  {p.access !== 'super_admin' && (
+                    <button type="button" className={s.cardLink} style={{ border: 0, background: 'none', cursor: 'pointer' }} disabled={busy === p.id}
+                      onClick={() => act(p.id, () => setAdmin(p.id, p.access !== 'admin'), p.access === 'admin' ? `${p.name} is no longer an admin` : `${p.name} is now an admin`)}>
+                      {p.access === 'admin' ? 'Remove admin' : 'Make admin'}
+                    </button>
+                  )}
+                </div>
               )}
             </article>
           );
         })}
         {loaded && !members.length && !error && (
-          <p className={s.empty}>You are the first member here. People appear as soon as they sign up and confirm their email.</p>
+          <p className={s.empty}>You are the first member here. People appear once they have confirmed their email.</p>
         )}
         {loaded && members.length > 0 && !list.length && (
           <p className={s.empty}>
