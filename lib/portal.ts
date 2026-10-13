@@ -103,11 +103,14 @@ async function postMessage(body: Record<string, unknown>): Promise<string | null
   try {
     const res = await fetch('/api/chat/send', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      signal: AbortSignal.timeout(60_000),   // never leave a message on "Sending…" for ever
     });
     if (res.ok) return null;
     const data = await res.json().catch(() => null);
     return data?.error ?? 'Could not send. Try again.';
-  } catch { return 'Could not reach the server. Check your connection.'; }
+  } catch (e) {
+    return e instanceof DOMException && e.name === 'TimeoutError' ? 'The server took too long to answer. Try again.' : 'Could not reach the server. Check your connection.';
+  }
 }
 
 /** the ticket columns every ticket query asks for (docs/sql/029_ticket_workflow.sql) */
@@ -471,19 +474,24 @@ function useChatsState() {
 
     let done = 0;
     let error: string | null = null;
-    for (const it of items) {
-      const up = await uploadChatFile(id, it.file, it.voiceSeconds ? { voiceSeconds: it.voiceSeconds } : {});
-      let msg: string | null = null;
-      if (!up.file || !up.kind) msg = up.error ?? 'Could not upload the file.';
-      else {
-        if (up.kind === 'image') void getChatFileUrl(up.file.path); // warm the link so the sent photo shows without a flash
-        msg = await postMessage({ conversationId: id, text: (it.caption ?? '').trim(), kind: up.kind, attachment: up.file, replyTo: it.reply?.id });
-        if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
+    try {
+      for (const it of items) {
+        const up = await uploadChatFile(id, it.file, it.voiceSeconds ? { voiceSeconds: it.voiceSeconds } : {});
+        let msg: string | null = null;
+        if (!up.file || !up.kind) msg = up.error ?? 'Could not upload the file.';
+        else {
+          if (up.kind === 'image') void getChatFileUrl(up.file.path); // warm the link so the sent photo shows without a flash
+          msg = await postMessage({ conversationId: id, text: (it.caption ?? '').trim(), kind: up.kind, attachment: up.file, replyTo: it.reply?.id });
+          if (msg) await createClient().storage.from(CHAT_BUCKET).remove([up.file.path]); // nothing was sent, so do not leave the file behind
+        }
+        if (msg) { error = msg; break; }
+        await loadOne(id).catch(() => {});   // the message is sent; a failed refresh must not turn it into an error
+        finish([queued[done]]);
+        done++;
       }
-      if (msg) { error = msg; break; }
-      await loadOne(id);
-      finish([queued[done]]);
-      done++;
+    } catch {
+      /* anything unexpected (a dropped connection while uploading, say) must end the spinner and say so */
+      error = 'Could not send. Check your connection and try again.';
     }
     if (error) finish(queued.slice(done));
     return { error, done };
@@ -715,9 +723,20 @@ export async function uploadChatFile(conv: string, file: File | Blob, o: { voice
     } else kind = 'file';
   }
   const path = `${conv}/${crypto.randomUUID()}.${ext}`;
-  const { error } = await createClient().storage.from(CHAT_BUCKET).upload(path, blob, { contentType: type, cacheControl: '3600' });
-  if (error) return { error: error.message };
-  return { kind, file: { path, name, type, size: blob.size, seconds: o.voiceSeconds } };
+  /* The storage client sends a Blob with the Blob's OWN type and ignores `contentType`. A recording is typed "audio/webm;codecs=opus"
+     (and a picked file can have an empty type), which the bucket refuses, so the file is re-wrapped with the plain type the bucket lists. */
+  const body = new Blob([blob], { type });
+  try {
+    const up = createClient().storage.from(CHAT_BUCKET).upload(path, body, { contentType: type, cacheControl: '3600' });
+    const { error } = await Promise.race([
+      up,
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 120_000)),
+    ]);
+    if (error) return { error: error.message };
+  } catch (e) {
+    return { error: e instanceof Error && e.message === 'timeout' ? 'The upload took too long. Check your connection and try again.' : 'Could not upload the file. Check your connection and try again.' };
+  }
+  return { kind, file: { path, name, type, size: body.size, seconds: o.voiceSeconds } };
 }
 
 const chatUrls = new Map<string, { url: string; at: number }>();

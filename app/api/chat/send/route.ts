@@ -97,7 +97,7 @@ async function readHead(supabase: ReturnType<typeof createClient>, path: string)
   try {
     const { data, error } = await supabase.storage.from(CHAT_BUCKET).createSignedUrl(path, 60);
     if (error || !data) return null;
-    const res = await fetch(data.signedUrl, { headers: { Range: 'bytes=0-1023' }, cache: 'no-store' });
+    const res = await fetch(data.signedUrl, { headers: { Range: 'bytes=0-1023' }, cache: 'no-store', signal: AbortSignal.timeout(15_000) });
     if (!res.ok || !res.body) return null;
     const range = /\/(\d+)$/.exec(res.headers.get('content-range') ?? '');
     const length = Number(res.headers.get('content-length'));
