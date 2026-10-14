@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Hero, I } from '@/components/portal/ui';
+import NewsTabs from '@/components/portal/NewsTabs';
 import { OpportunityEditor } from '@/components/portal/OpportunityEditor';
 import { TAG_CLASS } from '@/components/portal/tags';
 import { useListAnimation } from '@/lib/hooks';
@@ -32,6 +33,7 @@ export default function OpportunitiesPage() {
 
   return (
     <>
+      <NewsTabs />
       <Hero plain eyebrow="AU Youth Network" title="Open *Opportunities*" desc="Internships, fellowships, volunteering and events. Apply, register or ask to be reminded.">
         {me.access !== 'user' && <button type="button" className={s.btnDark} onClick={() => setWriting(true)}>{I.plus} New opportunity</button>}
       </Hero>

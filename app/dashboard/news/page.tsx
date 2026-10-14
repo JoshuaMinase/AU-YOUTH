@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Hero, I } from '@/components/portal/ui';
+import NewsTabs from '@/components/portal/NewsTabs';
 import { NewsEditor } from '@/components/portal/NewsEditor';
 import { TAG_CLASS } from '@/components/portal/tags';
 import { NEWS_CATS, type NewsItem } from '@/lib/data';
@@ -37,6 +38,7 @@ export default function NewsPage() {
 
   return (
     <>
+      <NewsTabs />
       <Hero plain eyebrow="AU Youth Network" title="News & *Updates*" desc="Official initiatives, opportunities and developments from across the Union.">
         {me.access !== 'user' && <button type="button" className={s.btnDark} onClick={() => setWriting(true)}>{I.plus} New article</button>}
       </Hero>
